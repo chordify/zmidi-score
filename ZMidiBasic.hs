@@ -26,7 +26,8 @@ readMidiFile :: FilePath -> IO ()
 readMidiFile f = do mf <- readMidi f
                     case mf of
                       Left  err -> print err
-                      Right mid -> printMidi mid
+                      Right mid -> print . midiTrackToVoice .  last  . mf_tracks $ mid 
+                                   -- printMidi mid
                                    -- putStr . concat . intersperse "\n" 
                                    -- $ evalState (mapM showTrack (mf_tracks mid)) 1
                                    
@@ -102,11 +103,11 @@ toNoteEvent mm@(dt, me) = do modify (stateTimeWith (+ (fromIntegral dt)))
                             
 
 voiceEvent :: MidiMessage -> State MidiState (Maybe NoteEvent)
-voiceEvent    (_t, (VoiceEvent (NoteOff chn  ptch _vel))) = 
+voiceEvent    (off, (VoiceEvent (NoteOff chn  ptch _vel))) = 
   do ms <- gets snd
      let (x, noteOn : y) = span (not . isNoteOnMatch chn ptch) ms
      modify (setMessages (x ++ y))
-     gets fst >>= return . Just . toMidiNote noteOn
+     fmap Just $ toMidiNote noteOn (fromIntegral off)
 voiceEvent on@(_t, (VoiceEvent (NoteOn _chn _ptch _vel))) = 
   do modify (addMessage on)
      return Nothing
@@ -119,9 +120,10 @@ isNoteOnMatch offc offp (_t, (VoiceEvent (NoteOn onc onp _onv))) =
    onc == offc && onp == offp
 isNoteOnMatch _    _    _                                        = False 
 
-toMidiNote :: MidiMessage -> Time -> NoteEvent
+toMidiNote :: MidiMessage -> Time -> State MidiState NoteEvent
 toMidiNote (on,(VoiceEvent (NoteOn c p v))) off = 
-  let on' = fromIntegral on in  NoteEvent c p v (off - on') on'
+  do t <- gets fst
+     return $ NoteEvent c p v (off - fromIntegral on) t
 toMidiNote _  _ = error "toMidiNote: not a noteOn" -- impossible
 
 -- -- findAndRemove :: [MidiVoiceEvent] -> MidiVoiceEvent -> (Midi
