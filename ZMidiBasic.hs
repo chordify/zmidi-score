@@ -8,9 +8,10 @@ import ZMidi.Core ( readMidi, MidiFile (..), MidiEvent (..), printMidi
                   , MidiMessage, MidiTrack (..)
                   , MidiScaleType)
 
-import Control.Monad.State (State, modify, get, gets, evalState)
+import Control.Monad.State (State, modify, gets, evalState)
 import Control.Arrow (first, second)
 import Data.Word (Word8)
+import Data.Maybe (catMaybes)
 -- import Data.List (intersperse)
 import System.Environment (getArgs)
 
@@ -51,6 +52,7 @@ type Pitch      = Word8
 type Velocity   = Word8
 type Time       = Int
 
+-- Perhaps rename to ScoreEvent??
 data NoteEvent  = NoteEvent     { channel     :: Channel
                                 , pitch       :: Pitch
                                 , velocity    :: Velocity
@@ -75,46 +77,52 @@ data NoteEvent  = NoteEvent     { channel     :: Channel
 
 type MidiState = (Time, [MidiMessage])
 
--- stateTime :: MidiState -> Time
--- stateTime = fst . midiState 
-
--- stateMessages :: MidiState -> [MidiMessage]
--- stateMessages = snd . midiState
-
 setMessages :: [MidiMessage] -> MidiState -> MidiState
 setMessages ms = second (const ms)
+
+addMessage :: MidiMessage -> MidiState -> MidiState
+addMessage m = second (m :)
 
 stateTimeWith :: (Time -> Time) -> MidiState -> MidiState
 stateTimeWith f = first f 
 
-midiTrackToVoice :: MidiTrack -> Voice
-midiTrackToVoice m = evalState (mapM toNoteEvent . getTrackMessages $ m) (0, [])
-  
-toNoteEvent :: MidiMessage -> State MidiState NoteEvent
-toNoteEvent (dt, me) = do modify (stateTimeWith (+ (fromIntegral dt)))
-                          t <- get
-                          return undefined
-                            
-midiEvent :: MidiEvent -> State MidiState (Maybe NoteEvent)
-midiEvent (VoiceEvent e) = fmap Just (voiceEvent e)
--- midiEvent (MetaEvent e)  = fmap Just (metaEvent e)
-midiEvent _              = return Nothing
+-- getTime :: MidiState -> Time
+-- getTime = fst
 
-voiceEvent :: MidiVoiceEvent -> State MidiState NoteEvent
-voiceEvent (NoteOff chn ptch _vel) = 
+midiTrackToVoice :: MidiTrack -> Voice
+midiTrackToVoice m = 
+  catMaybes $ evalState (mapM toNoteEvent . getTrackMessages $ m) (0, [])
+  
+toNoteEvent :: MidiMessage -> State MidiState (Maybe NoteEvent)
+toNoteEvent mm@(dt, me) = do modify (stateTimeWith (+ (fromIntegral dt)))
+                             case me of
+                               (VoiceEvent _) -> voiceEvent mm
+                               -- (MetaEvent e)  -> fmap Just (metaEvent e)
+                               _              -> return Nothing
+                            
+
+voiceEvent :: MidiMessage -> State MidiState (Maybe NoteEvent)
+voiceEvent    (_t, (VoiceEvent (NoteOff chn  ptch _vel))) = 
   do ms <- gets snd
      let (x, noteOn : y) = span (not . isNoteOnMatch chn ptch) ms
      modify (setMessages (x ++ y))
-     return undefined
--- voiceEvent _                       = 
-                     
-                     
-                     
+     gets fst >>= return . Just . toMidiNote noteOn
+voiceEvent on@(_t, (VoiceEvent (NoteOn _chn _ptch _vel))) = 
+  do modify (addMessage on)
+     return Nothing
+voiceEvent _ = return Nothing -- ignore NoteAftertouch, Controller,
+                              -- ProgramChange, ChanAftertouch, PitchBend
+     
 
 isNoteOnMatch :: Channel -> Pitch -> MidiMessage -> Bool
 isNoteOnMatch offc offp (_t, (VoiceEvent (NoteOn onc onp _onv))) = 
    onc == offc && onp == offp
 isNoteOnMatch _    _    _                                        = False 
+
+toMidiNote :: MidiMessage -> Time -> NoteEvent
+toMidiNote (on,(VoiceEvent (NoteOn c p v))) off = 
+  let on' = fromIntegral on in  NoteEvent c p v (off - on') on'
+toMidiNote _  _ = error "toMidiNote: not a noteOn" -- impossible
 
 -- -- findAndRemove :: [MidiVoiceEvent] -> MidiVoiceEvent -> (Midi
 -- matchAndUpdateNoteOns :: MidiVoiceEvent -> State 
