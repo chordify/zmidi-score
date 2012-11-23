@@ -66,15 +66,7 @@ data NoteEvent  = NoteEvent     { channel     :: Channel
                 | TimeSigChange { tsChange    :: TimeSig
                                 , tsTime      :: Time
                                 } deriving (Eq, Ord, Show)
-                           
--- type Time = Int
--- showMess :: MidiMessage -> State Time String
--- showMess (dt, me) = do modify (+ (fromIntegral dt))
-                       -- t <- get
-                       -- return . concat $ intersperse ", " (show t : ppEvent me)
-                           
--- toMidiScore :: MidiFile -> MidiScore
--- toMidiScore mf = evalState ()
+
 
 type MidiState = (Time, [MidiMessage])
 
@@ -103,28 +95,33 @@ toNoteEvent mm@(dt, me) = do modify (stateTimeWith (+ (fromIntegral dt)))
                             
 
 voiceEvent :: MidiMessage -> State MidiState (Maybe NoteEvent)
-voiceEvent    (off, (VoiceEvent (NoteOff chn  ptch _vel))) = 
-  do ms <- gets snd
-     let (x, noteOn : y) = span (not . isNoteOnMatch chn ptch) ms
-     modify (setMessages (x ++ y))
-     fmap Just $ toMidiNote noteOn (fromIntegral off)
-voiceEvent on@(_t, (VoiceEvent (NoteOn _chn _ptch _vel))) = 
-  do modify (addMessage on)
-     return Nothing
-voiceEvent _ = return Nothing -- ignore NoteAftertouch, Controller,
+voiceEvent mm = case getVoiceEvent mm of
+  Just (NoteOff chn  ptch _vel) 
+     -> do ms <- gets snd
+           let (x, noteOn : y) = span (not . isNoteOnMatch chn ptch) ms
+           modify (setMessages (x ++ y))
+           fmap Just $ toMidiNote noteOn (fromIntegral . fst $ mm) -- offset
+  Just (NoteOn _chn _ptch _vel)
+     -> do  modify (addMessage mm)
+            return Nothing
+  _  ->     return Nothing    -- ignore NoteAftertouch, Controller,
                               -- ProgramChange, ChanAftertouch, PitchBend
      
-
 isNoteOnMatch :: Channel -> Pitch -> MidiMessage -> Bool
-isNoteOnMatch offc offp (_t, (VoiceEvent (NoteOn onc onp _onv))) = 
-   onc == offc && onp == offp
-isNoteOnMatch _    _    _                                        = False 
+isNoteOnMatch offc offp mm = case getVoiceEvent mm of
+  Just (NoteOn onc onp _onv) -> onc == offc && onp == offp
+  _                          -> False
+
 
 toMidiNote :: MidiMessage -> Time -> State MidiState NoteEvent
 toMidiNote (on,(VoiceEvent (NoteOn c p v))) off = 
   do t <- gets fst
      return $ NoteEvent c p v (off - fromIntegral on) t
 toMidiNote _  _ = error "toMidiNote: not a noteOn" -- impossible
+
+getVoiceEvent :: MidiMessage -> Maybe MidiVoiceEvent
+getVoiceEvent (_t, (VoiceEvent e)) = Just e
+getVoiceEvent _                    = Nothing
 
 -- -- findAndRemove :: [MidiVoiceEvent] -> MidiVoiceEvent -> (Midi
 -- matchAndUpdateNoteOns :: MidiVoiceEvent -> State 
