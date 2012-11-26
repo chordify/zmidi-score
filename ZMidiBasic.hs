@@ -98,11 +98,26 @@ type ShowSt = (Time, [Maybe (Timed ScoreEvent)])
 increaseTime :: ShowSt -> ShowSt
 increaseTime = first (+ 128)
 
-addNewOnsets :: [Timed ScoreEvent] -> ShowSt -> ShowSt
-addNewOnsets ts = undefined
-
 showVcs :: [Voice] -> State ShowSt String
-showVcs = undefined
+showVcs vs = do mapM getActive vs >>= modify . addNewOnsets 
+                return ""
+                
+removeEndedNotes :: ShowSt -> ShowSt
+removeEndedNotes (t, nts) = (t, map nothingIfFinal nts) where
+  
+  nothingIfFinal :: Maybe (Timed ScoreEvent) -> Maybe (Timed ScoreEvent)
+  nothingIfFinal Nothing = Nothing
+  nothingIfFinal je@(Just (Timed t' e))
+    | (t' + duration e) <  t = je
+    | otherwise              = Nothing
+
+addNewOnsets :: [Maybe (Timed ScoreEvent)] -> ShowSt -> ShowSt
+addNewOnsets ts = second (zipWith merge ts) where
+  
+  merge :: Maybe (Timed ScoreEvent) -> Maybe (Timed ScoreEvent) 
+        -> Maybe (Timed ScoreEvent)
+  merge Nothing mts = mts
+  merge mts     _   = mts
 
 getActive :: Voice -> State ShowSt (Maybe (Timed ScoreEvent))
 getActive []     = return Nothing
