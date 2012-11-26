@@ -3,8 +3,8 @@ module ZMidiBasic where
 
 
 
-import ZMidi.Core ( readMidi, MidiFile (..), MidiEvent (..), printMidi
-                  , MidiVoiceEvent (..), MidiMetaEvent (..) -- , MidiDataEvent (..)
+import ZMidi.Core ( readMidi, MidiFile (..), MidiEvent (..)
+                  , MidiVoiceEvent (..), MidiMetaEvent (..)
                   , MidiMessage, MidiTrack (..)
                   , MidiScaleType)
 
@@ -47,7 +47,7 @@ data Key        = Key           { keyRoot    :: Int8
                
 newtype TimeSig = TimeSig   (Int, Int) deriving (Eq, Ord, Show)
 
-type Voice      = [NoteEvent]
+type Voice      = [ScoreEvent]
 
 type Channel    = Word8
 type Pitch      = Word8
@@ -55,7 +55,7 @@ type Velocity   = Word8
 type Time       = Int
 
 -- Perhaps rename to ScoreEvent??
-data NoteEvent  = NoteEvent     { channel     :: Channel
+data ScoreEvent = ScoreEvent    { channel     :: Channel
                                 , pitch       :: Pitch
                                 , velocity    :: Velocity
                                 , duration    :: Time
@@ -85,17 +85,17 @@ stateTimeWith f = first f
 
 midiTrackToVoice :: MidiTrack -> Voice
 midiTrackToVoice m = 
-  catMaybes $ evalState (mapM toNoteEvent . getTrackMessages $ m) (0, [])
+  catMaybes $ evalState (mapM toScoreEvent . getTrackMessages $ m) (0, [])
   
-toNoteEvent :: MidiMessage -> State MidiState (Maybe NoteEvent)
-toNoteEvent mm@(dt, me) = do modify (stateTimeWith (+ (fromIntegral dt)))
-                             case me of
-                               (VoiceEvent _) -> voiceEvent mm
-                               (MetaEvent  _) -> metaEvent  mm
-                               _              -> return Nothing
+toScoreEvent :: MidiMessage -> State MidiState (Maybe ScoreEvent)
+toScoreEvent mm@(dt, me) = do modify (stateTimeWith (+ (fromIntegral dt)))
+                              case me of
+                                (VoiceEvent _) -> voiceEvent mm
+                                (MetaEvent  _) -> metaEvent  mm
+                                _              -> return Nothing
                             
                             
-voiceEvent :: MidiMessage -> State MidiState (Maybe NoteEvent)
+voiceEvent :: MidiMessage -> State MidiState (Maybe ScoreEvent)
 voiceEvent mm = case getVoiceEvent mm of
   Just (NoteOff chn  ptch _vel) 
      -> do ms <- gets snd
@@ -114,17 +114,17 @@ isNoteOnMatch offc offp mm = case getVoiceEvent mm of
   _                          -> False
 
 
-toMidiNote :: MidiMessage -> Time -> State MidiState NoteEvent
+toMidiNote :: MidiMessage -> Time -> State MidiState ScoreEvent
 toMidiNote (on,(VoiceEvent (NoteOn c p v))) off = 
   do t <- gets fst
-     return $ NoteEvent c p v (off - fromIntegral on) t
+     return $ ScoreEvent c p v (off - fromIntegral on) t
 toMidiNote _  _ = error "toMidiNote: not a noteOn" -- impossible
 
 getVoiceEvent :: MidiMessage -> Maybe MidiVoiceEvent
 getVoiceEvent (_t, (VoiceEvent e)) = Just e
 getVoiceEvent _                    = Nothing
 
-metaEvent :: MidiMessage -> State MidiState (Maybe NoteEvent)
+metaEvent :: MidiMessage -> State MidiState (Maybe ScoreEvent)
 metaEvent mm = 
   do t <- gets fst
      case getMetaEvent mm of
