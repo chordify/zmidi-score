@@ -6,14 +6,15 @@ module ZMidiBasic where
 import ZMidi.Core ( readMidi, MidiFile (..), MidiEvent (..)
                   , MidiVoiceEvent (..), MidiMetaEvent (..)
                   , MidiMessage, MidiTrack (..)
-                  , MidiScaleType)
+                  , MidiScaleType (..))
 
 import Control.Monad.State (State, modify, gets, evalState)
 import Control.Arrow (first, second)
 import Data.Word (Word8)
 import Data.Int  (Int8)
 import Data.Maybe (catMaybes)
--- import Data.List (intersperse)
+import Data.Function (on)
+import Data.List (partition, sortBy)
 import System.Environment (getArgs)
 
 main :: IO ()
@@ -27,7 +28,7 @@ readMidiFile :: FilePath -> IO ()
 readMidiFile f = do mf <- readMidi f
                     case mf of
                       Left  err -> print err
-                      Right mid -> print . concatMap midiTrackToVoice . mf_tracks $ mid 
+                      Right mid -> print . midiFileToMidiScore $ mid 
                                    -- printMidi mid
                                    -- putStr . concat . intersperse "\n" 
                                    -- $ evalState (mapM showTrack (mf_tracks mid)) 1
@@ -55,7 +56,7 @@ type Velocity   = Word8
 type Time       = Int
 
 -- Perhaps rename to ScoreEvent??
-data ScoreEvent = ScoreEvent    { channel     :: Channel
+data ScoreEvent = NoteEvent     { channel     :: Channel
                                 , pitch       :: Pitch
                                 , velocity    :: Velocity
                                 , duration    :: Time
@@ -68,23 +69,50 @@ data ScoreEvent = ScoreEvent    { channel     :: Channel
                                 , tsTime      :: Time
                                 } deriving (Eq, Ord, Show)
 
+noKey :: Key
+noKey = Key 255 MAJOR
 
--- we create a small state datatype for storing some information obtained from
--- the midi file, that is needed again at a later stage, such as note-on events.
-type MidiState = (Time, [MidiMessage])
+noTS :: TimeSig
+noTS = TimeSig (-1,-1)
+--------------------------------------------------------------------------------                                   
+-- Converting a MidiFile
+--------------------------------------------------------------------------------
 
--- We also define some accessor functions for our MidiState. 'setMessages' 
--- replaces the list with 'MidiMessages' with a new one.
-setMessages :: [MidiMessage] -> MidiState -> MidiState
-setMessages ms = second (const ms)
+midiFileToMidiScore :: MidiFile -> MidiScore
+midiFileToMidiScore mf = MidiScore (selectKey meta) 
+                                   (selectTS  meta) 
+                                   (filter (not . null) trks) where
+                         
+  (trks, meta) = second concat . -- merge all meta data into one list
+                 -- separate meta data from note data
+                 unzip . map (partition isNoteEvent . midiTrackToVoice)
+                       . mf_tracks $ mf -- get midi tracks
 
--- adds a 'MidiMessage' to the list of 'MidiMessages'
-addMessage :: MidiMessage -> MidiState -> MidiState
-addMessage m = second (m :)
+  selectKey :: [ScoreEvent] -> Key
+  selectKey ses = case filter isKeyChange ses of 
+    []  -> noKey
+    [k] -> keyChange k
+    ks  -> keyChange . head . sortBy (compare `on` keyTime) $ ks  
+    -- _   -> error "not a key change" -- cannot happen
 
--- applies a function to the 'Time' field in our 'MidiState'
-stateTimeWith :: (Time -> Time) -> MidiState -> MidiState
-stateTimeWith f = first f 
+  selectTS :: [ScoreEvent] ->TimeSig
+  selectTS ses = case filter isTimeSig ses of
+    []  -> noTS
+    [t] -> tsChange t
+    ts  -> tsChange . head. sortBy (compare `on` tsTime) $ ts
+    -- _   -> error "not a time signature change" -- cannot happen
+    
+  isTimeSig :: ScoreEvent -> Bool
+  isTimeSig (TimeSigChange _ _) = True
+  isTimeSig _                   = False
+
+  isKeyChange :: ScoreEvent -> Bool
+  isKeyChange (KeyChange _ _) = True
+  isKeyChange _               = False
+  
+  isNoteEvent :: ScoreEvent -> Bool
+  isNoteEvent (NoteEvent _ _ _ _ _) = True
+  isNoteEvent _                     = False
 
 -- Transforms a 'MidiTrack' into a 'Voice'
 midiTrackToVoice :: MidiTrack -> Voice
@@ -129,9 +157,9 @@ midiTrackToVoice m =
     -- Some utilities
     -- Given a note-on and a note off event, creates a new MidiNote ScoreEvent
     toMidiNote :: MidiMessage -> Time -> State MidiState ScoreEvent
-    toMidiNote (on,(VoiceEvent (NoteOn c p v))) off = 
+    toMidiNote (ons,(VoiceEvent (NoteOn c p v))) off = 
       do t <- gets fst
-         return $ ScoreEvent c p v (off - fromIntegral on) t
+         return $ NoteEvent c p v (off - fromIntegral ons) t
     toMidiNote _  _ = error "toMidiNote: not a noteOn" -- impossible
     
     -- returns True if the NoteOn MidiMessage maches a Channel and Pitch
@@ -152,4 +180,21 @@ midiTrackToVoice m =
     getMetaEvent (_t, (MetaEvent e)) = Just e
     getMetaEvent _                   = Nothing
 
+
+-- we create a small state datatype for storing some information obtained from
+-- the midi file, that is needed again at a later stage, such as note-on events.
+type MidiState = (Time, [MidiMessage])
+
+-- We also define some accessor functions for our MidiState. 'setMessages' 
+-- replaces the list with 'MidiMessages' with a new one.
+setMessages :: [MidiMessage] -> MidiState -> MidiState
+setMessages ms = second (const ms)
+
+-- adds a 'MidiMessage' to the list of 'MidiMessages'
+addMessage :: MidiMessage -> MidiState -> MidiState
+addMessage m = second (m :)
+
+-- applies a function to the 'Time' field in our 'MidiState'
+stateTimeWith :: (Time -> Time) -> MidiState -> MidiState
+stateTimeWith f = first f 
 
