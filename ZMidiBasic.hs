@@ -12,6 +12,7 @@ import ZMidi.Core ( readMidi, MidiFile (..), MidiEvent (..)
 import Control.Monad.State (State, modify, gets, evalState)
 import Control.Arrow (first, second)
 import Data.Word (Word8)
+-- import qualified Data.Vector  as V (Vector (..), update, (//))
 import Data.Int  (Int8)
 import Data.Char (toLower)
 import Data.Maybe (catMaybes)
@@ -52,7 +53,7 @@ newtype TimeSig = TimeSig   (Int, Int) deriving (Eq, Ord, Show)
 
 type Voice      = [Timed ScoreEvent]
 
-type Channel    = Word8
+type Channel    = Int
 type Pitch      = Word8
 type Velocity   = Word8
 type Time       = Int
@@ -92,10 +93,13 @@ showMidiScore ms = undefined
 showVoices :: [Voice] -> String
 showVoices = undefined
 
-type ShowSt = (Time, [ScoreEvent])
+type ShowSt = (Time, [Maybe (Timed ScoreEvent)])
 
 increaseTime :: ShowSt -> ShowSt
 increaseTime = first (+ 128)
+
+addNewOnsets :: [Timed ScoreEvent] -> ShowSt -> ShowSt
+addNewOnsets ts = undefined
 
 showVcs :: [Voice] -> State ShowSt String
 showVcs = undefined
@@ -211,11 +215,11 @@ midiTrackToVoice m =
       do t <- gets fst
          -- N.B. the delta time in the note on has been replace by an absolute
          -- timestamp
-         return $ Timed ons (NoteEvent c p v (t - ons))
+         return $ Timed ons (NoteEvent (fromIntegral c) p v (t - ons))
     toMidiNote _  = error "toMidiNote: not a noteOn" -- impossible
     
     -- returns True if the NoteOn MidiMessage maches a Channel and Pitch
-    isNoteOnMatch :: Channel -> Pitch -> (Time, MidiVoiceEvent) -> Bool
+    isNoteOnMatch :: Word8 -> Pitch -> (Time, MidiVoiceEvent) -> Bool
     isNoteOnMatch offc offp (_t, NoteOn onc onp _v) = onc == offc && onp == offp
     isNoteOnMatch _c   _p    _                      = False
 
