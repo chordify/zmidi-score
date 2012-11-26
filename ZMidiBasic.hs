@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wall                #-}
+{-# LANGUAGE DeriveFunctor           #-}
 module ZMidiBasic where
 
 
@@ -49,25 +50,30 @@ data Key        = Key           { keyRoot    :: Int8
                
 newtype TimeSig = TimeSig   (Int, Int) deriving (Eq, Ord, Show)
 
-type Voice      = [ScoreEvent]
+type Voice      = [Timed ScoreEvent]
 
 type Channel    = Word8
 type Pitch      = Word8
 type Velocity   = Word8
 type Time       = Int
 
--- Perhaps rename to ScoreEvent??
+-- perhaps add duration??
+data Timed a    = Timed         { onset        :: Time 
+                                , getEvent     :: a
+                                } deriving (Functor, Eq, Ord, Show)
+                -- | TimeDur Time Time a
+
 data ScoreEvent = NoteEvent     { channel     :: Channel
                                 , pitch       :: Pitch
                                 , velocity    :: Velocity
                                 , duration    :: Time
-                                , noteTime    :: Time
+                                -- , noteTime    :: Time
                                 } 
                 | KeyChange     { keyChange   :: Key
-                                , keyTime     :: Time
+                                -- , keyTime     :: Time
                                 } 
                 | TimeSigChange { tsChange    :: TimeSig
-                                , tsTime      :: Time
+                                -- , tsTime      :: Time
                                 } deriving (Eq, Ord, Show)
 
 noKey :: Key
@@ -94,19 +100,19 @@ increaseTime = first (+ 128)
 showVcs :: [Voice] -> State ShowSt String
 showVcs = undefined
 
-getActive :: Voice -> State ShowSt (Maybe ScoreEvent)
+getActive :: Voice -> State ShowSt (Maybe (Timed ScoreEvent))
 getActive []     = return Nothing
 getActive (v:_s) = do t <- gets fst
-                      case compare (noteTime v) t of
+                      case compare (onset v) t of
                         LT -> error ("getActive: found a past event " ++ show v)
                         EQ -> return . Just $ v
                         GT -> return . Just $ v
 
 showScoreEvent :: ScoreEvent -> String
-showScoreEvent (NoteEvent _c p _v _d _o) = show p
-showScoreEvent (TimeSigChange (TimeSig (n,d)) _t) =
+showScoreEvent (NoteEvent _c p _v _d) = show p
+showScoreEvent (TimeSigChange (TimeSig (n,d))) =
   "Meter: " ++ show n ++ '/' : show d
-showScoreEvent (KeyChange (Key rt m) _t) = 
+showScoreEvent (KeyChange (Key rt m)) = 
   "Key: " ++ showRoot rt ++ ' ' : (map toLower . show $ m) where
       
     showRoot :: Int8 -> String
@@ -129,39 +135,39 @@ midiFileToMidiScore mf = MidiScore (selectKey meta)
                  unzip . map (partition isNoteEvent . midiTrackToVoice)
                        . mf_tracks $ mf -- get midi tracks
 
-  selectKey :: [ScoreEvent] -> Key
+  selectKey :: [Timed ScoreEvent] -> Key
   selectKey ses = case filter isKeyChange ses of 
     []  -> noKey
-    [k] -> keyChange k
-    ks  -> keyChange . head . sortBy (compare `on` keyTime) $ ks  
+    [k] -> keyChange . getEvent $ k
+    ks  -> keyChange . getEvent . head . sortBy (compare `on` onset) $ ks  
     -- _   -> error "not a key change" -- cannot happen
 
-  selectTS :: [ScoreEvent] ->TimeSig
+  selectTS :: [Timed ScoreEvent] ->TimeSig
   selectTS ses = case filter isTimeSig ses of
     []  -> noTS
-    [t] -> tsChange t
-    ts  -> tsChange . head. sortBy (compare `on` tsTime) $ ts
+    [t] -> tsChange . getEvent $ t
+    ts  -> tsChange . getEvent . head. sortBy (compare `on` onset) $ ts
     -- _   -> error "not a time signature change" -- cannot happen
     
-  isTimeSig :: ScoreEvent -> Bool
-  isTimeSig (TimeSigChange _ _) = True
-  isTimeSig _                   = False
+  isTimeSig :: Timed ScoreEvent -> Bool
+  isTimeSig (Timed _ (TimeSigChange _ )) = True
+  isTimeSig _                            = False
 
-  isKeyChange :: ScoreEvent -> Bool
-  isKeyChange (KeyChange _ _) = True
-  isKeyChange _               = False
+  isKeyChange :: Timed ScoreEvent -> Bool
+  isKeyChange (Timed _ (KeyChange   _ )) = True
+  isKeyChange _                          = False
   
-  isNoteEvent :: ScoreEvent -> Bool
-  isNoteEvent (NoteEvent _ _ _ _ _) = True
-  isNoteEvent _                     = False
-
+  isNoteEvent :: Timed ScoreEvent -> Bool
+  isNoteEvent (Timed _ (NoteEvent _ _ _ _ )) = True
+  isNoteEvent _                              = False
+  
 -- Transforms a 'MidiTrack' into a 'Voice'
 midiTrackToVoice :: MidiTrack -> Voice
 midiTrackToVoice m = 
   catMaybes $ evalState (mapM toScoreEvent . getTrackMessages $ m) (0, []) where
     
     -- Transforms a 'MidiMessage' into a 'ScoreEvent'
-    toScoreEvent :: MidiMessage -> State MidiState (Maybe ScoreEvent)
+    toScoreEvent :: MidiMessage -> State MidiState (Maybe (Timed ScoreEvent))
     toScoreEvent mm@(dt, me) = do modify (stateTimeWith (+ (fromIntegral dt)))
                                   case me of
                                     (VoiceEvent _) -> voiceEvent mm
@@ -169,7 +175,7 @@ midiTrackToVoice m =
                                     _              -> return Nothing
                             
     -- Transforms a 'MidiMessage' containing a 'VoiceEvent' into a 'ScoreEvent'
-    voiceEvent :: MidiMessage -> State MidiState (Maybe ScoreEvent)
+    voiceEvent :: MidiMessage -> State MidiState (Maybe (Timed ScoreEvent))
     voiceEvent mm = case getVoiceEvent mm of
       Just (NoteOff chn  ptch _vel) 
          -> do ms <- gets snd
@@ -186,26 +192,26 @@ midiTrackToVoice m =
                                   -- ProgramChange, ChanAftertouch, PitchBend
 
     -- Transforms a 'MidiMessage' containing a 'MetaEvent' into a 'ScoreEvent'
-    metaEvent :: MidiMessage -> State MidiState (Maybe ScoreEvent)
+    metaEvent :: MidiMessage -> State MidiState (Maybe (Timed ScoreEvent))
     metaEvent mm = 
       do t <- gets fst
          case getMetaEvent mm of
             -- Just (EndOfTrack)
             Just (TimeSignature num den _frac _subfr) 
-              -> return . Just $ TimeSigChange 
-                                (TimeSig (fromIntegral num, fromIntegral den)) t
+              -> return . Just . Timed t $ TimeSigChange 
+                                (TimeSig (fromIntegral num, fromIntegral den))
             Just (KeySignature root scale)
-              -> return . Just $ KeyChange (Key root scale ) t
+              -> return . Just $ Timed t (KeyChange (Key root scale ))
             _ -> return Nothing
     
     -- Some utilities:
     -- Given a note-on and a note off event, creates a new MidiNote ScoreEvent
-    toMidiNote :: (Time, MidiVoiceEvent) -> State MidiState ScoreEvent
+    toMidiNote :: (Time, MidiVoiceEvent) -> State MidiState (Timed ScoreEvent)
     toMidiNote ( ons, NoteOn c p v ) = 
       do t <- gets fst
          -- N.B. the delta time in the note on has been replace by an absolute
          -- timestamp
-         return $ NoteEvent c p v (t - ons) ons
+         return $ Timed ons (NoteEvent c p v (t - ons))
     toMidiNote _  = error "toMidiNote: not a noteOn" -- impossible
     
     -- returns True if the NoteOn MidiMessage maches a Channel and Pitch
