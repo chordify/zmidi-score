@@ -86,7 +86,21 @@ showMidiScore ms = undefined
 showVoices :: [Voice] -> String
 showVoices = undefined
 
--- showVcs 
+type ShowSt = (Time, [ScoreEvent])
+
+increaseTime :: ShowSt -> ShowSt
+increaseTime = first (+ 128)
+
+showVcs :: [Voice] -> State ShowSt String
+showVcs = undefined
+
+getActive :: Voice -> State ShowSt (Maybe ScoreEvent)
+getActive []     = return Nothing
+getActive (v:_s) = do t <- gets fst
+                      case compare (noteTime v) t of
+                        LT -> error ("getActive: found a past event " ++ show v)
+                        EQ -> return . Just $ v
+                        GT -> return . Just $ v
 
 showScoreEvent :: ScoreEvent -> String
 showScoreEvent (NoteEvent _c p _v _d _o) = show p
