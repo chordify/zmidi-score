@@ -74,6 +74,17 @@ noKey = Key 255 MAJOR
 
 noTS :: TimeSig
 noTS = TimeSig (-1,-1)
+
+--------------------------------------------------------------------------------                                   
+-- Printing MidiScores
+--------------------------------------------------------------------------------
+
+showMidiScore :: MidiScore -> String
+showMidiScore ms = undefined
+
+showVoices :: [Voice] -> String
+showVoices = undefined
+
 --------------------------------------------------------------------------------                                   
 -- Converting a MidiFile
 --------------------------------------------------------------------------------
@@ -134,9 +145,12 @@ midiTrackToVoice m =
          -> do ms <- gets snd
                let (x, noteOn : y) = span (not . isNoteOnMatch chn ptch) ms
                modify (setMessages (x ++ y))
-               fmap Just $ toMidiNote noteOn (fromIntegral . fst $ mm) -- offset
-      Just (NoteOn _chn _ptch _vel)
-         -> do  modify (addMessage mm)
+               fmap Just $ toMidiNote noteOn 
+      Just n@(NoteOn _chn _ptch _vel)
+         -> do  t <- gets fst
+                -- replace the deltaTime in the noteOn event by the absolute
+                -- time as stored in the MidiState
+                modify . addMessage $ (t, n)
                 return Nothing
       _  ->     return Nothing    -- ignore NoteAftertouch, Controller,
                                   -- ProgramChange, ChanAftertouch, PitchBend
@@ -154,19 +168,20 @@ midiTrackToVoice m =
               -> return . Just $ KeyChange (Key root scale ) t
             _ -> return Nothing
     
-    -- Some utilities
+    -- Some utilities:
     -- Given a note-on and a note off event, creates a new MidiNote ScoreEvent
-    toMidiNote :: MidiMessage -> Time -> State MidiState ScoreEvent
-    toMidiNote (ons,(VoiceEvent (NoteOn c p v))) off = 
+    toMidiNote :: (Time, MidiVoiceEvent) -> State MidiState ScoreEvent
+    toMidiNote ( ons, NoteOn c p v ) = 
       do t <- gets fst
-         return $ NoteEvent c p v (off - fromIntegral ons) t
-    toMidiNote _  _ = error "toMidiNote: not a noteOn" -- impossible
+         -- N.B. the delta time in the note on has been replace by an absolute
+         -- timestamp
+         return $ NoteEvent c p v (t - ons) ons
+    toMidiNote _  = error "toMidiNote: not a noteOn" -- impossible
     
     -- returns True if the NoteOn MidiMessage maches a Channel and Pitch
-    isNoteOnMatch :: Channel -> Pitch -> MidiMessage -> Bool
-    isNoteOnMatch offc offp mm = case getVoiceEvent mm of
-      Just (NoteOn onc onp _onv) -> onc == offc && onp == offp
-      _                          -> False
+    isNoteOnMatch :: Channel -> Pitch -> (Time, MidiVoiceEvent) -> Bool
+    isNoteOnMatch offc offp (_t, NoteOn onc onp _v) = onc == offc && onp == offp
+    isNoteOnMatch _c   _p    _                      = False
 
     -- Given a MidiMessage, returns the MidiVoiceEvent and Nothing if it 
     -- contains something else.
@@ -183,15 +198,15 @@ midiTrackToVoice m =
 
 -- we create a small state datatype for storing some information obtained from
 -- the midi file, that is needed again at a later stage, such as note-on events.
-type MidiState = (Time, [MidiMessage])
+type MidiState = (Time, [(Time, MidiVoiceEvent)])
 
 -- We also define some accessor functions for our MidiState. 'setMessages' 
 -- replaces the list with 'MidiMessages' with a new one.
-setMessages :: [MidiMessage] -> MidiState -> MidiState
+setMessages :: [(Time, MidiVoiceEvent)] -> MidiState -> MidiState
 setMessages ms = second (const ms)
 
 -- adds a 'MidiMessage' to the list of 'MidiMessages'
-addMessage :: MidiMessage -> MidiState -> MidiState
+addMessage :: (Time, MidiVoiceEvent) -> MidiState -> MidiState
 addMessage m = second (m :)
 
 -- applies a function to the 'Time' field in our 'MidiState'
