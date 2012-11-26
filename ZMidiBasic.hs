@@ -12,6 +12,7 @@ import Control.Monad.State (State, modify, gets, evalState)
 import Control.Arrow (first, second)
 import Data.Word (Word8)
 import Data.Int  (Int8)
+import Data.Char (toLower)
 import Data.Maybe (catMaybes)
 import Data.Function (on)
 import Data.List (partition, sortBy)
@@ -84,6 +85,21 @@ showMidiScore ms = undefined
 
 showVoices :: [Voice] -> String
 showVoices = undefined
+
+-- showVcs 
+
+showScoreEvent :: ScoreEvent -> String
+showScoreEvent (NoteEvent _c p _v _d _o) = show p
+showScoreEvent (TimeSigChange (TimeSig (n,d)) _t) =
+  "Meter: " ++ show n ++ '/' : show d
+showScoreEvent (KeyChange (Key rt m) _t) = 
+  "Key: " ++ showRoot rt ++ ' ' : (map toLower . show $ m) where
+      
+    showRoot :: Int8 -> String
+    showRoot r = let r' = fromIntegral r in case compare (signum r) 0 of
+      LT -> replicate r' 'b'
+      EQ -> "0"
+      GT -> replicate r' '#'
 
 --------------------------------------------------------------------------------                                   
 -- Converting a MidiFile
