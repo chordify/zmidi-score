@@ -15,14 +15,12 @@ import Control.Monad.State (State, modify, get, gets, evalState)
 import Control.Monad (mapAndUnzipM)
 import Control.Arrow (first, second)
 import Data.Word (Word8)
--- import qualified Data.Vector  as V (Vector (..), update, (//))
 import Data.Int  (Int8)
 import Data.Char (toLower)
 import Data.Maybe (catMaybes)
 import Data.Function (on)
 import Data.List (partition, sortBy, intersperse)
 import System.Environment (getArgs)
-import Text.Printf (printf)
 
 main :: IO ()
 main = do arg <- getArgs
@@ -38,9 +36,7 @@ readMidiFile f = do mf <- readMidi f
                       Right mid -> do printMidi mid
                                       putStrLn . showMidiScore . midiFileToMidiScore $ mid 
                                    -- print . midiFileToMidiScore $ mid 
-                                   -- printMidi mid
-                                   -- putStr . concat . intersperse "\n" 
-                                   -- $ evalState (mapM showTrack (mf_tracks mid)) 1
+
                                    
 --------------------------------------------------------------------------------                                   
 -- MIDI data representation
@@ -50,7 +46,7 @@ data MidiScore  = MidiScore     { getKey     :: Key
                                 , getTimeSig :: TimeSig
                                 , getTracks  :: [Voice]
                                 } deriving (Eq, Ord, Show)
-                                
+                     
 data Key        = Key           { keyRoot    :: Int8
                                 , keyMode    :: MidiScaleType
                                 } deriving (Eq, Ord, Show)
@@ -112,22 +108,24 @@ showVoices a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
   -- The stopping condition: when there are no more notes in all of the tracks
   noMoreNotesToShow :: [Voice] -> Bool
   noMoreNotesToShow = and . map null 
-                      
-showVoiceAtTime :: Voice -> State Time (String, Voice)
-showVoiceAtTime []     = return ("",[])
-showVoiceAtTime (v:vs) = 
-  do t <- get
-     case hasStarted t v of
-       True  -> case hasEnded t v of
-                  True  -> return ("",vs)
-                  False -> return (showScoreEvent . getEvent $ v, v:vs)
-       False -> return (""                         , v:vs)
+  
+  -- Takes a Voice and shows the head of the voice appropriately depending on
+  -- the location in time. showVoicAtTime also returns the tail of the voice.
+  showVoiceAtTime :: Voice -> State Time (String, Voice)
+  showVoiceAtTime []       = return ("",[])
+  showVoiceAtTime x@(v:vs) = 
+    do t <- get
+       case hasStarted t v of
+         True  -> case hasEnded t v of
+                    True  -> showVoiceAtTime vs 
+                    False -> return (showScoreEvent . getEvent $ v, x)
+         False ->            return (""                           , x)
 
-hasStarted, hasEnded :: Time -> Timed ScoreEvent -> Bool
-hasStarted t tse = onset tse <= t 
-
-hasEnded t (Timed ons se) = ons + duration se < t
-
+  hasStarted, hasEnded :: Time -> Timed ScoreEvent -> Bool
+  -- returns true if the Timed ScoreEvent is has started to sound at Time t
+  hasStarted t tse = t >= onset tse 
+  -- returns true if the Timed ScoreEvent is still sounding at Time t
+  hasEnded t (Timed ons se) = ons + duration se  <  t
 
 
 showScoreEvent :: ScoreEvent -> String
@@ -162,14 +160,12 @@ midiFileToMidiScore mf = MidiScore (selectKey meta)
     []  -> noKey
     [k] -> keyChange . getEvent $ k
     ks  -> keyChange . getEvent . head . sortBy (compare `on` onset) $ ks  
-    -- _   -> error "not a key change" -- cannot happen
 
   selectTS :: [Timed ScoreEvent] ->TimeSig
   selectTS ses = case filter isTimeSig ses of
     []  -> noTS
     [t] -> tsChange . getEvent $ t
     ts  -> tsChange . getEvent . head. sortBy (compare `on` onset) $ ts
-    -- _   -> error "not a time signature change" -- cannot happen
     
   isTimeSig :: Timed ScoreEvent -> Bool
   isTimeSig (Timed _ (TimeSigChange _ )) = True
