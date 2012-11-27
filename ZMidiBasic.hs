@@ -36,8 +36,8 @@ readMidiFile f = do mf <- readMidi f
                     case mf of
                       Left  err -> print err
                       Right mid -> -- putStrLn . showMidiScore . midiFileToMidiScore $ mid 
-                                   -- print . midiFileToMidiScore $ mid 
-                                   printMidi mid
+                                   print . midiFileToMidiScore $ mid 
+                                   -- printMidi mid
                                    -- putStr . concat . intersperse "\n" 
                                    -- $ evalState (mapM showTrack (mf_tracks mid)) 1
                                    
@@ -197,12 +197,9 @@ midiTrackToVoice m =
     -- Transforms a 'MidiMessage' containing a 'VoiceEvent' into a 'ScoreEvent'
     voiceEvent :: MidiMessage -> State MidiState (Maybe (Timed ScoreEvent))
     voiceEvent mm = case getVoiceEvent mm of
-      Just (NoteOff chn  ptch _vel) 
-         -> do ms <- gets snd
-               let (x, noteOn : y) = span (not . isNoteOnMatch chn ptch) ms
-               modify (setMessages (x ++ y))
-               fmap Just $ toMidiNote noteOn 
-      Just n@(NoteOn _chn _ptch _vel)
+      Just   (NoteOff  chn  ptch _vel) -> toMidiNote chn ptch
+      Just   (NoteOn   chn  ptch 0   ) -> toMidiNote chn ptch
+      Just n@(NoteOn  _chn _ptch _vel)
          -> do  t <- gets fst
                 -- replace the deltaTime in the noteOn event by the absolute
                 -- time as stored in the MidiState
@@ -226,13 +223,16 @@ midiTrackToVoice m =
     
     -- Some utilities:
     -- Given a note-on and a note off event, creates a new MidiNote ScoreEvent
-    toMidiNote :: (Time, MidiVoiceEvent) -> State MidiState (Timed ScoreEvent)
-    toMidiNote ( ons, NoteOn c p v ) = 
-      do t <- gets fst
+    toMidiNote :: Word8 -> Pitch -> State MidiState (Maybe (Timed ScoreEvent))
+    toMidiNote c p = 
+      do ms <- gets snd
+         let (x, (ons, noteOn) : y) = span (not . isNoteOnMatch c p) ms
+         modify (setMessages (x ++ y))
+         t  <- gets fst
          -- N.B. the delta time in the note on has been replace by an absolute
          -- timestamp
-         return $ Timed ons (NoteEvent (fromIntegral c) p v (t - ons))
-    toMidiNote _  = error "toMidiNote: not a noteOn" -- impossible
+         return . Just . Timed ons $ NoteEvent (fromIntegral c)     p 
+                                               (getVelocity noteOn) (t - ons)
     
     -- returns True if the NoteOn MidiMessage maches a Channel and Pitch
     isNoteOnMatch :: Word8 -> Pitch -> (Time, MidiVoiceEvent) -> Bool
@@ -251,7 +251,11 @@ midiTrackToVoice m =
     getMetaEvent (_t, (MetaEvent e)) = Just e
     getMetaEvent _                   = Nothing
 
-
+    getVelocity :: MidiVoiceEvent -> Velocity
+    getVelocity (NoteOn  _ _ v) = v
+    getVelocity (NoteOff _ _ v) = v
+    getVelocity _               = error "not a noteOn or a noteOff event"
+    
 -- we create a small state datatype for storing some information obtained from
 -- the midi file, that is needed again at a later stage, such as note-on events.
 type MidiState = (Time, [(Time, MidiVoiceEvent)])
