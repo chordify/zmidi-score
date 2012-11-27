@@ -7,9 +7,12 @@ module ZMidiBasic where
 import ZMidi.Core ( readMidi, MidiFile (..), MidiEvent (..)
                   , MidiVoiceEvent (..), MidiMetaEvent (..)
                   , MidiMessage, MidiTrack (..)
-                  , MidiScaleType (..))
+                  , MidiScaleType (..)
+                  , printMidi
+                  )
 
-import Control.Monad.State (State, modify, gets, evalState)
+import Control.Monad.State (State, modify, get, gets, evalState)
+import Control.Monad (mapAndUnzipM)
 import Control.Arrow (first, second)
 import Data.Word (Word8)
 -- import qualified Data.Vector  as V (Vector (..), update, (//))
@@ -17,8 +20,9 @@ import Data.Int  (Int8)
 import Data.Char (toLower)
 import Data.Maybe (catMaybes)
 import Data.Function (on)
-import Data.List (partition, sortBy)
+import Data.List (partition, sortBy, intersperse)
 import System.Environment (getArgs)
+import Text.Printf (printf)
 
 main :: IO ()
 main = do arg <- getArgs
@@ -31,8 +35,9 @@ readMidiFile :: FilePath -> IO ()
 readMidiFile f = do mf <- readMidi f
                     case mf of
                       Left  err -> print err
-                      Right mid -> print . midiFileToMidiScore $ mid 
-                                   -- printMidi mid
+                      Right mid -> -- putStrLn . showMidiScore . midiFileToMidiScore $ mid 
+                                   -- print . midiFileToMidiScore $ mid 
+                                   printMidi mid
                                    -- putStr . concat . intersperse "\n" 
                                    -- $ evalState (mapM showTrack (mf_tracks mid)) 1
                                    
@@ -88,44 +93,40 @@ noTS = TimeSig (-1,-1)
 --------------------------------------------------------------------------------
 
 showMidiScore :: MidiScore -> String
-showMidiScore ms = undefined
+showMidiScore (MidiScore k ts vs) = show k ++ '\n' : show ts 
+                                           ++ '\n' : showVoices vs
 
 showVoices :: [Voice] -> String
-showVoices = undefined
+showVoices a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0
 
-type ShowSt = (Time, [Maybe (Timed ScoreEvent)])
+showTimeSlice :: [Voice] -> State Time [String]
+showTimeSlice vs = do (str, vs') <- mapAndUnzipM showVoiceAtTime vs -- State Time [(String,Voice)]
+                      t <- get
+                      let out = concat $ intersperse "\t" (show t : str)
+                      case noMoreNotesToShow vs' of
+                        True  -> return []
+                        False -> do modify (+ 32)
+                                    x <- showTimeSlice vs' 
+                                    return (out : x)
 
-increaseTime :: ShowSt -> ShowSt
-increaseTime = first (+ 128)
-
-showVcs :: [Voice] -> State ShowSt String
-showVcs vs = do mapM getActive vs >>= modify . addNewOnsets 
-                return ""
+noMoreNotesToShow :: [Voice] -> Bool
+noMoreNotesToShow = and . map null 
+                      
+showVoiceAtTime :: Voice -> State Time (String, Voice)
+showVoiceAtTime []     = return ("",[])
+showVoiceAtTime (v:vs) = do t <- get
+                            case hasStarted t v of
+                              True  -> case hasEnded t v of
+                                         True  -> return ("",vs)
+                                         False -> return (showScoreEvent . getEvent $ v, v:vs)
+                              False -> return (""                         , v:vs)
                 
-removeEndedNotes :: ShowSt -> ShowSt
-removeEndedNotes (t, nts) = (t, map nothingIfFinal nts) where
-  
-  nothingIfFinal :: Maybe (Timed ScoreEvent) -> Maybe (Timed ScoreEvent)
-  nothingIfFinal Nothing = Nothing
-  nothingIfFinal je@(Just (Timed t' e))
-    | (t' + duration e) <  t = je
-    | otherwise              = Nothing
+hasStarted, hasEnded :: Time -> Timed ScoreEvent -> Bool
+hasStarted t tse = onset tse <= t 
 
-addNewOnsets :: [Maybe (Timed ScoreEvent)] -> ShowSt -> ShowSt
-addNewOnsets ts = second (zipWith merge ts) where
-  
-  merge :: Maybe (Timed ScoreEvent) -> Maybe (Timed ScoreEvent) 
-        -> Maybe (Timed ScoreEvent)
-  merge Nothing mts = mts
-  merge mts     _   = mts
+hasEnded t (Timed ons se) = ons + duration se <= t
 
-getActive :: Voice -> State ShowSt (Maybe (Timed ScoreEvent))
-getActive []     = return Nothing
-getActive (v:_s) = do t <- gets fst
-                      case compare (onset v) t of
-                        LT -> error ("getActive: found a past event " ++ show v)
-                        EQ -> return . Just $ v
-                        GT -> return . Just $ v
+
 
 showScoreEvent :: ScoreEvent -> String
 showScoreEvent (NoteEvent _c p _v _d) = show p
