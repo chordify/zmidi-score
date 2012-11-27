@@ -6,8 +6,8 @@ module ZMidiBasic where
 
 import ZMidi.Core ( readMidi, MidiFile (..), MidiEvent (..)
                   , MidiVoiceEvent (..), MidiMetaEvent (..)
-                  , MidiMessage, MidiTrack (..)
-                  , MidiScaleType (..)
+                  , MidiMessage, MidiTrack (..), MidiHeader (..) 
+                  , MidiScaleType (..), MidiTimeDivision (..)
                   , printMidi
                   )
 
@@ -44,6 +44,7 @@ readMidiFile f = do mf <- readMidi f
 
 data MidiScore  = MidiScore     { getKey     :: Key
                                 , getTimeSig :: TimeSig
+                                , devision   :: Time                                
                                 , getTracks  :: [Voice]
                                 } deriving (Eq, Ord, Show)
                      
@@ -61,8 +62,8 @@ type Velocity   = Word8
 type Time       = Int
 
 -- perhaps add duration??
-data Timed a    = Timed         { onset        :: Time 
-                                , getEvent     :: a
+data Timed a    = Timed         { onset       :: Time 
+                                , getEvent    :: a
                                 } deriving (Functor, Eq, Ord, Show)
 
 data ScoreEvent = NoteEvent     { channel     :: Channel
@@ -87,12 +88,13 @@ noTS = TimeSig (-1,-1)
 
 -- Show a MidiScore in a readable way
 showMidiScore :: MidiScore -> String
-showMidiScore (MidiScore k ts vs) = "Key: "      ++ showKey k ++ 
-                                    "\nMeter: "  ++ showTimeSig ts ++
-                                    "\nNotes:\n" ++ showVoices vs
+showMidiScore (MidiScore k ts tpb vs) = "Key: "      ++ showKey k ++ 
+                                        "\nMeter: "  ++ showTimeSig ts ++
+                                        "\nTicks per Beat: "  ++ show tpb ++
+                                        "\nNotes:\n" ++ showVoices tpb vs
 
-showVoices :: [Voice] -> String
-showVoices a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
+showVoices :: Time -> [Voice] -> String
+showVoices d a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
   
   -- shows a the sounding notes at a specific time 
   showTimeSlice :: [Voice] -> State Time [String]
@@ -101,7 +103,8 @@ showVoices a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
        case noMoreNotesToShow vs' of        -- the stopping condition
          True  -> return []
          False -> do t <- get
-                     modify (+ 384) 
+                     --  update the clock
+                     modify (+ (d `div` 4)) -- 32nth notes are the minimum length
                      x <- showTimeSlice vs' -- recursively calculate a next slice
                      -- the output string:
                      let out = concat $ intersperse "\t" (show t : str)                                    
@@ -119,6 +122,8 @@ showVoices a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
     do t <- get
        case hasStarted t v of
          True  -> case hasEnded t v of
+                    -- if v has ended, an new note at the same voice
+                    -- might start at the same time. Hence, call ourselves again
                     True  -> showVoiceAtTime vs 
                     False -> return (showScoreEvent . getEvent $ v, x)
          False ->            return (""                           , x)
@@ -154,13 +159,19 @@ showKey (Key rt m) = showRoot rt ++ ' ' : (map toLower . show $ m) where
 midiFileToMidiScore :: MidiFile -> MidiScore
 midiFileToMidiScore mf = MidiScore (selectKey meta) 
                                    (selectTS  meta) 
+                                   (getDivision mf)
                                    (filter (not . null) trks) where
                          
   (trks, meta) = second concat . -- merge all meta data into one list
                  -- separate meta data from note data
                  unzip . map (partition isNoteEvent . midiTrackToVoice)
                        . mf_tracks $ mf -- get midi tracks
-
+  
+  getDivision :: MidiFile -> Time
+  getDivision m = case time_division . mf_header $ mf of
+                    (FPS _ ) -> error "unquantised midifile"
+                    (TPB b ) -> fromIntegral b
+  
   selectKey :: [Timed ScoreEvent] -> Key
   selectKey ses = case filter isKeyChange ses of 
     []  -> noKey
