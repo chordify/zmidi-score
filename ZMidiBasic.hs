@@ -35,8 +35,9 @@ readMidiFile :: FilePath -> IO ()
 readMidiFile f = do mf <- readMidi f
                     case mf of
                       Left  err -> print err
-                      Right mid -> -- putStrLn . showMidiScore . midiFileToMidiScore $ mid 
-                                   print . midiFileToMidiScore $ mid 
+                      Right mid -> do printMidi mid
+                                      putStrLn . showMidiScore . midiFileToMidiScore $ mid 
+                                   -- print . midiFileToMidiScore $ mid 
                                    -- printMidi mid
                                    -- putStr . concat . intersperse "\n" 
                                    -- $ evalState (mapM showTrack (mf_tracks mid)) 1
@@ -67,19 +68,15 @@ type Time       = Int
 data Timed a    = Timed         { onset        :: Time 
                                 , getEvent     :: a
                                 } deriving (Functor, Eq, Ord, Show)
-                -- | TimeDur Time Time a
 
 data ScoreEvent = NoteEvent     { channel     :: Channel
                                 , pitch       :: Pitch
                                 , velocity    :: Velocity
                                 , duration    :: Time
-                                -- , noteTime    :: Time
                                 } 
                 | KeyChange     { keyChange   :: Key
-                                -- , keyTime     :: Time
                                 } 
                 | TimeSigChange { tsChange    :: TimeSig
-                                -- , tsTime      :: Time
                                 } deriving (Eq, Ord, Show)
 
 noKey :: Key
@@ -97,34 +94,39 @@ showMidiScore (MidiScore k ts vs) = show k ++ '\n' : show ts
                                            ++ '\n' : showVoices vs
 
 showVoices :: [Voice] -> String
-showVoices a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0
+showVoices a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
+  
+  -- shows a the sounding notes at a specific time 
+  showTimeSlice :: [Voice] -> State Time [String]
+  showTimeSlice vs = 
+    do (str, vs') <- mapAndUnzipM showVoiceAtTime vs
+       case noMoreNotesToShow vs' of        -- the stopping condition
+         True  -> return []
+         False -> do t <- get
+                     modify (+ 384) 
+                     x <- showTimeSlice vs' -- recursively calculate a next slice
+                     -- the output string:
+                     let out = concat $ intersperse "\t" (show t : str)                                    
+                     return (out : x)
 
-showTimeSlice :: [Voice] -> State Time [String]
-showTimeSlice vs = do (str, vs') <- mapAndUnzipM showVoiceAtTime vs -- State Time [(String,Voice)]
-                      t <- get
-                      let out = concat $ intersperse "\t" (show t : str)
-                      case noMoreNotesToShow vs' of
-                        True  -> return []
-                        False -> do modify (+ 32)
-                                    x <- showTimeSlice vs' 
-                                    return (out : x)
-
-noMoreNotesToShow :: [Voice] -> Bool
-noMoreNotesToShow = and . map null 
+  -- The stopping condition: when there are no more notes in all of the tracks
+  noMoreNotesToShow :: [Voice] -> Bool
+  noMoreNotesToShow = and . map null 
                       
 showVoiceAtTime :: Voice -> State Time (String, Voice)
 showVoiceAtTime []     = return ("",[])
-showVoiceAtTime (v:vs) = do t <- get
-                            case hasStarted t v of
-                              True  -> case hasEnded t v of
-                                         True  -> return ("",vs)
-                                         False -> return (showScoreEvent . getEvent $ v, v:vs)
-                              False -> return (""                         , v:vs)
-                
+showVoiceAtTime (v:vs) = 
+  do t <- get
+     case hasStarted t v of
+       True  -> case hasEnded t v of
+                  True  -> return ("",vs)
+                  False -> return (showScoreEvent . getEvent $ v, v:vs)
+       False -> return (""                         , v:vs)
+
 hasStarted, hasEnded :: Time -> Timed ScoreEvent -> Bool
 hasStarted t tse = onset tse <= t 
 
-hasEnded t (Timed ons se) = ons + duration se <= t
+hasEnded t (Timed ons se) = ons + duration se < t
 
 
 
