@@ -85,9 +85,11 @@ noTS = TimeSig (-1,-1)
 -- Printing MidiScores
 --------------------------------------------------------------------------------
 
+-- Show a MidiScore in a readable way
 showMidiScore :: MidiScore -> String
-showMidiScore (MidiScore k ts vs) = show k ++ '\n' : show ts 
-                                           ++ '\n' : showVoices vs
+showMidiScore (MidiScore k ts vs) = "Key: "      ++ showKey k ++ 
+                                    "\nMeter: "  ++ showTimeSig ts ++
+                                    "\nNotes:\n" ++ showVoices vs
 
 showVoices :: [Voice] -> String
 showVoices a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
@@ -130,10 +132,14 @@ showVoices a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
 
 showScoreEvent :: ScoreEvent -> String
 showScoreEvent (NoteEvent _c p _v _d) = show p
-showScoreEvent (TimeSigChange (TimeSig (n,d))) =
-  "Meter: " ++ show n ++ '/' : show d
-showScoreEvent (KeyChange (Key rt m)) = 
-  "Key: " ++ showRoot rt ++ ' ' : (map toLower . show $ m) where
+showScoreEvent (TimeSigChange ts)     = "Meter: " ++ showTimeSig ts
+showScoreEvent (KeyChange k)          = "Key: " ++ showKey k
+
+showTimeSig :: TimeSig -> String
+showTimeSig (TimeSig (n,d)) = show n ++ '/' : show d
+
+showKey :: Key -> String
+showKey (Key rt m) = showRoot rt ++ ' ' : (map toLower . show $ m) where
       
     showRoot :: Int8 -> String
     showRoot r = let r' = fromIntegral r in case compare (signum r) 0 of
