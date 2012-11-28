@@ -37,7 +37,7 @@ import Text.Printf (printf)
 data MidiScore  = MidiScore     { getKey     :: [Timed Key]
                                 , getTimeSig :: [Timed TimeSig]
                                 , devision   :: Time                                
-                                , getTracks  :: [Voice]
+                                , getVoices  :: [Voice]
                                 } deriving (Eq, Ord, Show)
                      
 data Key        = Key           { keyRoot    :: Int8

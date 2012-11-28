@@ -27,4 +27,6 @@ showMidiStats fp = do mf <- readMidi fp
                         Left  err -> print err
                         Right mid -> do let m = midiFileToMidiScore mid
                                         putStrLn (fp ++ '\t' : show (getTimeSig m) 
-                                                     ++ '\t' : show (getKey m) )
+                                                     ++ '\t' : show (getKey m)
+                                                     ++ '\t' : (show . length . getVoices $ m) 
+                                                     )
