@@ -13,6 +13,8 @@ module ZMidiBasic ( MidiScore (..)
                   , showVoices
                   , midiFileToMidiScore
                   , buildTickMap
+                  , getMinDur
+                  , isQuantised
                   ) where
 
 import ZMidi.Core ( MidiFile (..), MidiEvent (..)
@@ -29,7 +31,7 @@ import Data.Int  (Int8)
 import Data.Char (toLower)
 import Data.Maybe (catMaybes)
 import Data.List (partition, intersperse)
-import Data.IntMap.Lazy (empty, insertWith, IntMap )
+import Data.IntMap.Lazy (empty, insertWith, IntMap, findMin, keys)
 import Text.Printf (printf)
                                    
 --------------------------------------------------------------------------------                                   
@@ -74,7 +76,7 @@ data ScoreEvent = NoteEvent     { channel     :: Channel
                 | TimeSigChange { tsChange    :: TimeSig
                                 } deriving (Eq, Ord, Show)
 
-type TickMap = IntMap Int
+type TickMap = IntMap Time
 
 --------------------------------------------------------------------------------
 -- Some ad-hoc show instances
@@ -155,6 +157,14 @@ showVoices d a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
 --------------------------------------------------------------------------------
 -- Analysing durations
 --------------------------------------------------------------------------------
+
+isQuantised :: TickMap -> Bool
+isQuantised tm = let d         = getMinDur tm
+                     isQuant x = (x `mod` d ) == 0
+                 in and . map isQuant . keys $ tm
+
+getMinDur :: TickMap -> Time
+getMinDur = fst . findMin
 
 buildTickMap :: [Voice] -> TickMap
 buildTickMap = foldr oneVoice empty where
