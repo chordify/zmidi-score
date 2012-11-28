@@ -31,7 +31,7 @@ import Data.Int  (Int8)
 import Data.Char (toLower)
 import Data.Maybe (catMaybes)
 import Data.List (partition, intersperse)
-import Data.IntMap.Lazy (empty, insertWith, IntMap, findMin, keys)
+import Data.IntMap.Lazy (empty, insertWith, IntMap, findMin, keys, delete)
 import Text.Printf (printf)
                                    
 --------------------------------------------------------------------------------                                   
@@ -40,7 +40,8 @@ import Text.Printf (printf)
 
 data MidiScore  = MidiScore     { getKey     :: [Timed Key]
                                 , getTimeSig :: [Timed TimeSig]
-                                , devision   :: Time                                
+                                , devision   :: Time
+                                , minDur     :: Time
                                 , getVoices  :: [Voice]
                                 } deriving (Eq, Ord, Show)
                      
@@ -95,10 +96,10 @@ instance Show Key where
   show (Key rt m) = showRoot rt ++ ' ' : (map toLower . show $ m) where
       
     showRoot :: Int8 -> String
-    showRoot r = let r' = fromIntegral r in case compare (signum r) 0 of
-      LT -> replicate r' 'b'
+    showRoot i = let r = fromIntegral i in case compare r 0 of
+      LT -> replicate (abs r) 'b'
       EQ -> "0"
-      GT -> replicate r' '#'
+      GT -> replicate r '#'
                                 
 --------------------------------------------------------------------------------                                   
 -- Printing MidiScores
@@ -106,13 +107,15 @@ instance Show Key where
 
 -- Show a MidiScore in a readable way
 showMidiScore :: MidiScore -> String
-showMidiScore (MidiScore k ts tpb vs) = "Key: "      ++ show k 
+showMidiScore ms@(MidiScore k ts tpb st _vs) = "Key: "      ++ show k 
                                      ++ "\nMeter: "  ++ show ts
                                      ++ "\nTicks per Beat: "  ++ show tpb 
-                                     ++ "\nNotes:\n" ++ showVoices tpb vs
+                                     ++ "\nShortest tick: "   ++ show st
+                                     ++ "\nNotes:\n" ++ showVoices ms
 
-showVoices :: Time -> [Voice] -> String
-showVoices d a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
+showVoices :: MidiScore -> String
+showVoices ms = concat . intersperse "\n" 
+              $ evalState (showTimeSlice . getVoices $ ms) 0 where
   
   -- shows a the sounding notes at a specific time 
   showTimeSlice :: [Voice] -> State Time [String]
@@ -122,7 +125,7 @@ showVoices d a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
          True  -> return []
          False -> do t <- get
                      --  update the clock
-                     modify (+ (d `div` 4)) -- 32nth notes are the minimum length
+                     modify (+ minDur ms)
                      x <- showTimeSlice vs' -- recursively calculate a next slice
                      -- the output string:
                      let out = concat $ intersperse "\t" (printf "%7d" t : str)                                    
@@ -164,7 +167,9 @@ isQuantised tm = let d         = getMinDur tm
                  in and . map isQuant . keys $ tm
 
 getMinDur :: TickMap -> Time
-getMinDur = fst . findMin
+getMinDur tm = case fst (findMin tm) of
+                 0 -> fst . findMin . delete 0 $ tm
+                 n -> n
 
 buildTickMap :: [Voice] -> TickMap
 buildTickMap = foldr oneVoice empty where
@@ -185,6 +190,7 @@ midiFileToMidiScore :: MidiFile -> MidiScore
 midiFileToMidiScore mf = MidiScore (selectKey meta) 
                                    (selectTS  meta) 
                                    getDivision
+                                   (getMinDur . buildTickMap $ trks)
                                    (filter (not . null) trks) where
                          
   (trks, meta) = second concat . -- merge all meta data into one list
