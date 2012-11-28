@@ -21,6 +21,7 @@ import Data.Maybe (catMaybes)
 import Data.Function (on)
 import Data.List (partition, sortBy, intersperse)
 import System.Environment (getArgs)
+import Text.Printf (printf)
 
 main :: IO ()
 main = do arg <- getArgs
@@ -107,7 +108,7 @@ showVoices d a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
                      modify (+ (d `div` 4)) -- 32nth notes are the minimum length
                      x <- showTimeSlice vs' -- recursively calculate a next slice
                      -- the output string:
-                     let out = concat $ intersperse "\t" (show t : str)                                    
+                     let out = concat $ intersperse "\t" (printf "%7d" t : str)                                    
                      return (out : x)
 
   -- The stopping condition: when there are no more notes in all of the tracks
@@ -117,7 +118,7 @@ showVoices d a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
   -- Takes a Voice and shows the head of the voice appropriately depending on
   -- the location in time. showVoicAtTime also returns the tail of the voice.
   showVoiceAtTime :: Voice -> State Time (String, Voice)
-  showVoiceAtTime []       = return ("",[])
+  showVoiceAtTime []       = return ("  ",[])
   showVoiceAtTime x@(v:vs) = 
     do t <- get
        case hasStarted t v of
@@ -126,7 +127,7 @@ showVoices d a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
                     -- might start at the same time. Hence, call ourselves again
                     True  -> showVoiceAtTime vs 
                     False -> return (showScoreEvent . getEvent $ v, x)
-         False ->            return (""                           , x)
+         False ->            return ("  "                         , x)
 
   hasStarted, hasEnded :: Time -> Timed ScoreEvent -> Bool
   -- returns true if the Timed ScoreEvent is has started to sound at Time t
@@ -159,7 +160,7 @@ showKey (Key rt m) = showRoot rt ++ ' ' : (map toLower . show $ m) where
 midiFileToMidiScore :: MidiFile -> MidiScore
 midiFileToMidiScore mf = MidiScore (selectKey meta) 
                                    (selectTS  meta) 
-                                   (getDivision mf)
+                                   getDivision
                                    (filter (not . null) trks) where
                          
   (trks, meta) = second concat . -- merge all meta data into one list
@@ -167,10 +168,10 @@ midiFileToMidiScore mf = MidiScore (selectKey meta)
                  unzip . map (partition isNoteEvent . midiTrackToVoice)
                        . mf_tracks $ mf -- get midi tracks
   
-  getDivision :: MidiFile -> Time
-  getDivision m = case time_division . mf_header $ mf of
-                    (FPS _ ) -> error "unquantised midifile"
-                    (TPB b ) -> fromIntegral b
+  getDivision :: Time
+  getDivision= case time_division . mf_header $ mf of
+                 (FPS _ ) -> error "unquantised midifile"
+                 (TPB b ) -> fromIntegral b
   
   selectKey :: [Timed ScoreEvent] -> Key
   selectKey ses = case filter isKeyChange ses of 
@@ -231,7 +232,7 @@ midiTrackToVoice m =
             -- Just (EndOfTrack)
             Just (TimeSignature num den _frac _subfr) 
               -> return . Just . Timed t $ TimeSigChange 
-                                (TimeSig (fromIntegral num, fromIntegral den))
+                                (TimeSig (fromIntegral num, 2 ^ den))
             Just (KeySignature root scale)
               -> return . Just $ Timed t (KeyChange (Key root scale ))
             _ -> return Nothing
