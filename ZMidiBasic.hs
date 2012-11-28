@@ -27,25 +27,28 @@ import Data.Word (Word8)
 import Data.Int  (Int8)
 import Data.Char (toLower)
 import Data.Maybe (catMaybes)
-import Data.Function (on)
-import Data.List (partition, sortBy, intersperse)
+import Data.List (partition, intersperse)
 import Text.Printf (printf)
                                    
 --------------------------------------------------------------------------------                                   
 -- MIDI data representation
 --------------------------------------------------------------------------------
 
-data MidiScore  = MidiScore     { getKey     :: Key
-                                , getTimeSig :: TimeSig
+data MidiScore  = MidiScore     { getKey     :: [Key]
+                                , getTimeSig :: [TimeSig]
                                 , devision   :: Time                                
                                 , getTracks  :: [Voice]
                                 } deriving (Eq, Ord, Show)
                      
 data Key        = Key           { keyRoot    :: Int8
                                 , keyMode    :: MidiScaleType
-                                } deriving (Eq, Ord, Show)
+                                } 
+                | NoKey           deriving (Eq, Ord, Show)
                
-newtype TimeSig = TimeSig   (Int, Int) deriving (Eq, Ord, Show)
+data TimeSig    = TimeSig       { numerator  :: Int 
+                                , denomenator ::Int
+                                }
+                | NoTimeSig       deriving (Eq, Ord, Show)
 
 type Voice      = [Timed ScoreEvent]
 
@@ -69,22 +72,16 @@ data ScoreEvent = NoteEvent     { channel     :: Channel
                 | TimeSigChange { tsChange    :: TimeSig
                                 } deriving (Eq, Ord, Show)
 
-noKey :: Key
-noKey = Key 255 MAJOR
-
-noTS :: TimeSig
-noTS = TimeSig (-1,-1)
-
 --------------------------------------------------------------------------------                                   
 -- Printing MidiScores
 --------------------------------------------------------------------------------
 
 -- Show a MidiScore in a readable way
 showMidiScore :: MidiScore -> String
-showMidiScore (MidiScore k ts tpb vs) = "Key: "      ++ showKey k ++ 
-                                        "\nMeter: "  ++ showTimeSig ts ++
-                                        "\nTicks per Beat: "  ++ show tpb ++
-                                        "\nNotes:\n" ++ showVoices tpb vs
+showMidiScore (MidiScore k ts tpb vs) = "Key: "      ++ concatMap showKey k 
+                                     ++ "\nMeter: "  ++ concatMap showTimeSig ts
+                                     ++ "\nTicks per Beat: "  ++ show tpb 
+                                     ++ "\nNotes:\n" ++ showVoices tpb vs
 
 showVoices :: Time -> [Voice] -> String
 showVoices d a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
@@ -134,9 +131,11 @@ showScoreEvent (TimeSigChange ts)     = "Meter: " ++ showTimeSig ts
 showScoreEvent (KeyChange k)          = "Key: " ++ showKey k
 
 showTimeSig :: TimeSig -> String
-showTimeSig (TimeSig (n,d)) = show n ++ '/' : show d
+showTimeSig (TimeSig n d) = show n ++ '/' : show d
+showTimeSig NoTimeSig     = "NoTimeSig"
 
 showKey :: Key -> String
+showKey NoKey      = "NoKey"
 showKey (Key rt m) = showRoot rt ++ ' ' : (map toLower . show $ m) where
       
     showRoot :: Int8 -> String
@@ -165,17 +164,17 @@ midiFileToMidiScore mf = MidiScore (selectKey meta)
                  (FPS _ ) -> error "unquantised midifile"
                  (TPB b ) -> fromIntegral b
   
-  selectKey :: [Timed ScoreEvent] -> Key
+  selectKey :: [Timed ScoreEvent] -> [Key]
   selectKey ses = case filter isKeyChange ses of 
-    []  -> noKey
-    [k] -> keyChange . getEvent $ k
-    ks  -> keyChange . getEvent . head . sortBy (compare `on` onset) $ ks  
+    [] -> [NoKey]
+    k  -> map (keyChange . getEvent) k
+    -- ks  -> keyChange . getEvent . head . sortBy (compare `on` onset) $ ks  
 
-  selectTS :: [Timed ScoreEvent] ->TimeSig
+  selectTS :: [Timed ScoreEvent] -> [TimeSig]
   selectTS ses = case filter isTimeSig ses of
-    []  -> noTS
-    [t] -> tsChange . getEvent $ t
-    ts  -> tsChange . getEvent . head. sortBy (compare `on` onset) $ ts
+    [] -> [NoTimeSig]
+    t  -> map (tsChange . getEvent) t
+    -- ts  -> tsChange . getEvent . head. sortBy (compare `on` onset) $ ts
     
   isTimeSig :: Timed ScoreEvent -> Bool
   isTimeSig (Timed _ (TimeSigChange _ )) = True
@@ -224,7 +223,7 @@ midiTrackToVoice m =
             -- Just (EndOfTrack)
             Just (TimeSignature num den _frac _subfr) 
               -> return . Just . Timed t $ TimeSigChange 
-                                (TimeSig (fromIntegral num, 2 ^ den))
+                                (TimeSig (fromIntegral num) (2 ^ den))
             Just (KeySignature root scale)
               -> return . Just $ Timed t (KeyChange (Key root scale ))
             _ -> return Nothing

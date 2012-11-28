@@ -1,6 +1,6 @@
 module Main where
 
-import ZMidi.Core (readMidi, printMidi)
+import ZMidi.Core (MidiFile, readMidi, printMidi)
 import ZMidiBasic
 
 import System.Environment (getArgs)
@@ -19,3 +19,7 @@ readMidiFile f = do mf <- readMidi f
                       Right mid -> do printMidi mid
                                       putStrLn . showMidiScore . midiFileToMidiScore $ mid 
                                    -- print . midiFileToMidiScore $ mid 
+
+                                   
+showMidiStats :: MidiFile -> String
+showMidiStats = undefined
