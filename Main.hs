@@ -30,3 +30,4 @@ showMidiStats fp = do mf <- readMidi fp
                                                      ++ '\t' : show (getKey m)
                                                      ++ '\t' : (show . length . getVoices $ m) 
                                                      )
+                                        print . buildTickMap . getVoices $ m

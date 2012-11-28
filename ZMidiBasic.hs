@@ -12,6 +12,7 @@ module ZMidiBasic ( MidiScore (..)
                   , showMidiScore
                   , showVoices
                   , midiFileToMidiScore
+                  , buildTickMap
                   ) where
 
 import ZMidi.Core ( MidiFile (..), MidiEvent (..)
@@ -28,6 +29,7 @@ import Data.Int  (Int8)
 import Data.Char (toLower)
 import Data.Maybe (catMaybes)
 import Data.List (partition, intersperse)
+import Data.IntMap.Lazy (empty, insertWith, IntMap )
 import Text.Printf (printf)
                                    
 --------------------------------------------------------------------------------                                   
@@ -71,6 +73,8 @@ data ScoreEvent = NoteEvent     { channel     :: Channel
                                 } 
                 | TimeSigChange { tsChange    :: TimeSig
                                 } deriving (Eq, Ord, Show)
+
+type TickMap = IntMap Int
 
 --------------------------------------------------------------------------------
 -- Some ad-hoc show instances
@@ -146,12 +150,27 @@ showVoices d a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
   -- returns true if the Timed ScoreEvent is still sounding at Time t
   hasEnded t (Timed ons se) = ons + duration se  <  t
 
-
-
---------------------------------------------------------------------------------                                   
--- Converting a MidiFile
+  
+  
+--------------------------------------------------------------------------------
+-- Analysing durations
 --------------------------------------------------------------------------------
 
+buildTickMap :: [Voice] -> TickMap
+buildTickMap = foldr oneVoice empty where
+
+  oneVoice :: Voice -> TickMap -> TickMap
+  oneVoice vs tm = foldr step tm vs
+
+  step :: Timed ScoreEvent -> TickMap -> TickMap
+  step se tm = insertWith addIfExists (duration . getEvent $ se) 0 tm 
+  
+  addIfExists :: a -> Int -> Int
+  addIfExists _ old = succ old
+
+--------------------------------------------------------------------------------
+-- Converting a MidiFile
+--------------------------------------------------------------------------------
 midiFileToMidiScore :: MidiFile -> MidiScore
 midiFileToMidiScore mf = MidiScore (selectKey meta) 
                                    (selectTS  meta) 
