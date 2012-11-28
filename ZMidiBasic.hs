@@ -34,8 +34,8 @@ import Text.Printf (printf)
 -- MIDI data representation
 --------------------------------------------------------------------------------
 
-data MidiScore  = MidiScore     { getKey     :: [Key]
-                                , getTimeSig :: [TimeSig]
+data MidiScore  = MidiScore     { getKey     :: [Timed Key]
+                                , getTimeSig :: [Timed TimeSig]
                                 , devision   :: Time                                
                                 , getTracks  :: [Voice]
                                 } deriving (Eq, Ord, Show)
@@ -43,12 +43,12 @@ data MidiScore  = MidiScore     { getKey     :: [Key]
 data Key        = Key           { keyRoot    :: Int8
                                 , keyMode    :: MidiScaleType
                                 } 
-                | NoKey           deriving (Eq, Ord, Show)
+                | NoKey           deriving (Eq, Ord)
                
 data TimeSig    = TimeSig       { numerator  :: Int 
                                 , denomenator ::Int
                                 }
-                | NoTimeSig       deriving (Eq, Ord, Show)
+                | NoTimeSig       deriving (Eq, Ord)
 
 type Voice      = [Timed ScoreEvent]
 
@@ -60,7 +60,7 @@ type Time       = Int
 -- perhaps add duration??
 data Timed a    = Timed         { onset       :: Time 
                                 , getEvent    :: a
-                                } deriving (Functor, Eq, Ord, Show)
+                                } deriving (Functor, Eq, Ord)
 
 data ScoreEvent = NoteEvent     { channel     :: Channel
                                 , pitch       :: Pitch
@@ -72,14 +72,36 @@ data ScoreEvent = NoteEvent     { channel     :: Channel
                 | TimeSigChange { tsChange    :: TimeSig
                                 } deriving (Eq, Ord, Show)
 
+--------------------------------------------------------------------------------
+-- Some ad-hoc show instances
+--------------------------------------------------------------------------------
+
+instance Show a => Show (Timed a) where
+  show (Timed t a) = show a ++ " @ " ++ show t
+
+
+instance Show TimeSig where
+  show (TimeSig n d) = show n ++ '/' : show d
+  show NoTimeSig     = "NoTimeSig"
+
+instance Show Key where
+  show NoKey      = "NoKey"
+  show (Key rt m) = showRoot rt ++ ' ' : (map toLower . show $ m) where
+      
+    showRoot :: Int8 -> String
+    showRoot r = let r' = fromIntegral r in case compare (signum r) 0 of
+      LT -> replicate r' 'b'
+      EQ -> "0"
+      GT -> replicate r' '#'
+                                
 --------------------------------------------------------------------------------                                   
 -- Printing MidiScores
 --------------------------------------------------------------------------------
 
 -- Show a MidiScore in a readable way
 showMidiScore :: MidiScore -> String
-showMidiScore (MidiScore k ts tpb vs) = "Key: "      ++ concatMap showKey k 
-                                     ++ "\nMeter: "  ++ concatMap showTimeSig ts
+showMidiScore (MidiScore k ts tpb vs) = "Key: "      ++ show k 
+                                     ++ "\nMeter: "  ++ show ts
                                      ++ "\nTicks per Beat: "  ++ show tpb 
                                      ++ "\nNotes:\n" ++ showVoices tpb vs
 
@@ -115,8 +137,8 @@ showVoices d a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
                     -- if v has ended, an new note at the same voice
                     -- might start at the same time. Hence, call ourselves again
                     True  -> showVoiceAtTime vs 
-                    False -> return (showScoreEvent . getEvent $ v, x)
-         False ->            return ("  "                         , x)
+                    False -> return (show . pitch . getEvent $ v, x)
+         False ->            return ("  "                       , x)
 
   hasStarted, hasEnded :: Time -> Timed ScoreEvent -> Bool
   -- returns true if the Timed ScoreEvent is has started to sound at Time t
@@ -125,24 +147,6 @@ showVoices d a = concat . intersperse "\n" $ evalState (showTimeSlice a) 0 where
   hasEnded t (Timed ons se) = ons + duration se  <  t
 
 
-showScoreEvent :: ScoreEvent -> String
-showScoreEvent (NoteEvent _c p _v _d) = show p
-showScoreEvent (TimeSigChange ts)     = "Meter: " ++ showTimeSig ts
-showScoreEvent (KeyChange k)          = "Key: " ++ showKey k
-
-showTimeSig :: TimeSig -> String
-showTimeSig (TimeSig n d) = show n ++ '/' : show d
-showTimeSig NoTimeSig     = "NoTimeSig"
-
-showKey :: Key -> String
-showKey NoKey      = "NoKey"
-showKey (Key rt m) = showRoot rt ++ ' ' : (map toLower . show $ m) where
-      
-    showRoot :: Int8 -> String
-    showRoot r = let r' = fromIntegral r in case compare (signum r) 0 of
-      LT -> replicate r' 'b'
-      EQ -> "0"
-      GT -> replicate r' '#'
 
 --------------------------------------------------------------------------------                                   
 -- Converting a MidiFile
@@ -164,17 +168,15 @@ midiFileToMidiScore mf = MidiScore (selectKey meta)
                  (FPS _ ) -> error "unquantised midifile"
                  (TPB b ) -> fromIntegral b
   
-  selectKey :: [Timed ScoreEvent] -> [Key]
+  selectKey :: [Timed ScoreEvent] -> [Timed Key]
   selectKey ses = case filter isKeyChange ses of 
-    [] -> [NoKey]
-    k  -> map (keyChange . getEvent) k
-    -- ks  -> keyChange . getEvent . head . sortBy (compare `on` onset) $ ks  
+    [] -> [Timed 0 NoKey]
+    k  -> map (fmap keyChange) k
 
-  selectTS :: [Timed ScoreEvent] -> [TimeSig]
+  selectTS :: [Timed ScoreEvent] -> [Timed TimeSig]
   selectTS ses = case filter isTimeSig ses of
-    [] -> [NoTimeSig]
-    t  -> map (tsChange . getEvent) t
-    -- ts  -> tsChange . getEvent . head. sortBy (compare `on` onset) $ ts
+    [] -> [Timed 0 NoTimeSig]
+    t  -> map (fmap tsChange) t
     
   isTimeSig :: Timed ScoreEvent -> Bool
   isTimeSig (Timed _ (TimeSigChange _ )) = True
