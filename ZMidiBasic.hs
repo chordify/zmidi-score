@@ -1,14 +1,23 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE DeriveFunctor           #-}
-module ZMidiBasic where
+module ZMidiBasic ( MidiScore (..)
+                  , Key (..)
+                  , TimeSig (..)
+                  , Voice 
+                  , Channel
+                  , Pitch
+                  , Velocity
+                  , Timed (..)
+                  , ScoreEvent (..)
+                  , showMidiScore
+                  , showVoices
+                  , midiFileToMidiScore
+                  ) where
 
-
-
-import ZMidi.Core ( readMidi, MidiFile (..), MidiEvent (..)
+import ZMidi.Core ( MidiFile (..), MidiEvent (..)
                   , MidiVoiceEvent (..), MidiMetaEvent (..)
                   , MidiMessage, MidiTrack (..), MidiHeader (..) 
                   , MidiScaleType (..), MidiTimeDivision (..)
-                  , printMidi
                   )
 
 import Control.Monad.State (State, modify, get, gets, evalState)
@@ -20,24 +29,7 @@ import Data.Char (toLower)
 import Data.Maybe (catMaybes)
 import Data.Function (on)
 import Data.List (partition, sortBy, intersperse)
-import System.Environment (getArgs)
 import Text.Printf (printf)
-
-main :: IO ()
-main = do arg <- getArgs
-          case arg of
-            [f] -> readMidiFile f
-            _   -> putStrLn "usage: MidiCSV <filename> "
-
-
-readMidiFile :: FilePath -> IO ()
-readMidiFile f = do mf <- readMidi f
-                    case mf of
-                      Left  err -> print err
-                      Right mid -> do printMidi mid
-                                      putStrLn . showMidiScore . midiFileToMidiScore $ mid 
-                                   -- print . midiFileToMidiScore $ mid 
-
                                    
 --------------------------------------------------------------------------------                                   
 -- MIDI data representation
@@ -242,7 +234,6 @@ midiTrackToVoice m =
     toMidiNote :: Word8 -> Pitch -> State MidiState (Maybe (Timed ScoreEvent))
     toMidiNote c p = 
       do ms <- gets snd
-         let (x, (ons, noteOn) : y) = span (not . isNoteOnMatch c p) ms
          case span (not . isNoteOnMatch c p) ms of
            (_, []               ) -> error "note-on event not found"
            (x, (ons, noteOn) : y) -> 
