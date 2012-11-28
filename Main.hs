@@ -10,7 +10,7 @@ import System.Environment (getArgs)
 main :: IO ()
 main = do arg <- getArgs
           case arg of
-            [f] -> readMidiFile f
+            [f] -> doDir showMidiStats f
             _   -> putStrLn "usage: MidiCSV <filename> "
 
 
