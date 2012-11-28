@@ -243,13 +243,16 @@ midiTrackToVoice m =
     toMidiNote c p = 
       do ms <- gets snd
          let (x, (ons, noteOn) : y) = span (not . isNoteOnMatch c p) ms
-         modify (setMessages (x ++ y))
-         t  <- gets fst
-         -- N.B. the delta time in the note on has been replace by an absolute
-         -- timestamp
-         return . Just . Timed ons $ NoteEvent (fromIntegral c)     p 
-                                               (getVelocity noteOn) (t - ons)
-    
+         case span (not . isNoteOnMatch c p) ms of
+           (_, []               ) -> error "note-on event not found"
+           (x, (ons, noteOn) : y) -> 
+              do modify (setMessages (x ++ y))
+                 t  <- gets fst
+                 -- N.B. the delta time in the note on has been replace 
+                 -- by an absolute timestamp
+                 return . Just . Timed ons $ NoteEvent (fromIntegral c) p 
+                                             (getVelocity noteOn) (t - ons)
+            
     -- returns True if the NoteOn MidiMessage maches a Channel and Pitch
     isNoteOnMatch :: Word8 -> Pitch -> (Time, MidiVoiceEvent) -> Bool
     isNoteOnMatch offc offp (_t, NoteOn onc onp _v) = onc == offc && onp == offp
