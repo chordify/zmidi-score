@@ -24,7 +24,9 @@ readMidiFile f = do mf <- readMidi f
                       Left  err -> print err
                       Right mid -> do printMidi mid
                                       let ms =  midiFileToMidiScore mid 
-                                      print . buildTickMap . getVoices $ ms
+                                          tm = buildTickMap . getVoices $ ms
+                                      print tm
+                                      print . isQuantisedVerb $ tm
                                       putStrLn . showMidiScore $ ms
                                    -- print . midiFileToMidiScore $ mid 
 

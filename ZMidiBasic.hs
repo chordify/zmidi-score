@@ -15,6 +15,7 @@ module ZMidiBasic ( MidiScore (..)
                   , buildTickMap
                   , getMinDur
                   , isQuantised
+                  , isQuantisedVerb
                   ) where
 
 import ZMidi.Core ( MidiFile (..), MidiEvent (..)
@@ -162,10 +163,13 @@ showVoices ms = concat . intersperse "\n"
 --------------------------------------------------------------------------------
 
 isQuantised :: TickMap -> Bool
-isQuantised tm = let d         = getMinDur tm
-                     isQuant x = (x `mod` d ) == 0
-                 in and . map isQuant . keys $ tm
+isQuantised = or . isQuantisedVerb 
 
+isQuantisedVerb :: TickMap -> [Bool]
+isQuantisedVerb tm = let d         = getMinDur tm
+                         isQuant x = (x `mod` d ) == 0
+                     in map isQuant . keys $ tm
+                 
 getMinDur :: TickMap -> Time
 getMinDur tm = case fst (findMin tm) of
                  0 -> fst . findMin . delete 0 $ tm
