@@ -3,14 +3,18 @@ module Main where
 import ZMidi.Core (MidiFile, readMidi, printMidi)
 import ZMidiBasic
 
-import System.Directory (getDirectoryContents, canonicalizePath)
+import Control.Monad (filterM)
+import System.Directory ( getDirectoryContents, canonicalizePath
+                        , doesDirectoryExist)
 import System.FilePath 
 import System.Environment (getArgs)
+
+import Debug.Trace (traceShow)
 
 main :: IO ()
 main = do arg <- getArgs
           case arg of
-            [f] -> doDir showMidiStats f
+            [f] -> mapDirInDir (mapDir showMidiStats)  f
             _   -> putStrLn "usage: MidiCSV <filename> "
 
 
@@ -41,10 +45,16 @@ showMidiStats fp = do mf <- readMidi fp
                                         -- print tm
                                         -- print (getMinDur tm)
                                         -- print (isQuantised tm)
+
+mapDirInDir :: (FilePath -> IO ()) -> FilePath ->  IO ()
+mapDirInDir f fp = do fs  <- getDirectoryContents fp 
+                              >>= return . filter (\x -> x /= "." && x /= "..") 
+                      cfp <- canonicalizePath fp
+                      filterM doesDirectoryExist (fmap (cfp </>) fs) >>= mapM_ f 
                                         
-doDir :: (FilePath -> IO ()) ->  FilePath -> IO()
-doDir f fp = do fs <- getDirectoryContents fp >>= 
-                  return . filter (\x -> x /= "." && x /= "..") 
-                cin <- canonicalizePath fp
-                mapM_ (f . (cin </>)) fs
+mapDir :: (FilePath -> IO ()) ->  FilePath -> IO ()
+mapDir f fp = do fs <- getDirectoryContents fp >>= 
+                   return . filter (\x -> x /= "." && x /= "..") 
+                 cin <- canonicalizePath fp
+                 traceShow cin (mapM_ (f . (cin </>)) fs)
      
