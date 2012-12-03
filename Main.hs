@@ -16,7 +16,7 @@ main :: IO ()
 main = do arg <- getArgs
           case arg of
             [f] -> do putStrLn ("filepath\tTime Signatures\tKeys\t" ++
-                                "Number of Voices\tQuantised or not?\tNr.Notes")
+                                "Nr. Voices\tQuantised or not?\tNr. Notes")
                       mapDirInDir (mapDir showMidiStats)  f
             _   -> putStrLn "usage: MidiCSV <filename> "
 
