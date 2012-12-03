@@ -16,6 +16,7 @@ module ZMidiBasic ( MidiScore (..)
                   , getMinDur
                   , isQuantised
                   , isQuantisedVerb
+                  , nrOfNotes
                   ) where
 
 import ZMidi.Core ( MidiFile (..), MidiEvent (..)
@@ -165,7 +166,7 @@ showVoices ms = concat . intersperse "\n"
 --------------------------------------------------------------------------------
 
 isQuantised :: TickMap -> Bool
-isQuantised = or . isQuantisedVerb 
+isQuantised = and . isQuantisedVerb 
 
 isQuantisedVerb :: TickMap -> [Bool]
 isQuantisedVerb tm = let d         = getMinDur tm
@@ -248,7 +249,7 @@ midiTrackToVoice m =
     voiceEvent :: MidiMessage -> State MidiState (Maybe (Timed ScoreEvent))
     voiceEvent mm = case getVoiceEvent mm of
       Just   (NoteOff  chn  ptch _vel) -> toMidiNote chn ptch
-      -- Just   (NoteOn   chn  ptch 0   ) -> toMidiNote chn ptch
+      Just   (NoteOn   chn  ptch 0   ) -> toMidiNote chn ptch
       Just n@(NoteOn  _chn _ptch _vel)
          -> do  t <- gets fst
                 -- replace the deltaTime in the noteOn event by the absolute
@@ -325,3 +326,9 @@ addMessage m = second (m :)
 stateTimeWith :: (Time -> Time) -> MidiState -> MidiState
 stateTimeWith f = first f 
 
+--------------------------------------------------------------------------------
+-- Utilities
+--------------------------------------------------------------------------------
+
+nrOfNotes :: MidiScore -> Int
+nrOfNotes = sum . map length . getVoices

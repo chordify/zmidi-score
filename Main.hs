@@ -15,16 +15,17 @@ import System.Environment (getArgs)
 main :: IO ()
 main = do arg <- getArgs
           case arg of
-            [f] -> mapDirInDir (mapDir showMidiStats)  f
+            [f] -> do putStrLn "filepath\tTime Signatures\tKeys\tNumber of Voices\tQuantised or not?"
+                      mapDirInDir (mapDir showMidiStats)  f
             _   -> putStrLn "usage: MidiCSV <filename> "
 
 
 readMidiFile :: FilePath -> IO ()
 readMidiFile f = do mf <- readMidi f
                     case mf of
-                      Left  err -> print err
-                      Right mid -> do let cmid = canonical mid
-                                          ms   = midiFileToMidiScore cmid 
+                      Left  err -> putStrLn (f ++ '\t' : show err)
+                      Right mid -> do let -- cmid = canonical mid
+                                          ms   = midiFileToMidiScore mid 
                                           tm   = buildTickMap . getVoices $ ms
                                       printMidi mid
                                       print tm
@@ -36,7 +37,7 @@ readMidiFile f = do mf <- readMidi f
 showMidiStats :: FilePath -> IO ()
 showMidiStats fp = do mf <- readMidi fp
                       case mf of
-                        Left  err -> print err
+                        Left  err -> putStrLn (fp ++ '\t' : show err)
                         Right mid -> 
                           do let m = midiFileToMidiScore mid
                                  tm = buildTickMap . getVoices $ m
@@ -44,11 +45,8 @@ showMidiStats fp = do mf <- readMidi fp
                              putStrLn (fp ++ '\t' : show (getTimeSig m) 
                                 ++ '\t' : show (getKey m)
                                 ++ '\t' : (show . length . getVoices $ m) 
-                                ++ '\t' : q)
-                             
-                                        -- print tm
-                                        -- print (getMinDur tm)
-                                        -- print (isQuantised tm)
+                                ++ '\t' : q ++ '\t' : (show . nrOfNotes $ m))
+
 
 mapDirInDir :: (FilePath -> IO ()) -> FilePath ->  IO ()
 mapDirInDir f fp = do fs  <- getDirectoryContents fp 
