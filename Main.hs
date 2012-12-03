@@ -15,7 +15,8 @@ import System.Environment (getArgs)
 main :: IO ()
 main = do arg <- getArgs
           case arg of
-            [f] -> do putStrLn "filepath\tTime Signatures\tKeys\tNumber of Voices\tQuantised or not?"
+            [f] -> do putStrLn ("filepath\tTime Signatures\tKeys\t" ++
+                                "Number of Voices\tQuantised or not?\tNr.Notes")
                       mapDirInDir (mapDir showMidiStats)  f
             _   -> putStrLn "usage: MidiCSV <filename> "
 
@@ -62,4 +63,5 @@ mapDir f fp = do fs <- getDirectoryContents fp >>=
                  mapM_ (f . (cin </>)) fs
 
 putErrStrLn :: String -> IO ()
-putErrStrLn = hPutStr stderr
+putErrStrLn s = do hPutStr stderr s
+                   hPutStr stderr "\n"
