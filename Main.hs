@@ -15,10 +15,11 @@ import System.Environment (getArgs)
 main :: IO ()
 main = do arg <- getArgs
           case arg of
-            [f] -> do putStrLn ("filepath\tTime Signatures\tKeys\t" ++
+            ["-d", d] -> do putStrLn ("filepath\tTime Signatures\tKeys\t" ++
                                 "Nr. Voices\tQuantised or not?\tNr. Notes")
-                      mapDirInDir (mapDir showMidiStats)  f
-            _   -> putStrLn "usage: MidiCSV <filename> "
+                            mapDirInDir (mapDir showMidiStats) d
+            ["-f", f] -> readMidiFile f
+            _         -> putStrLn "usage:  <filename> "
 
 
 readMidiFile :: FilePath -> IO ()

@@ -36,7 +36,7 @@ import Data.List (partition, intersperse)
 import Data.IntMap.Lazy (empty, insertWith, IntMap, findMin, keys, delete)
 import Text.Printf (printf)
                     
-import Debug.Trace (trace)
+-- import Debug.Trace (trace)
                     
 --------------------------------------------------------------------------------                                   
 -- MIDI data representation
@@ -207,7 +207,7 @@ midiFileToMidiScore mf = MidiScore (selectKey meta)
   
   getDivision :: Time
   getDivision= case time_division . mf_header $ mf of
-                 (FPS _ ) -> error "unquantised midifile"
+                 (FPS _ ) -> error "no devision found"
                  (TPB b ) -> fromIntegral b
   
   selectKey :: [Timed ScoreEvent] -> [Timed Key]
@@ -278,7 +278,8 @@ midiTrackToVoice m =
     toMidiNote c p = 
       do ms <- gets snd
          case span (not . isNoteOnMatch c p) ms of
-           (_, []               ) -> trace "note-on event not found" (return Nothing )
+           -- TODO: perhaps we should store the missed note offs??
+           (_, []               ) -> return Nothing
            (x, (ons, noteOn) : y) -> 
               do modify (setMessages (x ++ y))
                  t  <- gets fst
