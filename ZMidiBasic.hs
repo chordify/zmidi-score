@@ -34,7 +34,9 @@ import Data.Maybe (catMaybes)
 import Data.List (partition, intersperse)
 import Data.IntMap.Lazy (empty, insertWith, IntMap, findMin, keys, delete)
 import Text.Printf (printf)
-                                   
+                    
+import Debug.Trace (trace)
+                    
 --------------------------------------------------------------------------------                                   
 -- MIDI data representation
 --------------------------------------------------------------------------------
@@ -238,15 +240,15 @@ midiTrackToVoice m =
     toScoreEvent :: MidiMessage -> State MidiState (Maybe (Timed ScoreEvent))
     toScoreEvent mm@(dt, me) = do modify (stateTimeWith (+ (fromIntegral dt)))
                                   case me of
-                                    (VoiceEvent _) -> voiceEvent mm
-                                    (MetaEvent  _) -> metaEvent  mm
-                                    _              -> return Nothing
+                                    (VoiceEvent _ _) -> voiceEvent mm
+                                    (MetaEvent  _)   -> metaEvent  mm
+                                    _                -> return Nothing
                             
     -- Transforms a 'MidiMessage' containing a 'VoiceEvent' into a 'ScoreEvent'
     voiceEvent :: MidiMessage -> State MidiState (Maybe (Timed ScoreEvent))
     voiceEvent mm = case getVoiceEvent mm of
       Just   (NoteOff  chn  ptch _vel) -> toMidiNote chn ptch
-      Just   (NoteOn   chn  ptch 0   ) -> toMidiNote chn ptch
+      -- Just   (NoteOn   chn  ptch 0   ) -> toMidiNote chn ptch
       Just n@(NoteOn  _chn _ptch _vel)
          -> do  t <- gets fst
                 -- replace the deltaTime in the noteOn event by the absolute
@@ -255,7 +257,8 @@ midiTrackToVoice m =
                 return Nothing
       _  ->     return Nothing    -- ignore NoteAftertouch, Controller,
                                   -- ProgramChange, ChanAftertouch, PitchBend
-
+    
+    -- TODO merge with the above?
     -- Transforms a 'MidiMessage' containing a 'MetaEvent' into a 'ScoreEvent'
     metaEvent :: MidiMessage -> State MidiState (Maybe (Timed ScoreEvent))
     metaEvent mm = 
@@ -275,7 +278,7 @@ midiTrackToVoice m =
     toMidiNote c p = 
       do ms <- gets snd
          case span (not . isNoteOnMatch c p) ms of
-           (_, []               ) -> error "note-on event not found"
+           (_, []               ) -> trace "note-on event not found" (return Nothing )
            (x, (ons, noteOn) : y) -> 
               do modify (setMessages (x ++ y))
                  t  <- gets fst
@@ -290,10 +293,11 @@ midiTrackToVoice m =
     isNoteOnMatch _c   _p    _                      = False
 
     -- Given a MidiMessage, returns the MidiVoiceEvent and Nothing if it 
-    -- contains something else.
+    -- contains something else. 
+    -- TODO: integrate into case, only used once and makes things more complicated
     getVoiceEvent :: MidiMessage -> Maybe MidiVoiceEvent
-    getVoiceEvent (_t, (VoiceEvent e)) = Just e
-    getVoiceEvent _                    = Nothing
+    getVoiceEvent (_t, (VoiceEvent _ e)) = Just e
+    getVoiceEvent _                      = Nothing
       
     -- Given a MidiMessage, returns the MidiMetaEvent and Nothing if it 
     -- contains something else.

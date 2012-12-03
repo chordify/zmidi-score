@@ -1,15 +1,16 @@
 module Main where
 
-import ZMidi.Core (MidiFile, readMidi, printMidi)
+import ZMidi.Core (MidiFile, readMidi, printMidi, canonical)
 import ZMidiBasic
 
 import Control.Monad (filterM)
 import System.Directory ( getDirectoryContents, canonicalizePath
                         , doesDirectoryExist)
+import System.IO (stderr, hPutStr)
 import System.FilePath 
 import System.Environment (getArgs)
 
-import Debug.Trace (traceShow)
+-- import Debug.Trace (traceShow)
 
 main :: IO ()
 main = do arg <- getArgs
@@ -22,13 +23,14 @@ readMidiFile :: FilePath -> IO ()
 readMidiFile f = do mf <- readMidi f
                     case mf of
                       Left  err -> print err
-                      Right mid -> do printMidi mid
-                                      let ms =  midiFileToMidiScore mid 
-                                          tm = buildTickMap . getVoices $ ms
+                      Right mid -> do let cmid = canonical mid
+                                          ms   = midiFileToMidiScore cmid 
+                                          tm   = buildTickMap . getVoices $ ms
+                                      printMidi mid
                                       print tm
                                       print . isQuantisedVerb $ tm
                                       putStrLn . showMidiScore $ ms
-                                   -- print . midiFileToMidiScore $ mid 
+                                   -- print . midiFileToMidiScore $ cmid 
 
                                    
 showMidiStats :: FilePath -> IO ()
@@ -58,5 +60,8 @@ mapDir :: (FilePath -> IO ()) ->  FilePath -> IO ()
 mapDir f fp = do fs <- getDirectoryContents fp >>= 
                    return . filter (\x -> x /= "." && x /= "..") 
                  cin <- canonicalizePath fp
-                 traceShow cin (mapM_ (f . (cin </>)) fs)
-     
+                 putErrStrLn cin
+                 mapM_ (f . (cin </>)) fs
+
+putErrStrLn :: String -> IO ()
+putErrStrLn = hPutStr stderr
