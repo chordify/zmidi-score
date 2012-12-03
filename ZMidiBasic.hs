@@ -258,7 +258,6 @@ midiTrackToVoice m =
       _  ->     return Nothing    -- ignore NoteAftertouch, Controller,
                                   -- ProgramChange, ChanAftertouch, PitchBend
     
-    -- TODO merge with the above?
     -- Transforms a 'MidiMessage' containing a 'MetaEvent' into a 'ScoreEvent'
     metaEvent :: MidiMessage -> State MidiState (Maybe (Timed ScoreEvent))
     metaEvent mm = 
@@ -294,7 +293,6 @@ midiTrackToVoice m =
 
     -- Given a MidiMessage, returns the MidiVoiceEvent and Nothing if it 
     -- contains something else. 
-    -- TODO: integrate into case, only used once and makes things more complicated
     getVoiceEvent :: MidiMessage -> Maybe MidiVoiceEvent
     getVoiceEvent (_t, (VoiceEvent _ e)) = Just e
     getVoiceEvent _                      = Nothing
