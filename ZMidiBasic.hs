@@ -14,8 +14,7 @@ module ZMidiBasic ( MidiScore (..)
                   , midiFileToMidiScore
                   , buildTickMap
                   , getMinDur
-                  , isQuantised
-                  , isQuantisedVerb
+                  , gcIOId
                   , nrOfNotes
                   ) where
 
@@ -25,7 +24,7 @@ import ZMidi.Core ( MidiFile (..), MidiEvent (..)
                   , MidiScaleType (..), MidiTimeDivision (..)
                   )
 
-import Control.Monad.State (State, modify, get, gets, evalState)
+import Control.Monad.State (State, modify, get, gets, evalState, execState)
 import Control.Monad (mapAndUnzipM)
 import Control.Arrow (first, second)
 import Data.Word (Word8)
@@ -33,6 +32,7 @@ import Data.Int  (Int8)
 import Data.Char (toLower)
 import Data.Maybe (catMaybes)
 import Data.List (partition, intersperse)
+import Data.Foldable (foldrM)
 import Data.IntMap.Lazy (empty, insertWith, IntMap, findMin, keys, delete)
 import Text.Printf (printf)
                     
@@ -44,7 +44,7 @@ import Text.Printf (printf)
 
 data MidiScore  = MidiScore     { getKey     :: [Timed Key]
                                 , getTimeSig :: [Timed TimeSig]
-                                , devision   :: Time
+                                , division   :: Time
                                 , minDur     :: Time
                                 , getVoices  :: [Voice]
                                 } deriving (Eq, Ord, Show)
@@ -165,13 +165,13 @@ showVoices ms = concat . intersperse "\n"
 -- Analysing durations
 --------------------------------------------------------------------------------
 
-isQuantised :: TickMap -> Bool
-isQuantised = and . isQuantisedVerb 
+-- isQuantised :: TickMap -> Bool
+-- isQuantised = and . isQuantisedVerb 
 
-isQuantisedVerb :: TickMap -> [Bool]
-isQuantisedVerb tm = let d         = getMinDur tm
-                         isQuant x = (x `mod` d ) == 0
-                     in map isQuant . keys $ tm
+gcIOId :: TickMap -> Time
+gcIOId tm = case keys $ tm of
+  [] -> 0
+  l  -> foldr1 gcd l
                  
 getMinDur :: TickMap -> Time
 getMinDur tm = case fst (findMin tm) of
@@ -182,14 +182,24 @@ buildTickMap :: [Voice] -> TickMap
 buildTickMap = foldr oneVoice empty where
 
   oneVoice :: Voice -> TickMap -> TickMap
-  oneVoice vs tm = foldr step tm vs
+  oneVoice vs tm = foldr step tm (toIOIs vs)
 
-  step :: Timed ScoreEvent -> TickMap -> TickMap
-  step se tm = insertWith addIfExists (duration . getEvent $ se) 0 tm 
+  step :: Time -> TickMap -> TickMap
+  step se tm = insertWith succIfExists se 0 tm 
   
-  addIfExists :: a -> Int -> Int
-  addIfExists _ old = succ old
+  succIfExists :: a -> Int -> Int
+  succIfExists _ old = succ old
 
+toIOIs :: Voice -> [Time]
+toIOIs v = execState (foldrM step [] v) [] where
+
+  step :: Timed ScoreEvent -> [Timed ScoreEvent] 
+       -> State [Time] [Timed ScoreEvent]
+  step t []         = return [t]
+  step t ts@(h : _) = do modify ((onset h - onset t) :)
+                         return (t : ts)
+
+  
 --------------------------------------------------------------------------------
 -- Converting a MidiFile
 --------------------------------------------------------------------------------
@@ -279,7 +289,9 @@ midiTrackToVoice m =
       do ms <- gets snd
          case span (not . isNoteOnMatch c p) ms of
            -- TODO: perhaps we should store the missed note offs??
-           (_, []               ) -> return Nothing
+           (_, []               ) ->  -- trace ("no note on found for: " ++ show p
+                                      --      ++  " on channel: "      ++ show c)
+                                           (return Nothing)
            (x, (ons, noteOn) : y) -> 
               do modify (setMessages (x ++ y))
                  t  <- gets fst

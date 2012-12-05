@@ -1,6 +1,6 @@
 module Main where
 
-import ZMidi.Core (MidiFile, readMidi, printMidi, canonical)
+import ZMidi.Core (readMidi, printMidi)
 import ZMidiBasic
 
 import Control.Monad (filterM)
@@ -16,7 +16,7 @@ main :: IO ()
 main = do arg <- getArgs
           case arg of
             ["-d", d] -> do putStrLn ("filepath\tTime Signatures\tKeys\t" ++
-                                "Nr. Voices\tQuantised or not?\tNr. Notes")
+                                "Nr. Voices\tgcIOI divisor\tticks p. beat\tNr. Notes")
                             mapDirInDir (mapDir showMidiStats) d
             ["-f", f] -> readMidiFile f
             _         -> putStrLn "usage:  <filename> "
@@ -31,7 +31,7 @@ readMidiFile f = do mf <- readMidi f
                                           tm   = buildTickMap . getVoices $ ms
                                       printMidi mid
                                       print tm
-                                      print . isQuantisedVerb $ tm
+                                      print . gcIOId $ tm
                                       putStrLn . showMidiScore $ ms
                                    -- print . midiFileToMidiScore $ cmid 
 
@@ -41,13 +41,15 @@ showMidiStats fp = do mf <- readMidi fp
                       case mf of
                         Left  err -> putStrLn (fp ++ '\t' : show err)
                         Right mid -> 
-                          do let m = midiFileToMidiScore mid
+                          do let m  = midiFileToMidiScore mid
                                  tm = buildTickMap . getVoices $ m
-                                 q  = if isQuantised tm then "Quantised" else "No"
+                                 d  = gcIOId tm
                              putStrLn (fp ++ '\t' : show (getTimeSig m) 
                                 ++ '\t' : show (getKey m)
                                 ++ '\t' : (show . length . getVoices $ m) 
-                                ++ '\t' : q ++ '\t' : (show . nrOfNotes $ m))
+                                ++ '\t' : show d 
+                                ++ '\t' : (show . division $ m)
+                                ++ '\t' : (show . nrOfNotes $ m))
 
 
 mapDirInDir :: (FilePath -> IO ()) -> FilePath ->  IO ()
