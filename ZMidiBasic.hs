@@ -118,6 +118,8 @@ showMidiScore ms@(MidiScore k ts tpb st _vs) = "Key: "      ++ show k
                                      ++ "\nShortest tick: "   ++ show st
                                      ++ "\nNotes:\n" ++ showVoices ms
 
+-- Shows the voices in a MidiScore in a readable way, but this function
+-- only works for monophonic channels. TODO: fix
 showVoices :: MidiScore -> String
 showVoices ms = concat . intersperse "\n" 
               $ evalState (showTimeSlice . getVoices $ ms) 0 where
