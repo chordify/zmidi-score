@@ -31,7 +31,8 @@ import Data.Word (Word8)
 import Data.Int  (Int8)
 import Data.Char (toLower)
 import Data.Maybe (catMaybes)
-import Data.List (partition, intersperse)
+import Data.Ord (comparing)
+import Data.List (partition, intersperse, sortBy)
 import Data.Foldable (foldrM)
 import Data.IntMap.Lazy (empty, insertWith, IntMap, findMin, keys, delete)
 import Text.Printf (printf)
@@ -245,11 +246,13 @@ midiFileToMidiScore mf = MidiScore (selectKey meta)
 -- Transforms a 'MidiTrack' into a 'Voice'
 midiTrackToVoice :: MidiTrack -> Voice
 midiTrackToVoice m = 
-  catMaybes $ evalState (mapM toScoreEvent . getTrackMessages $ m) (0, []) where
+  sortBy (comparing onset) . catMaybes 
+  $ evalState (mapM toScoreEvent . getTrackMessages $ m) (0, []) where
     
     -- Transforms a 'MidiMessage' into a 'ScoreEvent'
     toScoreEvent :: MidiMessage -> State MidiState (Maybe (Timed ScoreEvent))
-    toScoreEvent mm@(dt, me) = do modify (stateTimeWith (+ (fromIntegral dt)))
+    toScoreEvent mm@(dt, me) = do -- update the (absolute) midi clock
+                                  modify (stateTimeWith (+ (fromIntegral dt)))
                                   case me of
                                     (VoiceEvent _ _) -> voiceEvent mm
                                     (MetaEvent  _)   -> metaEvent  mm

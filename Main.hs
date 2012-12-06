@@ -10,13 +10,16 @@ import System.IO (stderr, hPutStr)
 import System.FilePath 
 import System.Environment (getArgs)
 
+import Data.IntMap.Lazy (keys)
 -- import Debug.Trace (traceShow)
 
 main :: IO ()
 main = do arg <- getArgs
           case arg of
             ["-d", d] -> do putStrLn ("filepath\tTime Signatures\tKeys\t" ++
-                                "Nr. Voices\tgcIOI divisor\tticks p. beat\tNr. Notes")
+                                      "Nr. Voices\tv. with notes"
+                                   ++ "\tgcIOI divisor\tticks p. beat"
+                                   ++ "\tNr. Notes\tnr. div. durations\tdurations")
                             mapDirInDir (mapDir showMidiStats) d
             ["-f", f] -> readMidiFile f
             _         -> putStrLn "usage:  <filename> "
@@ -49,7 +52,9 @@ showMidiStats fp = do mf <- readMidi fp
                                 ++ '\t' : (show . length . getVoices $ m) 
                                 ++ '\t' : show d 
                                 ++ '\t' : (show . division $ m)
-                                ++ '\t' : (show . nrOfNotes $ m))
+                                ++ '\t' : (show . nrOfNotes $ m)
+                                ++ '\t' : (show . length . keys $ tm)
+                                ++ '\t' :  show tm)
 
 
 mapDirInDir :: (FilePath -> IO ()) -> FilePath ->  IO ()
