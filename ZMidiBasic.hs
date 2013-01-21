@@ -13,6 +13,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   -- * Transformation
                   , midiFileToMidiScore
                   -- * Quantisation
+                  , quantise
                   , buildTickMap
                   , getMinDur
                   , gcIOId
@@ -89,7 +90,10 @@ data Timed a    = Timed         { onset       :: Time
 data ScoreEvent = NoteEvent     { channel     :: Channel
                                 , pitch       :: Pitch
                                 , velocity    :: Velocity
-                                -- todo : should this not be in Timed??
+                                -- No, this should this not be in Timed 
+                                -- because only a NoteEvent has a duration
+                                -- (or we should give Key and TimeSig changes 
+                                -- also a duration)
                                 , duration    :: Time 
                                 } 
                 | KeyChange     { keyChange   :: Key
@@ -182,13 +186,28 @@ showVoices ms = concat . intersperse "\n"
 --------------------------------------------------------------------------------
 -- Analysing durations
 --------------------------------------------------------------------------------
+type GridUnit = Time
 
-quantise :: MidiFile -> MidiFile
-quantise = undefined
+quantise :: MidiScore -> MidiScore
+quantise (MidiScore k ts d md vs) =   
+          MidiScore k ts d md (map (map (snapEvent (d `div` 8))) vs)
 
-snap :: Time -> Timed ScoreEvent -> Timed ScoreEvent
-snap g ts = undefined
+snapEvent :: GridUnit -> Timed ScoreEvent -> Timed ScoreEvent
+snapEvent g (Timed ons dat) = case dat of
+  (NoteEvent c p v d) -> Timed (snap g ons) (NoteEvent c p v (snap g d))
+  _                   -> Timed (snap g ons) dat
 
+snap :: GridUnit -> Time -> Time
+snap g t | m == 0  = t               -- score event is on the grid
+         | m >  0  = if (g - m) >= m -- score event is off the grid
+                     -- and closer to the past grid point
+                     then    d  * g  -- snap backwards
+                     -- or closer to the next grid point
+                     else (1+d) * g  -- snap forwards
+         | otherwise = error "Negative time stamp found"
+             where (d,m) = t `divMod` g
+
+                    
 -- isQuantised :: TickMap -> Bool
 -- isQuantised = and . isQuantisedVerb 
 
