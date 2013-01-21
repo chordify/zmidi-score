@@ -36,6 +36,7 @@ readMidiFile f = do mf <- readMidi f
                                       print tm
                                       print . gcIOId $ tm
                                       putStrLn . showMidiScore $ ms
+                                      putStrLn . showMidiScore . quantise $ ms
                                    -- print . midiFileToMidiScore $ cmid 
 
                                    

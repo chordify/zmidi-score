@@ -188,14 +188,16 @@ showVoices ms = concat . intersperse "\n"
 --------------------------------------------------------------------------------
 type GridUnit = Time
 
+-- This function snaps events to a grid, but probably we should snap the 
+-- MidiEvents to a grid instead of ScoreEvents
 quantise :: MidiScore -> MidiScore
-quantise (MidiScore k ts d md vs) =   
-          MidiScore k ts d md (map (map (snapEvent (d `div` 8))) vs)
+quantise (MidiScore k ts dv md vs) =   
+          MidiScore k ts dv md (map (map (snapEvent (d `div` 8))) vs) where
 
-snapEvent :: GridUnit -> Timed ScoreEvent -> Timed ScoreEvent
-snapEvent g (Timed ons dat) = case dat of
-  (NoteEvent c p v d) -> Timed (snap g ons) (NoteEvent c p v (snap g d))
-  _                   -> Timed (snap g ons) dat
+  snapEvent :: GridUnit -> Timed ScoreEvent -> Timed ScoreEvent
+  snapEvent g (Timed ons dat) = case dat of
+    (NoteEvent c p v d) -> Timed (snap g ons) (NoteEvent c p v (snap g d))
+    _                   -> Timed (snap g ons) dat
 
 snap :: GridUnit -> Time -> Time
 snap g t | m == 0  = t               -- score event is on the grid
