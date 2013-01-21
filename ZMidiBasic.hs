@@ -24,29 +24,36 @@ import ZMidi.Core ( MidiFile (..), MidiEvent (..)
                   , MidiScaleType (..), MidiTimeDivision (..)
                   )
 
-import Control.Monad.State (State, modify, get, gets, evalState, execState)
-import Control.Monad (mapAndUnzipM)
-import Control.Arrow (first, second)
-import Data.Word (Word8)
-import Data.Int  (Int8)
-import Data.Char (toLower)
-import Data.Maybe (catMaybes)
-import Data.Ord (comparing)
-import Data.List (partition, intersperse, sortBy)
-import Data.Foldable (foldrM)
-import Data.IntMap.Lazy (empty, insertWith, IntMap, findMin, keys, delete)
-import Text.Printf (printf)
+import Control.Monad.State ( State, modify, get, gets, evalState, execState )
+import Control.Monad       ( mapAndUnzipM )
+import Control.Arrow       ( first, second )
+import Data.Word           ( Word8 )
+import Data.Int            ( Int8 )
+import Data.Char           ( toLower )
+import Data.Maybe          ( catMaybes )
+import Data.Ord            ( comparing )
+import Data.List           ( partition, intersperse, sortBy )
+import Data.Foldable       ( foldrM )
+import Data.IntMap.Lazy    ( empty, insertWith, IntMap, findMin, keys, delete )
+import Text.Printf         ( printf )
                     
 -- import Debug.Trace (trace)
                     
 --------------------------------------------------------------------------------                                   
--- MIDI data representation
+-- A less low-level MIDI data representation
 --------------------------------------------------------------------------------
 
-data MidiScore  = MidiScore     { getKey     :: [Timed Key]
+-- | Stores the main elements of a musical score that can be derived from a 
+-- midifile
+data MidiScore  = MidiScore     { -- ^ The 'Key's of the piece with time stamps
+                                  getKey     :: [Timed Key]
+                                  -- ^ The 'TimeSig'natures of the piece with time stamps
                                 , getTimeSig :: [Timed TimeSig]
+                                  -- ^ The number of MIDI-ticks-per-beat
                                 , division   :: Time
+                                  -- ^ The minimum note length found.
                                 , minDur     :: Time
+                                  -- ^ The midi 'Voice's
                                 , getVoices  :: [Voice]
                                 } deriving (Eq, Ord, Show)
                      
@@ -55,11 +62,13 @@ data Key        = Key           { keyRoot    :: Int8
                                 } 
                 | NoKey           deriving (Eq, Ord)
                
+-- | A 'TimeSig'nature has a fraction, e.g. 4/4, 3/4, or 6/8.
 data TimeSig    = TimeSig       { numerator  :: Int 
-                                , denomenator ::Int
+                                , denomenator::Int
                                 }
                 | NoTimeSig       deriving (Eq, Ord)
 
+-- | A 'Voice' is a list of 'ScoreEvent's that have time stamps.
 type Voice      = [Timed ScoreEvent]
 
 type Channel    = Int
@@ -75,7 +84,8 @@ data Timed a    = Timed         { onset       :: Time
 data ScoreEvent = NoteEvent     { channel     :: Channel
                                 , pitch       :: Pitch
                                 , velocity    :: Velocity
-                                , duration    :: Time
+                                -- todo : should this not be in Timed??
+                                , duration    :: Time 
                                 } 
                 | KeyChange     { keyChange   :: Key
                                 } 
@@ -206,6 +216,8 @@ toIOIs v = execState (foldrM step [] v) [] where
 --------------------------------------------------------------------------------
 -- Converting a MidiFile
 --------------------------------------------------------------------------------
+
+-- | Transforms a 'MidiFile' into a 'MidiScore'
 midiFileToMidiScore :: MidiFile -> MidiScore
 midiFileToMidiScore mf = MidiScore (selectKey meta) 
                                    (selectTS  meta) 
@@ -348,5 +360,6 @@ stateTimeWith f = first f
 -- Utilities
 --------------------------------------------------------------------------------
 
+-- | Returns the number of 'ScoreEvent's in a 'MidiScore'
 nrOfNotes :: MidiScore -> Int
 nrOfNotes = sum . map length . getVoices

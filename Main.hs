@@ -16,8 +16,8 @@ import Data.IntMap.Lazy (keys)
 main :: IO ()
 main = do arg <- getArgs
           case arg of
-            ["-d", d] -> do putStrLn ("filepath\tTime Signatures\tKeys\t" ++
-                                      "Nr. Voices\tv. with notes"
+            ["-d", d] -> do putStrLn ("filepath\tTime Signatures\tKeys\t" 
+                                   ++ "Nr. Voices"
                                    ++ "\tgcIOI divisor\tticks p. beat"
                                    ++ "\tNr. Notes\tnr. div. durations\tdurations")
                             mapDirInDir (mapDir showMidiStats) d
