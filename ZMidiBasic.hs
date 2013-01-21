@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE DeriveFunctor           #-}
-module ZMidiBasic ( MidiScore (..)
+module ZMidiBasic ( -- * Score representation of a MidiFile
+                    MidiScore (..)
                   , Key (..)
                   , TimeSig (..)
                   , Voice 
@@ -9,13 +10,17 @@ module ZMidiBasic ( MidiScore (..)
                   , Velocity
                   , Timed (..)
                   , ScoreEvent (..)
-                  , showMidiScore
-                  , showVoices
+                  -- * Transformation
                   , midiFileToMidiScore
+                  -- * Quantisation
                   , buildTickMap
                   , getMinDur
                   , gcIOId
+                  -- * Utilities
                   , nrOfNotes
+                  -- * Showing
+                  , showMidiScore
+                  , showVoices
                   ) where
 
 import ZMidi.Core ( MidiFile (..), MidiEvent (..)
@@ -45,15 +50,15 @@ import Text.Printf         ( printf )
 
 -- | Stores the main elements of a musical score that can be derived from a 
 -- midifile
-data MidiScore  = MidiScore     { -- ^ The 'Key's of the piece with time stamps
+data MidiScore  = MidiScore     { -- | The 'Key's of the piece with time stamps
                                   getKey     :: [Timed Key]
-                                  -- ^ The 'TimeSig'natures of the piece with time stamps
+                                  -- | The 'TimeSig'natures of the piece with time stamps
                                 , getTimeSig :: [Timed TimeSig]
-                                  -- ^ The number of MIDI-ticks-per-beat
+                                  -- | The number of MIDI-ticks-per-beat
                                 , division   :: Time
-                                  -- ^ The minimum note length found.
+                                  -- | The minimum note length found.
                                 , minDur     :: Time
-                                  -- ^ The midi 'Voice's
+                                  -- | The midi 'Voice's
                                 , getVoices  :: [Voice]
                                 } deriving (Eq, Ord, Show)
                      
@@ -178,6 +183,12 @@ showVoices ms = concat . intersperse "\n"
 -- Analysing durations
 --------------------------------------------------------------------------------
 
+quantise :: MidiFile -> MidiFile
+quantise = undefined
+
+snap :: Time -> Timed ScoreEvent -> Timed ScoreEvent
+snap g ts = undefined
+
 -- isQuantised :: TickMap -> Bool
 -- isQuantised = and . isQuantisedVerb 
 
@@ -244,18 +255,6 @@ midiFileToMidiScore mf = MidiScore (selectKey meta)
   selectTS ses = case filter isTimeSig ses of
     [] -> [Timed 0 NoTimeSig]
     t  -> map (fmap tsChange) t
-    
-  isTimeSig :: Timed ScoreEvent -> Bool
-  isTimeSig (Timed _ (TimeSigChange _ )) = True
-  isTimeSig _                            = False
-
-  isKeyChange :: Timed ScoreEvent -> Bool
-  isKeyChange (Timed _ (KeyChange   _ )) = True
-  isKeyChange _                          = False
-  
-  isNoteEvent :: Timed ScoreEvent -> Bool
-  isNoteEvent (Timed _ (NoteEvent _ _ _ _ )) = True
-  isNoteEvent _                              = False
   
 -- Transforms a 'MidiTrack' into a 'Voice'
 midiTrackToVoice :: MidiTrack -> Voice
@@ -363,3 +362,18 @@ stateTimeWith f = first f
 -- | Returns the number of 'ScoreEvent's in a 'MidiScore'
 nrOfNotes :: MidiScore -> Int
 nrOfNotes = sum . map length . getVoices
+
+-- | Returns True if the 'ScoreEvent' is a time signature change  
+isTimeSig :: Timed ScoreEvent -> Bool
+isTimeSig (Timed _ (TimeSigChange _ )) = True
+isTimeSig _                            = False
+
+-- | Returns True if the 'ScoreEvent' is a key change
+isKeyChange :: Timed ScoreEvent -> Bool
+isKeyChange (Timed _ (KeyChange   _ )) = True
+isKeyChange _                          = False
+
+-- | Returns True if the 'ScoreEvent' is a 'NoteEvent'
+isNoteEvent :: Timed ScoreEvent -> Bool
+isNoteEvent (Timed _ (NoteEvent _ _ _ _ )) = True
+isNoteEvent _                              = False
