@@ -101,7 +101,8 @@ data ScoreEvent = NoteEvent     { channel     :: Channel
                 | KeyChange     { keyChange   :: Key
                                 } 
                 | TimeSigChange { tsChange    :: TimeSig
-                                } deriving (Eq, Ord, Show)
+                                } 
+                | EndOfVoice     deriving (Eq, Ord, Show)
 
 type TickMap = IntMap Time
 
@@ -297,7 +298,8 @@ midiTrackToVoice m =
     metaEvent mm = 
       do t <- gets fst
          case getMetaEvent mm of
-            -- Just (EndOfTrack)
+            Just (EndOfTrack)
+              -> return . Just . Timed t $ EndOfVoice
             Just (TimeSignature num den _frac _subfr) 
               -> return . Just . Timed t $ TimeSigChange 
                                 (TimeSig (fromIntegral num) (2 ^ den))
@@ -370,6 +372,8 @@ stateTimeWith f = first f
 midiScoreToMidiFile :: MidiScore -> MidiFile
 midiScoreToMidiFile = undefined
 
+toMidiMessage :: ScoreEvent -> MidiMessage
+toMidiMessage = undefined
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
