@@ -40,7 +40,7 @@ import Data.Int            ( Int8 )
 import Data.Char           ( toLower )
 import Data.Maybe          ( catMaybes )
 import Data.Ord            ( comparing )
-import Data.List           ( partition, intersperse, sortBy )
+import Data.List           ( partition, intersperse, sortBy, sort )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( empty, insertWith, IntMap, findMin, keys, delete )
 import Text.Printf         ( printf )
@@ -373,12 +373,15 @@ midiScoreToMidiFile :: MidiScore -> MidiFile
 midiScoreToMidiFile = undefined
 
 voiceToTrack :: Voice -> MidiTrack
-voiceToTrack = undefined
+voiceToTrack = MidiTrack . foldr step [] . sort . concatMap noteEventToMidiNote 
+
+step :: Timed MidiVoiceEvent -> [MidiMessage] -> [MidiMessage]
+step = undefined
 
 noteEventToMidiNote :: Timed ScoreEvent 
-                    -> (Timed MidiVoiceEvent, Timed MidiVoiceEvent)
+                    -> [Timed MidiVoiceEvent] -- , Timed MidiVoiceEvent)
 noteEventToMidiNote (Timed o (NoteEvent c p v d)) = 
-  (Timed o (NoteOn c p v), Timed (o + d) (NoteOff c p v))
+  [Timed o (NoteOn c p v), Timed (o + d) (NoteOff c p v)]
 noteEventToMidiNote _ = error "noteEventToMidiNote: not a NoteEvent."  
 
 --------------------------------------------------------------------------------
