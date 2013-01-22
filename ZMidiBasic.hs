@@ -19,6 +19,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , gcIOId
                   -- * Utilities
                   , nrOfNotes
+                  , toIOIs
                   -- * Showing
                   , showMidiScore
                   , showVoices
@@ -188,12 +189,13 @@ showVoices ms = concat . intersperse "\n"
 --------------------------------------------------------------------------------
 type GridUnit = Time
 
--- This function snaps events to a grid, but probably we should snap the 
--- MidiEvents to a grid instead of ScoreEvents
+-- | Quantises a 'MidiScore' snapping all events to a 1/32 grid
 quantise :: MidiScore -> MidiScore
-quantise (MidiScore k ts dv md vs) =   
-          MidiScore k ts dv md (map (map (snapEvent (d `div` 8))) vs) where
+quantise (MidiScore k ts dv _md vs) =  MidiScore k ts dv md' vs' where
 
+  vs' = map (map (snapEvent (dv `div` 8))) vs -- snap all events to a grid
+  md' = getMinDur . buildTickMap $ vs'-- the minimum duration might have changed
+          
   snapEvent :: GridUnit -> Timed ScoreEvent -> Timed ScoreEvent
   snapEvent g (Timed ons dat) = case dat of
     (NoteEvent c p v d) -> Timed (snap g ons) (NoteEvent c p v (snap g d))
@@ -209,15 +211,12 @@ snap g t | m == 0  = t               -- score event is on the grid
          | otherwise = error "Negative time stamp found"
              where (d,m) = t `divMod` g
 
-                    
--- isQuantised :: TickMap -> Bool
--- isQuantised = and . isQuantisedVerb 
-
 gcIOId :: TickMap -> Time
 gcIOId tm = case keys $ tm of
   [] -> 0
   l  -> foldr1 gcd l
-                 
+
+-- | Return the IOI of the event that has the shortest IOI
 getMinDur :: TickMap -> Time
 getMinDur tm = case fst (findMin tm) of
                  0 -> fst . findMin . delete 0 $ tm
@@ -234,15 +233,6 @@ buildTickMap = foldr oneVoice empty where
   
   succIfExists :: a -> Int -> Int
   succIfExists _ old = succ old
-
-toIOIs :: Voice -> [Time]
-toIOIs v = execState (foldrM step [] v) [] where
-
-  step :: Timed ScoreEvent -> [Timed ScoreEvent] 
-       -> State [Time] [Timed ScoreEvent]
-  step t []         = return [t]
-  step t ts@(h : _) = do modify ((onset h - onset t) :)
-                         return (t : ts)
 
   
 --------------------------------------------------------------------------------
@@ -359,8 +349,8 @@ midiTrackToVoice m =
     getVelocity (NoteOff _ _ v) = v
     getVelocity _               = error "not a noteOn or a noteOff event"
     
--- we create a small state datatype for storing some information obtained from
--- the midi file, that is needed again at a later stage, such as note-on events.
+-- We define a stat to store the absolute midi clock 
+-- and a list of note-on events.
 type MidiState = (Time, [(Time, MidiVoiceEvent)])
 
 -- We also define some accessor functions for our MidiState. 'setMessages' 
@@ -398,3 +388,14 @@ isKeyChange _                          = False
 isNoteEvent :: Timed ScoreEvent -> Bool
 isNoteEvent (Timed _ (NoteEvent _ _ _ _ )) = True
 isNoteEvent _                              = False
+
+-- | Transforms a 'Voice' into a list of Inter Onset Intervals (IOIs)
+toIOIs :: Voice -> [Time]
+toIOIs v = execState (foldrM step [] v) [] where
+
+  step :: Timed ScoreEvent -> [Timed ScoreEvent] 
+       -> State [Time] [Timed ScoreEvent]
+  step t []         = return [t]
+  step t ts@(h : _) = do modify ((onset h - onset t) :)
+                         return (t : ts)
+

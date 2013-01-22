@@ -32,7 +32,7 @@ readMidiFile f = do mf <- readMidi f
                       Right mid -> do let -- cmid = canonical mid
                                           ms   = midiFileToMidiScore mid 
                                           tm   = buildTickMap . getVoices $ ms
-                                      printMidi mid
+                                   -- printMidi mid
                                       print tm
                                       print . gcIOId $ tm
                                       putStrLn . showMidiScore $ ms
