@@ -79,7 +79,7 @@ data TimeSig    = TimeSig       { numerator  :: Int
 -- | A 'Voice' is a list of 'ScoreEvent's that have time stamps.
 type Voice      = [Timed ScoreEvent]
 
-type Channel    = Int
+type Channel    = Word8
 type Pitch      = Word8
 type Velocity   = Word8
 type Time       = Int
@@ -372,8 +372,15 @@ stateTimeWith f = first f
 midiScoreToMidiFile :: MidiScore -> MidiFile
 midiScoreToMidiFile = undefined
 
-toMidiMessage :: ScoreEvent -> MidiMessage
-toMidiMessage = undefined
+voiceToTrack :: Voice -> MidiTrack
+voiceToTrack = undefined
+
+noteEventToMidiNote :: Timed ScoreEvent 
+                    -> (Timed MidiVoiceEvent, Timed MidiVoiceEvent)
+noteEventToMidiNote (Timed o (NoteEvent c p v d)) = 
+  (Timed o (NoteOn c p v), Timed (o + d) (NoteOff c p v))
+noteEventToMidiNote _ = error "noteEventToMidiNote: not a NoteEvent."  
+
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
