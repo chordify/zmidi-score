@@ -36,6 +36,7 @@ readMidiFile f = do mf <- readMidi f
                                       printMidi mid
                                       printMidiToFile mid (f ++ ".txt")
                                       printMidiToFile (midiScoreToMidiFile ms) (f ++ ".test.txt")                                      
+                                      printMidiToFile (midiScoreToMidiFile . quantise $ ms) (f ++ ".quantised.txt")                                      
                                       -- print tm
                                       -- print . gcIOId $ tm
                                       -- putStrLn . showMidiScore $ ms

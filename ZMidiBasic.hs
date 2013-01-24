@@ -80,6 +80,7 @@ data TimeSig    = TimeSig       { numerator  :: Int
                                 }
                 | NoTimeSig       deriving (Eq, Ord)
 
+-- Note: we could consider adding a Voice label, like there is a track label
 -- | A 'Voice' is a list of 'ScoreEvent's that have time stamps.
 type Voice      = [Timed ScoreEvent]
 
@@ -91,10 +92,7 @@ type Time       = Int
 -- perhaps add duration??
 data Timed a    = Timed         { onset       :: Time 
                                 , getEvent    :: a
-                                } deriving (Functor, Eq)
-
-instance Eq a => Ord (Timed a) where
-  compare a b = compare (onset a) (onset b)
+                                } deriving (Functor, Eq, Ord)
                                 
 data ScoreEvent = NoteEvent     { channel     :: Channel
                                 , pitch       :: Pitch
@@ -412,7 +410,7 @@ midiScoreToMidiFile (MidiScore ks ts hd _ vs) =
     -- this is where the magic happens. A list of timed events is made relative
     -- such that timestamps denote the time between elements. We close 
     -- the track by appending a EndOfTrack marker with final time stamp
-    mkMidiTrack :: forall a. Eq a => (a -> MidiEvent) -> [Timed a] -> MidiTrack
+    mkMidiTrack :: forall a. Ord a => (a -> MidiEvent) -> [Timed a] -> MidiTrack
     mkMidiTrack f e = MidiTrack $ (trk ++ [(0, MetaEvent EndOfTrack)])
     
       where trk = evalState (mapM mkRelative . sort $ e) 0
