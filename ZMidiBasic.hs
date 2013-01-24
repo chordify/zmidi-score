@@ -32,10 +32,10 @@ import ZMidi.Core          ( MidiFile (..), MidiEvent (..)
                            , MidiVoiceEvent (..), MidiMetaEvent (..)
                            , MidiMessage, MidiTrack (..), MidiHeader (..) 
                            , MidiScaleType (..), MidiTimeDivision (..)
-                           , MidiRunningStatus (..)
+                           , MidiRunningStatus (..), DeltaTime
                            )
 import Control.Monad.State ( State, modify, get, gets, put
-                           , evalState, execState 
+                           , evalState, execState
                            )
 import Control.Monad       ( mapAndUnzipM )
 import Control.Arrow       ( first, second )
@@ -410,13 +410,17 @@ midiScoreToMidiFile (MidiScore ks ts hd _ vs) =
     toMidiNote _ = error "noteEventToMidiNote: not a NoteEvent."  
      
     -- this is where the magic happens. A list of timed events is made relative
-    -- such that timestamps denote the time between elements.    
+    -- such that timestamps denote the time between elements. We close 
+    -- the track by appending a EndOfTrack marker with final time stamp
     mkMidiTrack :: forall a. Eq a => (a -> MidiEvent) -> [Timed a] -> MidiTrack
-    mkMidiTrack f e = MidiTrack $ evalState (mapM mkRelative . sort $ e) 0
+    mkMidiTrack f e = MidiTrack $ (trk ++ [(0, MetaEvent EndOfTrack)])
+    
+      where trk = evalState (mapM mkRelative . sort $ e) 0
       
-      where mkRelative :: Timed a -> State Time MidiMessage
-            mkRelative (Timed o me) = do t <- get ; put o
-                                         return (fromIntegral (o - t), f me) 
+            mkRelative :: Timed a -> State DeltaTime MidiMessage
+            mkRelative (Timed o me) = do let o' = fromIntegral o
+                                         t <- get ; put o'
+                                         return (o' - t, f me) 
 
 
 
