@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE DeriveFunctor           #-}
+{-# LANGUAGE ScopedTypeVariables     #-}
 module ZMidiBasic ( -- * Score representation of a MidiFile
                     MidiScore (..)
                   , Key (..)
@@ -378,36 +379,46 @@ stateTimeWith f = first f
 -- | Transforms a 'MidiFile' into a 'MidiScore'
 midiScoreToMidiFile :: MidiScore -> MidiFile
 midiScoreToMidiFile (MidiScore ks ts hd _ vs) = 
-  MidiFile hd (metaToMidiEvent ks ts : map voiceToTrack vs)
+  MidiFile hd (metaToMidiEvent ks ts : map voiceToTrack vs) where
 
-metaToMidiEvent :: [Timed Key] -> [Timed TimeSig] -> MidiTrack
-metaToMidiEvent k t = MidiTrack $ evalState 
- (mapM (makeRelative MetaEvent) . sort $ (mapMaybe keyToMidiEvent k ++ mapMaybe tsToMidiEvent t)) 0
-  
-keyToMidiEvent :: Timed Key -> Maybe (Timed MidiMetaEvent)
-keyToMidiEvent (Timed _ NoKey    ) = Nothing
-keyToMidiEvent (Timed o (Key r s)) = Just $ Timed o (KeySignature r s)
+    -- Takes the Key and TimeSig fields and tranforms them into 
+    -- a MidiTrack containing only MetaEvents
+    metaToMidiEvent :: [Timed Key] -> [Timed TimeSig] -> MidiTrack
+    metaToMidiEvent k t = mkMidiTrack MetaEvent
+      (mapMaybe keyToMidiEvent k ++ mapMaybe tsToMidiEvent t)
+      
+    -- transforms a Key into a MetaEvent
+    keyToMidiEvent :: Timed Key -> Maybe (Timed MidiMetaEvent)
+    keyToMidiEvent (Timed _ NoKey    ) = Nothing
+    keyToMidiEvent (Timed o (Key r s)) = Just $ Timed o (KeySignature r s)
 
-tsToMidiEvent :: Timed TimeSig -> Maybe (Timed MidiMetaEvent)
-tsToMidiEvent (Timed _  NoTimeSig   ) = Nothing
-tsToMidiEvent (Timed o (TimeSig n d)) = 
-  Just $ Timed o (TimeSignature (fromIntegral n) 
-                 (fromIntegral . integerLogBase 2 . fromIntegral $ d) 0 0)
+    -- transforms a TimeSig into a MetaEvent
+    tsToMidiEvent :: Timed TimeSig -> Maybe (Timed MidiMetaEvent)
+    tsToMidiEvent (Timed _  NoTimeSig   ) = Nothing
+    tsToMidiEvent (Timed o (TimeSig n d)) = 
+      Just $ Timed o (TimeSignature (fromIntegral n) 
+                     (fromIntegral . integerLogBase 2 . fromIntegral $ d) 0 0)
+    
+    -- transforms a Voice into a MidiTrack
+    voiceToTrack :: Voice -> MidiTrack
+    voiceToTrack = mkMidiTrack (VoiceEvent RS_OFF) . concatMap toMidiNote 
 
-voiceToTrack :: Voice -> MidiTrack
-voiceToTrack v = MidiTrack $ evalState 
- (mapM (makeRelative (VoiceEvent RS_OFF)) . sort . concatMap noteEventToMidiNote $ v) 0 
- 
-makeRelative :: (a -> MidiEvent) -> Timed a -> State Time MidiMessage
-makeRelative f (Timed o me) = do t <- get 
-                                 put o
-                                 return (fromIntegral (o - t), f me) 
+    -- transforms a NoteEvent into a MidiVoiceEvent 
+    toMidiNote :: Timed ScoreEvent -> [Timed MidiVoiceEvent] 
+    toMidiNote (Timed o (NoteEvent c p v d)) = 
+      [Timed o (NoteOn c p v), Timed (o + d) (NoteOff c p 0)]
+    toMidiNote _ = error "noteEventToMidiNote: not a NoteEvent."  
+     
+    -- this is where the magic happens. A list of timed events is made relative
+    -- such that timestamps denote the time between elements.    
+    mkMidiTrack :: forall a. Eq a => (a -> MidiEvent) -> [Timed a] -> MidiTrack
+    mkMidiTrack f e = MidiTrack $ evalState (mapM mkRelative . sort $ e) 0
+      
+      where mkRelative :: Timed a -> State Time MidiMessage
+            mkRelative (Timed o me) = do t <- get ; put o
+                                         return (fromIntegral (o - t), f me) 
 
-noteEventToMidiNote :: Timed ScoreEvent -> [Timed MidiVoiceEvent] 
--- noteEventToMidiNote (Timed o EndOfVoice         ) = [Timed o EndOfTrack] 
-noteEventToMidiNote (Timed o (NoteEvent c p v d)) = 
-  [Timed o (NoteOn c p v), Timed (o + d) (NoteOff c p 0)]
-noteEventToMidiNote _ = error "noteEventToMidiNote: not a NoteEvent."  
+
 
 --------------------------------------------------------------------------------
 -- Utilities
