@@ -46,7 +46,8 @@ import Data.List           ( partition, intersperse, sortBy, sort )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( empty, insertWith, IntMap, findMin, keys, delete )
 import Text.Printf         ( printf )
-                    
+
+import GHC.Integer.Logarithms ( integerLog2# )
 -- import Debug.Trace (trace)
                     
 --------------------------------------------------------------------------------                                   
@@ -74,7 +75,7 @@ data Key        = Key           { keyRoot    :: Int8
                
 -- | A 'TimeSig'nature has a fraction, e.g. 4/4, 3/4, or 6/8.
 data TimeSig    = TimeSig       { numerator  :: Int 
-                                , denomenator::Int
+                                , denomenator:: Int
                                 }
                 | NoTimeSig       deriving (Eq, Ord)
 
@@ -378,7 +379,10 @@ stateTimeWith f = first f
 midiScoreToMidiFile :: MidiScore -> MidiFile
 midiScoreToMidiFile = undefined
 
--- metaEventsToTrack ::
+metaToMidiEvent :: Timed ScoreEvent -> Timed MidiMetaEvent
+metaToMidiEvent (Timed o (KeyChange     r s)) = Timed o (KeySignature r s)
+metaToMidiEvent (Timed o (TimeSigChange n d)) = 
+  Timed o (TimeSignature (fromIntegral n) (integerLog2# d))
 
 voiceToTrack :: Voice -> MidiTrack
 voiceToTrack v = MidiTrack $ evalState 
