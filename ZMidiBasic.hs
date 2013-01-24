@@ -63,6 +63,8 @@ data MidiScore  = MidiScore     { -- | The 'Key's of the piece with time stamps
                                 , getTimeSig :: [Timed TimeSig]
                                   -- | The number of MIDI-ticks-per-beat
                                 , header     :: MidiHeader
+                                  -- | The microseconds per quarter note
+                                , tempo      :: [Timed Time]                                
                                   -- | The minimum note length found.
                                 , minDur     :: Time
                                   -- | The midi 'Voice's
@@ -107,8 +109,8 @@ data ScoreEvent = NoteEvent     { channel     :: Channel
                                 } 
                 | TimeSigChange { tsChange    :: TimeSig
                                 } 
-                -- | EndOfVoice     
-                deriving (Eq, Ord, Show)
+                | TempoChange   { tempChange  :: Time
+                                } deriving (Eq, Ord, Show)
 
 type TickMap = IntMap Time
 
@@ -140,9 +142,10 @@ instance Show Key where
 
 -- Show a MidiScore in a readable way
 showMidiScore :: MidiScore -> String
-showMidiScore ms@(MidiScore k ts tpb st _vs) = "Key: "      ++ show k 
+showMidiScore ms@(MidiScore k ts tpb st tp _vs) = "Key: "      ++ show k 
                                      ++ "\nMeter: "  ++ show ts
                                      ++ "\nTicks per Beat: "  ++ show tpb 
+                                     ++ "\nTempo: "  ++ show tp 
                                      ++ "\nShortest tick: "   ++ show st
                                      ++ "\nNotes:\n" ++ showVoices ms
 
@@ -199,7 +202,7 @@ type GridUnit = Time
 
 -- | Quantises a 'MidiScore' snapping all events to a 1/32 grid
 quantise :: MidiScore -> MidiScore
-quantise (MidiScore k ts hd _md vs) =  MidiScore k ts hd md' vs' where
+quantise (MidiScore k ts hd tp _md vs) =  MidiScore k ts hd tp md' vs' where
 
   vs' = map (map (snapEvent ((division hd) `div` 8))) vs -- snap all events to a grid
   md' = getMinDur . buildTickMap $ vs'-- the minimum duration might have changed
@@ -252,6 +255,7 @@ midiFileToMidiScore :: MidiFile -> MidiScore
 midiFileToMidiScore mf = MidiScore (selectKey meta) 
                                    (selectTS  meta) 
                                    (mf_header mf  )
+                                   (selectTempo meta)
                                    (getMinDur . buildTickMap $ trks)
                                    (filter (not . null) trks) where
                          
@@ -259,6 +263,12 @@ midiFileToMidiScore mf = MidiScore (selectKey meta)
                  -- separate meta data from note data
                  unzip . map (partition isNoteEvent . midiTrackToVoice)
                        . mf_tracks $ mf -- get midi tracks
+  
+  --TODO remove duplicate code below
+  selectTempo :: [Timed ScoreEvent] -> [Timed Time]
+  selectTempo ses = case filter isTempoChange ses of 
+    [] -> [Timed 0 500000] -- default tempo is 120 BPM
+    k  -> map (fmap tempChange) k
   
   selectKey :: [Timed ScoreEvent] -> [Timed Key]
   selectKey ses = case filter isKeyChange ses of 
@@ -304,11 +314,14 @@ midiTrackToVoice m =
     metaEvent mm = 
       do t <- gets fst
          case getMetaEvent mm of
-            -- Just (EndOfTrack)
-              -- -> return . Just . Timed t $ EndOfVoice
+            -- tempo meta event
+            Just (SetTempo tp)  
+              -> return . Just . Timed t . TempoChange . fromIntegral $ tp
+            -- timesignature meta event
             Just (TimeSignature num den _frac _subfr) 
               -> return . Just . Timed t $ TimeSigChange 
                                 (TimeSig (fromIntegral num) (2 ^ den))
+            -- key meta event
             Just (KeySignature root scale)
               -> return . Just $ Timed t (KeyChange (Key root scale ))
             _ -> return Nothing
@@ -376,7 +389,7 @@ stateTimeWith f = first f
 
 -- | Transforms a 'MidiFile' into a 'MidiScore'
 midiScoreToMidiFile :: MidiScore -> MidiFile
-midiScoreToMidiFile (MidiScore ks ts hd _ vs) = 
+midiScoreToMidiFile (MidiScore ks ts hd _ _ vs) = 
   MidiFile hd (metaToMidiEvent ks ts : map voiceToTrack vs) where
 
     -- Takes the Key and TimeSig fields and tranforms them into 
@@ -447,6 +460,12 @@ isTimeSig _                            = False
 isKeyChange :: Timed ScoreEvent -> Bool
 isKeyChange (Timed _ (KeyChange   _ )) = True
 isKeyChange _                          = False
+
+-- | Returns True if the 'ScoreEvent' is a key change
+isTempoChange :: Timed ScoreEvent -> Bool
+isTempoChange (Timed _ (TempoChange _ )) = True
+isTempoChange _                          = False
+
 
 -- | Returns True if the 'ScoreEvent' is a 'NoteEvent'
 isNoteEvent :: Timed ScoreEvent -> Bool

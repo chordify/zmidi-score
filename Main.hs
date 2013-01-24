@@ -1,6 +1,7 @@
 module Main where
 
-import ZMidi.Core (readMidi, printMidi, printMidiHeader, printMidiTrack, MidiFile (..))
+import ZMidi.Core ( readMidi, printMidi, printMidiHeader
+                  , printMidiTrack, MidiFile (..), writeMidi)
 import ZMidiBasic
 
 import Data.List (intercalate)
@@ -31,12 +32,14 @@ readMidiFile f = do mf <- readMidi f
                     case mf of
                       Left  err -> putStrLn (f ++ '\t' : show err)
                       Right mid -> do let -- cmid = canonical mid
-                                          ms   = midiFileToMidiScore mid 
+                                          ms   = midiFileToMidiScore mid
+                                          qs   = quantise ms
                                         --  tm   = buildTickMap . getVoices $ ms
                                       printMidi mid
                                       printMidiToFile mid (f ++ ".txt")
-                                      printMidiToFile (midiScoreToMidiFile ms) (f ++ ".test.txt")                                      
-                                      printMidiToFile (midiScoreToMidiFile . quantise $ ms) (f ++ ".quantised.txt")                                      
+                                      printMidiToFile (midiScoreToMidiFile ms) (f ++ ".test.txt")                                 
+                                      printMidiToFile (midiScoreToMidiFile qs) (f ++ ".quantised.txt")
+                                      writeMidi (f ++ "quantised.mid") (midiScoreToMidiFile qs)
                                       -- print tm
                                       -- print . gcIOId $ tm
                                       -- putStrLn . showMidiScore $ ms
