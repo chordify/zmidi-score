@@ -41,7 +41,7 @@ import Control.Arrow       ( first, second )
 import Data.Word           ( Word8 )
 import Data.Int            ( Int8 )
 import Data.Char           ( toLower )
-import Data.Maybe          ( catMaybes )
+import Data.Maybe          ( catMaybes, mapMaybe )
 import Data.Ord            ( comparing )
 import Data.List           ( partition, intersperse, sortBy, sort )
 import Data.Foldable       ( foldrM )
@@ -382,15 +382,17 @@ midiScoreToMidiFile (MidiScore ks ts hd _ vs) =
 
 metaToMidiEvent :: [Timed Key] -> [Timed TimeSig] -> MidiTrack
 metaToMidiEvent k t = MidiTrack $ evalState 
- (mapM (makeRelative MetaEvent) . sort $ (map keyToMidiEvent k ++ map tsToMidiEvent t)) 0
+ (mapM (makeRelative MetaEvent) . sort $ (mapMaybe keyToMidiEvent k ++ mapMaybe tsToMidiEvent t)) 0
   
-keyToMidiEvent :: Timed Key -> Timed MidiMetaEvent
-keyToMidiEvent (Timed o (Key r s)) = Timed o (KeySignature r s)
+keyToMidiEvent :: Timed Key -> Maybe (Timed MidiMetaEvent)
+keyToMidiEvent (Timed _ NoKey    ) = Nothing
+keyToMidiEvent (Timed o (Key r s)) = Just $ Timed o (KeySignature r s)
 
-tsToMidiEvent :: Timed TimeSig -> Timed MidiMetaEvent
+tsToMidiEvent :: Timed TimeSig -> Maybe (Timed MidiMetaEvent)
+tsToMidiEvent (Timed _  NoTimeSig   ) = Nothing
 tsToMidiEvent (Timed o (TimeSig n d)) = 
-  Timed o (TimeSignature (fromIntegral n) 
-          (fromIntegral . integerLogBase 2 . fromIntegral $ d) 0 0)
+  Just $ Timed o (TimeSignature (fromIntegral n) 
+                 (fromIntegral . integerLogBase 2 . fromIntegral $ d) 0 0)
 
 voiceToTrack :: Voice -> MidiTrack
 voiceToTrack v = MidiTrack $ evalState 
