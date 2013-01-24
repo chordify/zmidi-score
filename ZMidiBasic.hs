@@ -46,7 +46,7 @@ import Data.List           ( partition, intersperse, sortBy, sort )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( empty, insertWith, IntMap, findMin, keys, delete )
 import Text.Printf         ( printf )
-import Math.NumberTheory.Logarithms (integerLog2)
+import GHC.Float           ( integerLogBase )
 -- import Debug.Trace (trace)
                     
 --------------------------------------------------------------------------------                                   
@@ -376,22 +376,40 @@ stateTimeWith f = first f
 
 -- | Transforms a 'MidiFile' into a 'MidiScore'
 midiScoreToMidiFile :: MidiScore -> MidiFile
-midiScoreToMidiFile = undefined
+midiScoreToMidiFile (MidiScore ks ts hd _ vs) = 
+  MidiFile hd (metaToMidiEvent ks ts : map voiceToTrack vs)
 
-metaToMidiEvent :: Timed ScoreEvent -> Timed MidiMetaEvent
-metaToMidiEvent (Timed o (KeyChange     (Key     r s))) = 
-  Timed o (KeySignature r s)
-metaToMidiEvent (Timed o (TimeSigChange (TimeSig n d))) = 
-  Timed o (TimeSignature (fromIntegral n) (fromIntegral . integerLog2 . fromIntegral $ d) 0 0)
+metaToMidiEvent :: [Timed Key] -> [Timed TimeSig] -> MidiTrack
+metaToMidiEvent k t = MidiTrack $ evalState 
+ (mapM (makeRelative MetaEvent) . sort $ (map keyToMidiEvent k ++ map tsToMidiEvent t)) 0
+  
+keyToMidiEvent :: Timed Key -> Timed MidiMetaEvent
+keyToMidiEvent (Timed o (Key r s)) = Timed o (KeySignature r s)
+
+tsToMidiEvent :: Timed TimeSig -> Timed MidiMetaEvent
+tsToMidiEvent (Timed o (TimeSig n d)) = 
+  Timed o (TimeSignature (fromIntegral n) 
+          (fromIntegral . integerLogBase 2 . fromIntegral $ d) 0 0)
+  -- Timed o (TimeSignature (fromIntegral n) ( round . toRational . logBase 2 . fromIntegral $ d) 0 0)
+-- toMidiEvent (Timed _ _ ) = error "metaToMidiEvent: unknown meta event"
+
+-- intLog2 :: Integral a => a -> a
+-- intLog2 
 
 voiceToTrack :: Voice -> MidiTrack
 voiceToTrack v = MidiTrack $ evalState 
-                    (mapM convert . sort . concatMap noteEventToMidiNote $ v) 0 
+ (mapM (makeRelative (VoiceEvent RS_OFF)) . sort . concatMap noteEventToMidiNote $ v) 0 
+ 
+-- voiceEvent :: MidiVoiceEvent -> MidiEvent
+-- voiceEvent = VoiceEvent RS_OFF 
 
-convert :: Timed MidiVoiceEvent -> State Time MidiMessage
-convert (Timed o me) = do t <- get 
-                          put o
-                          return (fromIntegral (o - t), VoiceEvent RS_OFF me) 
+-- metaEvent :: MidiMetaEvent -> MidiEvent
+-- metaEvent = MetaEvent 
+ 
+makeRelative :: (a -> MidiEvent) -> Timed a -> State Time MidiMessage
+makeRelative f (Timed o me) = do t <- get 
+                                 put o
+                                 return (fromIntegral (o - t), f me) 
 
 noteEventToMidiNote :: Timed ScoreEvent -> [Timed MidiVoiceEvent] 
 -- noteEventToMidiNote (Timed o EndOfVoice         ) = [Timed o EndOfTrack] 
