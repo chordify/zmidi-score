@@ -46,8 +46,7 @@ import Data.List           ( partition, intersperse, sortBy, sort )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( empty, insertWith, IntMap, findMin, keys, delete )
 import Text.Printf         ( printf )
-
-import GHC.Integer.Logarithms ( integerLog2# )
+import Math.NumberTheory.Logarithms (integerLog2)
 -- import Debug.Trace (trace)
                     
 --------------------------------------------------------------------------------                                   
@@ -380,9 +379,10 @@ midiScoreToMidiFile :: MidiScore -> MidiFile
 midiScoreToMidiFile = undefined
 
 metaToMidiEvent :: Timed ScoreEvent -> Timed MidiMetaEvent
-metaToMidiEvent (Timed o (KeyChange     r s)) = Timed o (KeySignature r s)
-metaToMidiEvent (Timed o (TimeSigChange n d)) = 
-  Timed o (TimeSignature (fromIntegral n) (integerLog2# d))
+metaToMidiEvent (Timed o (KeyChange     (Key     r s))) = 
+  Timed o (KeySignature r s)
+metaToMidiEvent (Timed o (TimeSigChange (TimeSig n d))) = 
+  Timed o (TimeSignature (fromIntegral n) (fromIntegral . integerLog2 . fromIntegral $ d) 0 0)
 
 voiceToTrack :: Voice -> MidiTrack
 voiceToTrack v = MidiTrack $ evalState 
