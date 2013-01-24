@@ -12,6 +12,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , ScoreEvent (..)
                   -- * Transformation
                   , midiFileToMidiScore
+                  , midiScoreToMidiFile
                   -- * Quantisation
                   , quantise
                   , buildTickMap
@@ -390,21 +391,10 @@ tsToMidiEvent :: Timed TimeSig -> Timed MidiMetaEvent
 tsToMidiEvent (Timed o (TimeSig n d)) = 
   Timed o (TimeSignature (fromIntegral n) 
           (fromIntegral . integerLogBase 2 . fromIntegral $ d) 0 0)
-  -- Timed o (TimeSignature (fromIntegral n) ( round . toRational . logBase 2 . fromIntegral $ d) 0 0)
--- toMidiEvent (Timed _ _ ) = error "metaToMidiEvent: unknown meta event"
-
--- intLog2 :: Integral a => a -> a
--- intLog2 
 
 voiceToTrack :: Voice -> MidiTrack
 voiceToTrack v = MidiTrack $ evalState 
  (mapM (makeRelative (VoiceEvent RS_OFF)) . sort . concatMap noteEventToMidiNote $ v) 0 
- 
--- voiceEvent :: MidiVoiceEvent -> MidiEvent
--- voiceEvent = VoiceEvent RS_OFF 
-
--- metaEvent :: MidiMetaEvent -> MidiEvent
--- metaEvent = MetaEvent 
  
 makeRelative :: (a -> MidiEvent) -> Timed a -> State Time MidiMessage
 makeRelative f (Timed o me) = do t <- get 
