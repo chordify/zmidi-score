@@ -406,7 +406,7 @@ makeRelative f (Timed o me) = do t <- get
 noteEventToMidiNote :: Timed ScoreEvent -> [Timed MidiVoiceEvent] 
 -- noteEventToMidiNote (Timed o EndOfVoice         ) = [Timed o EndOfTrack] 
 noteEventToMidiNote (Timed o (NoteEvent c p v d)) = 
-  [Timed o (NoteOn c p v), Timed (o + d) (NoteOff c p v)]
+  [Timed o (NoteOn c p v), Timed (o + d) (NoteOff c p 0)]
 noteEventToMidiNote _ = error "noteEventToMidiNote: not a NoteEvent."  
 
 --------------------------------------------------------------------------------

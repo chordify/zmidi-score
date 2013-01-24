@@ -1,9 +1,9 @@
 module Main where
 
-import ZMidi.Core (readMidi, printMidi)
-import ZMidi.Core (readMidi, printMidi, printMidiHeader, printMidiTrack)
+import ZMidi.Core (readMidi, printMidi, printMidiHeader, printMidiTrack, MidiFile (..))
 import ZMidiBasic
 
+import Data.List (intercalate)
 import Control.Monad (filterM)
 import System.Directory ( getDirectoryContents, canonicalizePath
                         , doesDirectoryExist)
@@ -33,17 +33,21 @@ readMidiFile f = do mf <- readMidi f
                       Right mid -> do let -- cmid = canonical mid
                                           ms   = midiFileToMidiScore mid 
                                         --  tm   = buildTickMap . getVoices $ ms
-                                       printMidi mid
+                                      printMidi mid
+                                      printMidiToFile mid (f ++ ".txt")
+                                      printMidiToFile (midiScoreToMidiFile ms) (f ++ ".test.txt")                                      
                                       -- print tm
                                       -- print . gcIOId $ tm
                                       -- putStrLn . showMidiScore $ ms
                                       -- putStrLn . showMidiScore . quantise $ ms
                                    -- print . midiFileToMidiScore $ cmid 
+                                   
 printMidiToFile :: MidiFile -> FilePath -> IO ()
 printMidiToFile mf fp = 
-  writeFile fp (concat ( printMidiHeader . mf_header $ mf 
-                       : concatMap printMidiTrack . mf_tracks mf))
-                                   
+  let hd = printMidiHeader . mf_header $ mf
+      ts = concatMap printMidiTrack . mf_tracks $ mf
+  in  writeFile fp . intercalate "\n" $ (hd ++ ts)
+  
 showMidiStats :: FilePath -> IO ()
 showMidiStats fp = do mf <- readMidi fp
                       case mf of
