@@ -1,6 +1,7 @@
 module Main where
 
 import ZMidi.Core (readMidi, printMidi)
+import ZMidi.Core (readMidi, printMidi, printMidiHeader, printMidiTrack)
 import ZMidiBasic
 
 import Control.Monad (filterM)
@@ -31,14 +32,17 @@ readMidiFile f = do mf <- readMidi f
                       Left  err -> putStrLn (f ++ '\t' : show err)
                       Right mid -> do let -- cmid = canonical mid
                                           ms   = midiFileToMidiScore mid 
-                                          tm   = buildTickMap . getVoices $ ms
-                                   -- printMidi mid
-                                      print tm
-                                      print . gcIOId $ tm
-                                      putStrLn . showMidiScore $ ms
-                                      putStrLn . showMidiScore . quantise $ ms
+                                        --  tm   = buildTickMap . getVoices $ ms
+                                       printMidi mid
+                                      -- print tm
+                                      -- print . gcIOId $ tm
+                                      -- putStrLn . showMidiScore $ ms
+                                      -- putStrLn . showMidiScore . quantise $ ms
                                    -- print . midiFileToMidiScore $ cmid 
-
+printMidiToFile :: MidiFile -> FilePath -> IO ()
+printMidiToFile mf fp = 
+  writeFile fp (concat ( printMidiHeader . mf_header $ mf 
+                       : concatMap printMidiTrack . mf_tracks mf))
                                    
 showMidiStats :: FilePath -> IO ()
 showMidiStats fp = do mf <- readMidi fp
