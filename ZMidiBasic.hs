@@ -26,13 +26,15 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , showVoices
                   ) where
 
-import ZMidi.Core ( MidiFile (..), MidiEvent (..)
-                  , MidiVoiceEvent (..), MidiMetaEvent (..)
-                  , MidiMessage, MidiTrack (..), MidiHeader (..) 
-                  , MidiScaleType (..), MidiTimeDivision (..)
-                  )
-
-import Control.Monad.State ( State, modify, get, gets, evalState, execState )
+import ZMidi.Core          ( MidiFile (..), MidiEvent (..)
+                           , MidiVoiceEvent (..), MidiMetaEvent (..)
+                           , MidiMessage, MidiTrack (..), MidiHeader (..) 
+                           , MidiScaleType (..), MidiTimeDivision (..)
+                           , MidiRunningStatus (..)
+                           )
+import Control.Monad.State ( State, modify, get, gets, put
+                           , evalState, execState 
+                           )
 import Control.Monad       ( mapAndUnzipM )
 import Control.Arrow       ( first, second )
 import Data.Word           ( Word8 )
@@ -87,8 +89,11 @@ type Time       = Int
 -- perhaps add duration??
 data Timed a    = Timed         { onset       :: Time 
                                 , getEvent    :: a
-                                } deriving (Functor, Eq, Ord)
+                                } deriving (Functor, Eq)
 
+instance Eq a => Ord (Timed a) where
+  compare a b = compare (onset a) (onset b)
+                                
 data ScoreEvent = NoteEvent     { channel     :: Channel
                                 , pitch       :: Pitch
                                 , velocity    :: Velocity
@@ -102,7 +107,8 @@ data ScoreEvent = NoteEvent     { channel     :: Channel
                                 } 
                 | TimeSigChange { tsChange    :: TimeSig
                                 } 
-                | EndOfVoice     deriving (Eq, Ord, Show)
+                -- | EndOfVoice     
+                deriving (Eq, Ord, Show)
 
 type TickMap = IntMap Time
 
@@ -298,8 +304,8 @@ midiTrackToVoice m =
     metaEvent mm = 
       do t <- gets fst
          case getMetaEvent mm of
-            Just (EndOfTrack)
-              -> return . Just . Timed t $ EndOfVoice
+            -- Just (EndOfTrack)
+              -- -> return . Just . Timed t $ EndOfVoice
             Just (TimeSignature num den _frac _subfr) 
               -> return . Just . Timed t $ TimeSigChange 
                                 (TimeSig (fromIntegral num) (2 ^ den))
@@ -372,14 +378,19 @@ stateTimeWith f = first f
 midiScoreToMidiFile :: MidiScore -> MidiFile
 midiScoreToMidiFile = undefined
 
+-- metaEventsToTrack ::
+
 voiceToTrack :: Voice -> MidiTrack
-voiceToTrack = MidiTrack . foldr step [] . sort . concatMap noteEventToMidiNote 
+voiceToTrack v = MidiTrack $ evalState 
+                    (mapM convert . sort . concatMap noteEventToMidiNote $ v) 0 
 
-step :: Timed MidiVoiceEvent -> [MidiMessage] -> [MidiMessage]
-step = undefined
+convert :: Timed MidiVoiceEvent -> State Time MidiMessage
+convert (Timed o me) = do t <- get 
+                          put o
+                          return (fromIntegral (o - t), VoiceEvent RS_OFF me) 
 
-noteEventToMidiNote :: Timed ScoreEvent 
-                    -> [Timed MidiVoiceEvent] -- , Timed MidiVoiceEvent)
+noteEventToMidiNote :: Timed ScoreEvent -> [Timed MidiVoiceEvent] 
+-- noteEventToMidiNote (Timed o EndOfVoice         ) = [Timed o EndOfTrack] 
 noteEventToMidiNote (Timed o (NoteEvent c p v d)) = 
   [Timed o (NoteOn c p v), Timed (o + d) (NoteOff c p v)]
 noteEventToMidiNote _ = error "noteEventToMidiNote: not a NoteEvent."  
