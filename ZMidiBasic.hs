@@ -403,10 +403,11 @@ stateTimeWith f = first f
 
 -- | Transforms a 'MidiFile' into a 'MidiScore'
 midiScoreToMidiFile :: MidiScore -> MidiFile
-midiScoreToMidiFile (MidiScore ks ts dv mf tp _ vs) = 
-  MidiFile (MidiHeader mf (genericLength vs) (TPB . fromIntegral $ dv)) 
-           (metaToMidiEvent : map voiceToTrack vs) where
-
+midiScoreToMidiFile (MidiScore ks ts dv mf tp _ vs) = MidiFile hdr trks where
+    
+    hdr  = MidiHeader mf (genericLength trks) (TPB . fromIntegral $ dv) 
+    trks = metaToMidiEvent : map voiceToTrack vs -- the MidiTracks
+    
     -- Takes the Key and TimeSig fields and tranforms them into 
     -- a MidiTrack containing only MetaEvents
     metaToMidiEvent :: MidiTrack

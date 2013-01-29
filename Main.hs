@@ -33,7 +33,7 @@ readMidiFile f = do mf <- readMidi f
                       Left  err -> putStrLn (f ++ '\t' : show err)
                       Right mid -> do let -- cmid = canonical mid
                                           ms   = midiFileToMidiScore mid
-                                          qs   = cutMidi $ quantise ms
+                                          qs   = quantise ms
                                         --  tm   = buildTickMap . getVoices $ ms
                                       printMidi mid
                                       printMidiToFile mid (f ++ ".txt")
@@ -46,9 +46,6 @@ readMidiFile f = do mf <- readMidi f
                                       -- putStrLn . showMidiScore $ ms
                                       -- putStrLn . showMidiScore . quantise $ ms
                                    -- print . midiFileToMidiScore $ cmid 
-                                   
-cutMidi :: MidiScore -> MidiScore
-cutMidi ms = ms {getVoices = map (take 20) . getVoices $ ms}
                                    
 printMidiToFile :: MidiFile -> FilePath -> IO ()
 printMidiToFile mf fp = 
