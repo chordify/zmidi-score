@@ -16,6 +16,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , midiScoreToMidiFile
                   -- * Quantisation
                   , quantise
+                  , ShortestNote (..)
                   , buildTickMap
                   , getMinDur
                   , gcIOId
@@ -48,7 +49,6 @@ import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( empty, insertWith, IntMap, findMin, keys, delete )
 import Text.Printf         ( printf )
 import GHC.Float           ( integerLogBase )
--- import Debug.Trace (trace)
                     
 --------------------------------------------------------------------------------                                   
 -- A less low-level MIDI data representation
@@ -202,13 +202,19 @@ showVoices ms = concat . intersperse "\n"
 --------------------------------------------------------------------------------
 -- Analysing durations
 --------------------------------------------------------------------------------
+
+-- | The 'ShortestNote' determines the minimal grid length of a quantised 
+-- 'MidiScore', when quantised with 'quantise'.
+data ShortestNote = Eighth | Sixteenth | ThirtySecond | SixtyFourth
+                    deriving (Eq, Show)
+
 type GridUnit = Time
 
 -- | Quantises a 'MidiScore' snapping all events to a 1/32 grid
-quantise :: MidiScore -> MidiScore
-quantise (MidiScore k ts dv mf tp _md vs) =  MidiScore k ts dv mf tp md' vs' where
+quantise :: ShortestNote -> MidiScore -> MidiScore
+quantise sn (MidiScore k ts dv mf tp _md vs) =  MidiScore k ts dv mf tp md' vs' where
   
-  vs' = map (map (snapEvent (dv `div` 8))) vs -- snap all events to a grid
+  vs' = map (map (snapEvent (dv `div` toGridUnit sn))) vs -- snap all events to a grid
   md' = getMinDur . buildTickMap $ vs'-- the minimum duration might have changed
           
   snapEvent :: GridUnit -> Timed ScoreEvent -> Timed ScoreEvent
@@ -216,6 +222,13 @@ quantise (MidiScore k ts dv mf tp _md vs) =  MidiScore k ts dv mf tp md' vs' whe
     (NoteEvent c p v d) -> Timed (snap g ons) (NoteEvent c p v (snap g d))
     _                   -> Timed (snap g ons) dat
 
+    
+toGridUnit :: ShortestNote -> GridUnit
+toGridUnit Eighth       = 2
+toGridUnit Sixteenth    = 4
+toGridUnit ThirtySecond = 8
+toGridUnit SixtyFourth  = 16
+    
 snap :: GridUnit -> Time -> Time
 snap g t | m == 0  = t               -- score event is on the grid
          | m >  0  = if (g - m) >= m -- score event is off the grid
