@@ -22,13 +22,12 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   -- * Utilities
                   , nrOfNotes
                   , toIOIs
-                  , division
                   -- * Showing
                   , showMidiScore
                   , showVoices
                   ) where
 
-import ZMidi.Core          ( MidiFile (..), MidiEvent (..)
+import ZMidi.Core          ( MidiFile (..), MidiEvent (..), MidiFormat
                            , MidiVoiceEvent (..), MidiMetaEvent (..)
                            , MidiMessage, MidiTrack (..), MidiHeader (..) 
                            , MidiScaleType (..), MidiTimeDivision (..)
@@ -44,7 +43,7 @@ import Data.Int            ( Int8 )
 import Data.Char           ( toLower )
 import Data.Maybe          ( catMaybes, mapMaybe )
 import Data.Ord            ( comparing )
-import Data.List           ( partition, intersperse, sortBy, sort )
+import Data.List           ( partition, intersperse, sortBy, sort, genericLength )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( empty, insertWith, IntMap, findMin, keys, delete )
 import Text.Printf         ( printf )
@@ -62,7 +61,7 @@ data MidiScore  = MidiScore     { -- | The 'Key's of the piece with time stamps
                                   -- | The 'TimeSig'natures of the piece with time stamps
                                 , getTimeSig :: [Timed TimeSig]
                                   -- | The number of MIDI-ticks-per-beat
-                                , division   :: Time  
+                                , ticksPerBeat :: Time  
                                   -- | The kind of midi file that created this score
                                 , midiFormat :: MidiFormat
                                   -- | The microseconds per quarter note
@@ -207,9 +206,9 @@ type GridUnit = Time
 
 -- | Quantises a 'MidiScore' snapping all events to a 1/32 grid
 quantise :: MidiScore -> MidiScore
-quantise (MidiScore k ts mf dv tp _md vs) =  MidiScore k ts mv dv tp md' vs' where
+quantise (MidiScore k ts dv mf tp _md vs) =  MidiScore k ts dv mf tp md' vs' where
   
-  vs' = map (map (snapEvent ((division hd) `div` 8))) vs -- snap all events to a grid
+  vs' = map (map (snapEvent (dv `div` 8))) vs -- snap all events to a grid
   md' = getMinDur . buildTickMap $ vs'-- the minimum duration might have changed
           
   snapEvent :: GridUnit -> Timed ScoreEvent -> Timed ScoreEvent
@@ -259,8 +258,8 @@ buildTickMap = foldr oneVoice empty where
 midiFileToMidiScore :: MidiFile -> MidiScore
 midiFileToMidiScore mf = MidiScore (selectKey meta) 
                                    (selectTS  meta) 
-                                   (hdr_format . mf_header $ mf)
-                                   (time_division . mf_header $ mf)
+                                   (getDivision . mf_header $ mf)
+                                   (hdr_format  . mf_header $ mf)
                                    (selectTempo meta)
                                    (getMinDur . buildTickMap $ trks)
                                    (filter (not . null) trks) where
@@ -285,7 +284,16 @@ midiFileToMidiScore mf = MidiScore (selectKey meta)
   selectTS ses = case filter isTimeSig ses of
     [] -> [Timed 0 NoTimeSig]
     t  -> map (fmap tsChange) t
-  
+
+    
+  -- Returns the time division of the MidiScore, which is the length of a
+  -- quarter note
+  getDivision :: MidiHeader -> Time
+  getDivision hd = case time_division hd of
+                    (FPS _ ) -> error "no devision found"
+                    (TPB b ) -> fromIntegral b
+    
+    
 -- Transforms a 'MidiTrack' into a 'Voice'
 midiTrackToVoice :: MidiTrack -> Voice
 midiTrackToVoice m = 
@@ -395,8 +403,8 @@ stateTimeWith f = first f
 
 -- | Transforms a 'MidiFile' into a 'MidiScore'
 midiScoreToMidiFile :: MidiScore -> MidiFile
-midiScoreToMidiFile (MidiScore ks ts mf dv tp _ vs) = 
-  MidiFile (MidiHeader mf (genericLength vs) (fromIntegral dv)) 
+midiScoreToMidiFile (MidiScore ks ts dv mf tp _ vs) = 
+  MidiFile (MidiHeader mf (genericLength vs) (TPB . fromIntegral $ dv)) 
            (metaToMidiEvent : map voiceToTrack vs) where
 
     -- Takes the Key and TimeSig fields and tranforms them into 
@@ -452,14 +460,6 @@ midiScoreToMidiFile (MidiScore ks ts mf dv tp _ vs) =
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
-
--- | Returns the time division of the MidiScore, which is the length of a
--- quarter note
-division :: MidiHeader -> Time
-division hd = case time_division hd of
-                (FPS _ ) -> error "no devision found"
-                (TPB b ) -> fromIntegral b
-  
 
 -- | Returns the number of 'ScoreEvent's in a 'MidiScore'
 nrOfNotes :: MidiScore -> Int

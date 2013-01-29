@@ -68,7 +68,7 @@ showMidiStats fp = do mf <- readMidi fp
                                 ++ '\t' : show (getKey m)
                                 ++ '\t' : (show . length . getVoices $ m) 
                                 ++ '\t' : show d 
-                                ++ '\t' : (show . division . header $ m)
+                                ++ '\t' : (show . ticksPerBeat $ m)
                                 ++ '\t' : (show . nrOfNotes $ m)
                                 ++ '\t' : (show . length . keys $ tm)
                                 ++ '\t' :  show tm)
