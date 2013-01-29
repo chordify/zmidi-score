@@ -256,11 +256,11 @@ buildTickMap = foldr oneVoice empty where
 
 -- | Transforms a 'MidiFile' into a 'MidiScore'
 midiFileToMidiScore :: MidiFile -> MidiScore
-midiFileToMidiScore mf = MidiScore (selectKey meta) 
-                                   (selectTS  meta) 
+midiFileToMidiScore mf = MidiScore (select isKeyChange keyChange NoKey meta) 
+                                   (select isTimeSig   tsChange  NoTimeSig meta) 
                                    (getDivision . mf_header $ mf)
                                    (hdr_format  . mf_header $ mf)
-                                   (selectTempo meta)
+                                   (select isTempoChange tempChange 500000 meta)
                                    (getMinDur . buildTickMap $ trks)
                                    (filter (not . null) trks) where
                          
@@ -268,23 +268,15 @@ midiFileToMidiScore mf = MidiScore (selectKey meta)
                  -- separate meta data from note data
                  unzip . map (partition isNoteEvent . midiTrackToVoice)
                        . mf_tracks $ mf -- get midi tracks
-  
-  --TODO remove duplicate code below
-  selectTempo :: [Timed ScoreEvent] -> [Timed Time]
-  selectTempo ses = case filter isTempoChange ses of 
-    [] -> [Timed 0 500000] -- default tempo is 120 BPM
-    k  -> map (fmap tempChange) k
-  
-  selectKey :: [Timed ScoreEvent] -> [Timed Key]
-  selectKey ses = case filter isKeyChange ses of 
-    [] -> [Timed 0 NoKey]
-    k  -> map (fmap keyChange) k
-
-  selectTS :: [Timed ScoreEvent] -> [Timed TimeSig]
-  selectTS ses = case filter isTimeSig ses of
-    [] -> [Timed 0 NoTimeSig]
-    t  -> map (fmap tsChange) t
-
+                       
+  -- Given a filter function, a transformation functin and a default value
+  -- this function transforms a list of score events, which can possibly be
+  -- empty, into a Timed meta information
+  select :: (Timed ScoreEvent -> Bool) -> (ScoreEvent -> a) -> a
+         -> [Timed ScoreEvent] -> [Timed a]
+  select f c def ses = case filter f ses of
+    [] -> [Timed 0 def]
+    t  -> map (fmap c) t
     
   -- Returns the time division of the MidiScore, which is the length of a
   -- quarter note
