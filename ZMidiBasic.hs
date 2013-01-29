@@ -62,7 +62,9 @@ data MidiScore  = MidiScore     { -- | The 'Key's of the piece with time stamps
                                   -- | The 'TimeSig'natures of the piece with time stamps
                                 , getTimeSig :: [Timed TimeSig]
                                   -- | The number of MIDI-ticks-per-beat
-                                , header     :: MidiHeader
+                                , division   :: Time  
+                                  -- | The kind of midi file that created this score
+                                , midiFormat :: MidiFormat
                                   -- | The microseconds per quarter note
                                 , tempo      :: [Timed Time]                                
                                   -- | The minimum note length found.
@@ -144,9 +146,10 @@ instance Show Key where
 
 -- Show a MidiScore in a readable way
 showMidiScore :: MidiScore -> String
-showMidiScore ms@(MidiScore k ts tpb st tp _vs) = "Key: "      ++ show k 
+showMidiScore ms@(MidiScore k ts mf tpb st tp _vs) = "Key: "      ++ show k 
                                      ++ "\nMeter: "  ++ show ts
                                      ++ "\nTicks per Beat: "  ++ show tpb 
+                                     ++ "\nMidi format: " ++ show mf 
                                      ++ "\nTempo: "  ++ show tp 
                                      ++ "\nShortest tick: "   ++ show st
                                      ++ "\nNotes:\n" ++ showVoices ms
@@ -204,8 +207,8 @@ type GridUnit = Time
 
 -- | Quantises a 'MidiScore' snapping all events to a 1/32 grid
 quantise :: MidiScore -> MidiScore
-quantise (MidiScore k ts hd tp _md vs) =  MidiScore k ts hd tp md' vs' where
-
+quantise (MidiScore k ts mf dv tp _md vs) =  MidiScore k ts mv dv tp md' vs' where
+  
   vs' = map (map (snapEvent ((division hd) `div` 8))) vs -- snap all events to a grid
   md' = getMinDur . buildTickMap $ vs'-- the minimum duration might have changed
           
@@ -256,7 +259,8 @@ buildTickMap = foldr oneVoice empty where
 midiFileToMidiScore :: MidiFile -> MidiScore
 midiFileToMidiScore mf = MidiScore (selectKey meta) 
                                    (selectTS  meta) 
-                                   (mf_header mf  )
+                                   (hdr_format . mf_header $ mf)
+                                   (time_division . mf_header $ mf)
                                    (selectTempo meta)
                                    (getMinDur . buildTickMap $ trks)
                                    (filter (not . null) trks) where
@@ -391,8 +395,9 @@ stateTimeWith f = first f
 
 -- | Transforms a 'MidiFile' into a 'MidiScore'
 midiScoreToMidiFile :: MidiScore -> MidiFile
-midiScoreToMidiFile (MidiScore ks ts hd tp _ vs) = 
-  MidiFile hd (metaToMidiEvent : map voiceToTrack vs) where
+midiScoreToMidiFile (MidiScore ks ts mf dv tp _ vs) = 
+  MidiFile (MidiHeader mf (genericLength vs) (fromIntegral dv)) 
+           (metaToMidiEvent : map voiceToTrack vs) where
 
     -- Takes the Key and TimeSig fields and tranforms them into 
     -- a MidiTrack containing only MetaEvents
