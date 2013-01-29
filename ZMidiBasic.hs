@@ -79,6 +79,8 @@ data Key        = Key           { keyRoot    :: Int8
 -- | A 'TimeSig'nature has a fraction, e.g. 4/4, 3/4, or 6/8.
 data TimeSig    = TimeSig       { numerator  :: Int 
                                 , denomenator:: Int
+                                , metronome  :: Word8
+                                , nr32ndNotes:: Word8
                                 }
                 | NoTimeSig       deriving (Eq, Ord)
 
@@ -123,8 +125,8 @@ instance Show a => Show (Timed a) where
 
 
 instance Show TimeSig where
-  show (TimeSig n d) = show n ++ '/' : show d
-  show NoTimeSig     = "NoTimeSig"
+  show (TimeSig n d _ _) = show n ++ '/' : show d
+  show NoTimeSig         = "NoTimeSig"
 
 instance Show Key where
   show NoKey      = "NoKey"
@@ -318,9 +320,9 @@ midiTrackToVoice m =
             Just (SetTempo tp)  
               -> return . Just . Timed t . TempoChange . fromIntegral $ tp
             -- timesignature meta event
-            Just (TimeSignature num den _frac _subfr) 
+            Just (TimeSignature num den metr n32n) 
               -> return . Just . Timed t $ TimeSigChange 
-                                (TimeSig (fromIntegral num) (2 ^ den))
+                                (TimeSig (fromIntegral num) (2 ^ den) metr n32n)
             -- key meta event
             Just (KeySignature root scale)
               -> return . Just $ Timed t (KeyChange (Key root scale ))
@@ -389,14 +391,15 @@ stateTimeWith f = first f
 
 -- | Transforms a 'MidiFile' into a 'MidiScore'
 midiScoreToMidiFile :: MidiScore -> MidiFile
-midiScoreToMidiFile (MidiScore ks ts hd _ _ vs) = 
-  MidiFile hd (metaToMidiEvent ks ts : map voiceToTrack vs) where
+midiScoreToMidiFile (MidiScore ks ts hd tp _ vs) = 
+  MidiFile hd (metaToMidiEvent : map voiceToTrack vs) where
 
     -- Takes the Key and TimeSig fields and tranforms them into 
     -- a MidiTrack containing only MetaEvents
-    metaToMidiEvent :: [Timed Key] -> [Timed TimeSig] -> MidiTrack
-    metaToMidiEvent k t = mkMidiTrack MetaEvent
-      (mapMaybe keyToMidiEvent k ++ mapMaybe tsToMidiEvent t)
+    metaToMidiEvent :: MidiTrack
+    metaToMidiEvent = mkMidiTrack MetaEvent (   mapMaybe keyToMidiEvent   ks 
+                                             ++ mapMaybe tsToMidiEvent    ts
+                                             ++ map      tempoToMidiEvent tp)
       
     -- transforms a Key into a MetaEvent
     keyToMidiEvent :: Timed Key -> Maybe (Timed MidiMetaEvent)
@@ -405,10 +408,15 @@ midiScoreToMidiFile (MidiScore ks ts hd _ _ vs) =
 
     -- transforms a TimeSig into a MetaEvent
     tsToMidiEvent :: Timed TimeSig -> Maybe (Timed MidiMetaEvent)
-    tsToMidiEvent (Timed _  NoTimeSig   ) = Nothing
-    tsToMidiEvent (Timed o (TimeSig n d)) = 
+    tsToMidiEvent (Timed _  NoTimeSig       ) = Nothing
+    tsToMidiEvent (Timed o (TimeSig n d m n32)) = 
       Just $ Timed o (TimeSignature (fromIntegral n) 
-                     (fromIntegral . integerLogBase 2 . fromIntegral $ d) 0 0)
+                     (fromIntegral . integerLogBase 2 . fromIntegral $ d) m n32)
+                     
+    
+    -- transforms a tempo into a MetaEvent
+    tempoToMidiEvent :: Timed Time -> Timed MidiMetaEvent
+    tempoToMidiEvent = fmap (SetTempo . fromIntegral)
     
     -- transforms a Voice into a MidiTrack
     voiceToTrack :: Voice -> MidiTrack
@@ -422,7 +430,8 @@ midiScoreToMidiFile (MidiScore ks ts hd _ _ vs) =
      
     -- this is where the magic happens. A list of timed events is made relative
     -- such that timestamps denote the time between elements. We close 
-    -- the track by appending a EndOfTrack marker with final time stamp
+    -- the track by appending a EndOfTrack marker with final time stamp.
+    -- The track is sorted by midi tick
     mkMidiTrack :: forall a. Ord a => (a -> MidiEvent) -> [Timed a] -> MidiTrack
     mkMidiTrack f e = MidiTrack $ (trk ++ [(0, MetaEvent EndOfTrack)])
     
