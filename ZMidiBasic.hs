@@ -10,7 +10,9 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , Pitch
                   , Velocity
                   , Timed (..)
+                  , Time
                   , ScoreEvent (..)
+                  , empty
                   -- * Transformation
                   , midiFileToMidiScore
                   , midiScoreToMidiFile
@@ -23,12 +25,14 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   -- * Utilities
                   , nrOfNotes
                   , toIOIs
+                  , toMidiNr
+                  , toPitch
                   -- * Showing
                   , showMidiScore
                   , showVoices
                   ) where
 
-import ZMidi.Core          ( MidiFile (..), MidiEvent (..), MidiFormat
+import ZMidi.Core          ( MidiFile (..), MidiEvent (..), MidiFormat (..)
                            , MidiVoiceEvent (..), MidiMetaEvent (..)
                            , MidiMessage, MidiTrack (..), MidiHeader (..) 
                            , MidiScaleType (..), MidiTimeDivision (..)
@@ -46,10 +50,11 @@ import Data.Maybe          ( catMaybes, mapMaybe )
 import Data.Ord            ( comparing )
 import Data.List           ( partition, intersperse, sortBy, sort, genericLength )
 import Data.Foldable       ( foldrM )
-import Data.IntMap.Lazy    ( empty, insertWith, IntMap, findMin, keys, delete )
+import Data.IntMap.Lazy    ( insertWith, IntMap, findMin, keys, delete )
+import qualified Data.IntMap.Lazy as M ( empty )
 import Text.Printf         ( printf )
 import GHC.Float           ( integerLogBase )
-                    
+
 --------------------------------------------------------------------------------                                   
 -- A less low-level MIDI data representation
 --------------------------------------------------------------------------------
@@ -90,7 +95,7 @@ data TimeSig    = TimeSig       { numerator  :: Int
 type Voice      = [Timed ScoreEvent]
 
 type Channel    = Word8
-type Pitch      = Word8
+newtype Pitch   = Pitch (Word8, Word8) deriving (Eq, Ord)
 type Velocity   = Word8
 type Time       = Int
 
@@ -117,6 +122,9 @@ data ScoreEvent = NoteEvent     { channel     :: Channel
 
 type TickMap = IntMap Time
 
+empty :: MidiScore
+empty = MidiScore [] [] 0 MF1 [] 0 []
+
 --------------------------------------------------------------------------------
 -- Some ad-hoc show instances
 --------------------------------------------------------------------------------
@@ -138,7 +146,28 @@ instance Show Key where
       LT -> replicate (abs r) 'b'
       EQ -> "0"
       GT -> replicate r '#'
-                                
+
+instance Show Pitch where
+  show (Pitch (oct, p)) = show oct ++ showPitch p where
+
+    -- shows the Midi number in a musical way
+    -- N.B. ignoring all pitch spelling, at the moment
+    showPitch :: Word8 -> String
+    showPitch  0 = "C "
+    showPitch  1 = "C#"
+    showPitch  2 = "D "
+    showPitch  3 = "D#"
+    showPitch  4 = "E "
+    showPitch  5 = "F "
+    showPitch  6 = "F#"
+    showPitch  7 = "G "
+    showPitch  8 = "G#"
+    showPitch  9 = "A "
+    showPitch 10 = "Bb"
+    showPitch 11 = "B "
+    showPitch n  = invalidMidiNumberError n
+
+      
 --------------------------------------------------------------------------------                                   
 -- Printing MidiScores
 --------------------------------------------------------------------------------
@@ -251,7 +280,7 @@ getMinDur tm = case fst (findMin tm) of
                  n -> n
 
 buildTickMap :: [Voice] -> TickMap
-buildTickMap = foldr oneVoice empty where
+buildTickMap = foldr oneVoice M.empty where
 
   oneVoice :: Voice -> TickMap -> TickMap
   oneVoice vs tm = foldr step tm (toIOIs vs)
@@ -347,7 +376,7 @@ midiTrackToVoice m =
     
     -- Some utilities:
     -- Given a note-on and a note off event, creates a new MidiNote ScoreEvent
-    toMidiNote :: Word8 -> Pitch -> State MidiState (Maybe (Timed ScoreEvent))
+    toMidiNote :: Word8 -> Word8 -> State MidiState (Maybe (Timed ScoreEvent))
     toMidiNote c p = 
       do ms <- gets snd
          case span (not . isNoteOnMatch c p) ms of
@@ -360,11 +389,11 @@ midiTrackToVoice m =
                  t  <- gets fst
                  -- N.B. the delta time in the note on has been replace 
                  -- by an absolute timestamp
-                 return . Just . Timed ons $ NoteEvent (fromIntegral c) p 
-                                             (getVelocity noteOn) (t - ons)
+                 return . Just . Timed ons $ NoteEvent (fromIntegral c) 
+                                   (toPitch p) (getVelocity noteOn) (t - ons)
             
     -- returns True if the NoteOn MidiMessage maches a Channel and Pitch
-    isNoteOnMatch :: Word8 -> Pitch -> (Time, MidiVoiceEvent) -> Bool
+    isNoteOnMatch :: Word8 -> Word8 -> (Time, MidiVoiceEvent) -> Bool
     isNoteOnMatch offc offp (_t, NoteOn onc onp _v) = onc == offc && onp == offp
     isNoteOnMatch _c   _p    _                      = False
 
@@ -444,7 +473,8 @@ midiScoreToMidiFile (MidiScore ks ts dv mf tp _ vs) = MidiFile hdr trks where
     -- transforms a NoteEvent into a MidiVoiceEvent 
     toMidiNote :: Timed ScoreEvent -> [Timed MidiVoiceEvent] 
     toMidiNote (Timed o (NoteEvent c p v d)) = 
-      [Timed o (NoteOn c p v), Timed (o + d) (NoteOff c p 0)]
+      let p' = toMidiNr p
+      in [Timed o (NoteOn c p' v), Timed (o + d) (NoteOff c p' 0)]
     toMidiNote _ = error "noteEventToMidiNote: not a NoteEvent."  
      
     -- this is where the magic happens. A list of timed events is made relative
@@ -502,3 +532,19 @@ toIOIs v = execState (foldrM step [] v) [] where
   step t ts@(h : _) = do modify ((onset h - onset t) :)
                          return (t : ts)
 
+toMidiNr :: Pitch -> Word8
+toMidiNr (Pitch (oct, p)) = ((oct + 5) * 12) + p
+                         
+toPitch :: Word8 -> Pitch
+toPitch = Pitch . midiNrToPitch where
+                           
+  midiNrToPitch :: Word8 -> (Word8, Word8)
+  midiNrToPitch p | p < 0     = invalidMidiNumberError p 
+                  | p > 127   = invalidMidiNumberError p 
+                  | otherwise = first (+ (-5)) (p `divMod` 12)
+
+
+invalidMidiNumberError :: Word8 -> a
+invalidMidiNumberError w = error ("invalid MIDI note number" ++ show w)
+                         
+                         

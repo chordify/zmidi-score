@@ -1,19 +1,11 @@
 module Main where
 
-import ZMidi.Core ( readMidi, printMidi, printMidiHeader
-                  , printMidiTrack, MidiFile (..), writeMidi)
+import ZMidi.Core ( readMidi, printMidi)
 import ZMidiBasic
+import MidiCommonIO ( mapDirInDir, mapDir, readMidiScore)
 
-import Data.List (intercalate)
-import Control.Monad (filterM)
-import System.Directory ( getDirectoryContents, canonicalizePath
-                        , doesDirectoryExist)
-import System.IO (stderr, hPutStr)
-import System.FilePath 
 import System.Environment (getArgs)
-
 import Data.IntMap.Lazy (keys)
--- import Debug.Trace (traceShow)
 
 main :: IO ()
 main = do arg <- getArgs
@@ -23,36 +15,14 @@ main = do arg <- getArgs
                                    ++ "\tgcIOI divisor\tticks p. beat"
                                    ++ "\tNr. Notes\tnr. div. durations\tdurations")
                             mapDirInDir (mapDir showMidiStats) d
-            ["-f", f] -> readMidiFile f
-            _         -> putStrLn "usage:  <filename> "
+            ["-f", f] -> doScore f
+            _         -> putStrLn "usage:  -f <filename> OR -d <directory>"
 
 
-readMidiFile :: FilePath -> IO ()
-readMidiFile f = do mf <- readMidi f
-                    case mf of
-                      Left  err -> putStrLn (f ++ '\t' : show err)
-                      Right mid -> do let -- cmid = canonical mid
-                                          ms   = midiFileToMidiScore mid
-                                          qs   = quantise ThirtySecond ms
-                                        --  tm   = buildTickMap . getVoices $ ms
-                                      printMidi mid
-                                      printMidiToFile mid (f ++ ".txt")
-                                      printMidiToFile (midiScoreToMidiFile ms) (f ++ ".test.txt")                                 
-                                      printMidiToFile (midiScoreToMidiFile qs) (f ++ ".quantised.txt")
-                                      writeMidi (f ++ "test.mid") (midiScoreToMidiFile ms)
-                                      writeMidi (f ++ "quantised.mid") (midiScoreToMidiFile qs)
-                                      -- print tm
-                                      -- print . gcIOId $ tm
-                                      -- putStrLn . showMidiScore $ ms
-                                      -- putStrLn . showMidiScore . quantise $ ms
-                                   -- print . midiFileToMidiScore $ cmid 
-                                   
-printMidiToFile :: MidiFile -> FilePath -> IO ()
-printMidiToFile mf fp = 
-  let hd = printMidiHeader . mf_header $ mf
-      ts = concatMap printMidiTrack . mf_tracks $ mf
-  in  writeFile fp . intercalate "\n" $ (hd ++ ts)
-  
+-- | do stuff with a 'MidiScore' ...
+doScore :: FilePath -> IO ()
+doScore f = readMidiScore f >>= putStrLn . showMidiScore
+                                
 showMidiStats :: FilePath -> IO ()
 showMidiStats fp = do mf <- readMidi fp
                       case mf of
@@ -70,20 +40,3 @@ showMidiStats fp = do mf <- readMidi fp
                                 ++ '\t' : (show . length . keys $ tm)
                                 ++ '\t' :  show tm)
 
-
-mapDirInDir :: (FilePath -> IO ()) -> FilePath ->  IO ()
-mapDirInDir f fp = do fs  <- getDirectoryContents fp 
-                              >>= return . filter (\x -> x /= "." && x /= "..") 
-                      cfp <- canonicalizePath fp
-                      filterM doesDirectoryExist (fmap (cfp </>) fs) >>= mapM_ f 
-                                        
-mapDir :: (FilePath -> IO ()) ->  FilePath -> IO ()
-mapDir f fp = do fs <- getDirectoryContents fp >>= 
-                   return . filter (\x -> x /= "." && x /= "..") 
-                 cin <- canonicalizePath fp
-                 putErrStrLn cin
-                 mapM_ (f . (cin </>)) fs
-
-putErrStrLn :: String -> IO ()
-putErrStrLn s = do hPutStr stderr s
-                   hPutStr stderr "\n"
