@@ -1,9 +1,10 @@
 module Main (main) where
 
+import ZMidi.Core         ( writeMidi )
 import ZMidiBasic
 import MidiCommonIO       ( readMidiScore, mapDir )
 
-import Data.List          ( intercalate )
+import Data.List          ( intercalate, sort )
 import System.Environment ( getArgs )
 
 main :: IO ()
@@ -16,10 +17,12 @@ main = do arg <- getArgs
 
 
 readMidiFile :: FilePath -> IO ()
-readMidiFile f = do ms <- readMidiScore f
-                    mapM_ (putStrLn . show . voiceStats) (getVoices ms)
+readMidiFile f = 
+  do ms <- readMidiScore f
+     writeMidi (f ++ "1track.mid") . midiScoreToMidiFile . mergeTracks $ ms
+     -- mapM_ (putStrLn . show . voiceStats) (getVoices ms)
+                    
 
-                                      
                       
 voiceStats :: Voice -> (Pitch,Pitch) 
 voiceStats v = let ps = map getPitch v 
@@ -34,3 +37,6 @@ showMidiStats fp = do ms <- readMidiScore fp
                       putStrLn . intercalate "\t"  . map showVoiceStats 
                                . getVoices $ ms 
                                         
+mergeTracks :: MidiScore -> MidiScore
+mergeTracks ms = ms {getVoices = [sort . map (fmap setChan) . concat . getVoices $ ms]} 
+  where setChan n = n {channel = 1}

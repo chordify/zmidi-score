@@ -545,9 +545,11 @@ toIOIs v = execState (foldrM step [] v) [] where
   step t ts@(h : _) = do modify ((onset h - onset t) :)
                          return (t : ts)
 
+-- | Converts a 'Pitch' into a MIDI note number
 toMidiNr :: Pitch -> Word8
 toMidiNr (Pitch (oct, p)) = fromIntegral (((oct + 5) * 12) + p)
-                         
+
+-- | Converts a MIDI note number into an octave and a pitch class, a.k.a 'Pitch'
 toPitch :: Word8 -> Pitch
 toPitch = Pitch . midiNrToPitch where
                            
