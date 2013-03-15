@@ -27,6 +27,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , toIOIs
                   , toMidiNr
                   , toPitch
+                  , getPitch
                   -- * Showing
                   , showMidiScore
                   , showVoices
@@ -526,6 +527,13 @@ isTempoChange _                          = False
 isNoteEvent :: Timed ScoreEvent -> Bool
 isNoteEvent (Timed _ (NoteEvent _ _ _ _ )) = True
 isNoteEvent _                              = False
+
+-- | Returns the 'Pitch' of a 'Timed' 'ScoreEvent'. In case of a non-'NoteEvent'
+-- an error will be thrown
+getPitch :: Timed ScoreEvent -> Pitch
+getPitch tse = case getEvent tse of 
+  (NoteEvent _c p _v _d) -> p
+  se                     -> error ("unexpected ScoreEvent: " ++ show se)
 
 -- | Transforms a 'Voice' into a list of Inter Onset Intervals (IOIs)
 toIOIs :: Voice -> [Time]

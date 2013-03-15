@@ -24,11 +24,6 @@ readMidiFile f = do ms <- readMidiScore f
 voiceStats :: Voice -> (Pitch,Pitch) 
 voiceStats v = let ps = map getPitch v 
                in (minimum ps, maximum ps)
-  
-  where getPitch :: Timed ScoreEvent -> Pitch
-        getPitch tse = case getEvent tse of 
-                         (NoteEvent _c p _v _d) -> p
-                         _                      -> error "unexpected ScoreEvent!"
 
 showVoiceStats :: Voice -> String
 showVoiceStats v = let (mn,mx) = voiceStats v in show mn ++ '\t' : show mx
