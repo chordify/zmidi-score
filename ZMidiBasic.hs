@@ -95,7 +95,7 @@ data TimeSig    = TimeSig       { numerator  :: Int
 type Voice      = [Timed ScoreEvent]
 
 type Channel    = Word8
-newtype Pitch   = Pitch (Word8, Word8) deriving (Eq, Ord)
+newtype Pitch   = Pitch (Int, Int) deriving (Eq, Ord) -- (Octave, Pitch class)
 type Velocity   = Word8
 type Time       = Int
 
@@ -152,7 +152,7 @@ instance Show Pitch where
 
     -- shows the Midi number in a musical way
     -- N.B. ignoring all pitch spelling, at the moment
-    showPitch :: Word8 -> String
+    showPitch :: Int -> String
     showPitch  0 = "C "
     showPitch  1 = "C#"
     showPitch  2 = "D "
@@ -167,6 +167,11 @@ instance Show Pitch where
     showPitch 11 = "B "
     showPitch n  = invalidMidiNumberError n
 
+-- instance Ord Pitch where
+  -- compare (Pitch (octA, pcA)) 
+          -- (Pitch (octB, pcB)) = case compare octA octB of
+                                  -- EQ   -> compare pcA pcB
+                                  -- golt -> golt -- greater or smaller
       
 --------------------------------------------------------------------------------                                   
 -- Printing MidiScores
@@ -533,18 +538,18 @@ toIOIs v = execState (foldrM step [] v) [] where
                          return (t : ts)
 
 toMidiNr :: Pitch -> Word8
-toMidiNr (Pitch (oct, p)) = ((oct + 5) * 12) + p
+toMidiNr (Pitch (oct, p)) = fromIntegral (((oct + 5) * 12) + p)
                          
 toPitch :: Word8 -> Pitch
 toPitch = Pitch . midiNrToPitch where
                            
-  midiNrToPitch :: Word8 -> (Word8, Word8)
+  midiNrToPitch :: Word8 -> (Int, Int)
   midiNrToPitch p | p < 0     = invalidMidiNumberError p 
                   | p > 127   = invalidMidiNumberError p 
-                  | otherwise = first (+ (-5)) (p `divMod` 12)
+                  | otherwise = first (+ (-5)) (fromIntegral p `divMod` 12)
 
 
-invalidMidiNumberError :: Word8 -> a
+invalidMidiNumberError :: Show a => a -> b
 invalidMidiNumberError w = error ("invalid MIDI note number" ++ show w)
                          
                          
