@@ -17,16 +17,15 @@ main = do arg <- getArgs
             ["-d", d] -> do putStrLn ("filepath\tmin 1\tmax 1\tmin 2\tmax 2")
                             mapDir showMidiStats d
             ["-f", f] -> readMidiFile f
-            _         -> putStrLn "usage:  <filename> "
+            ["-q", f] ->   readMidiScore f >>= writeMidi (f ++ ".quant.mid") 
+                         . midiScoreToMidiFile . quantise ThirtySecond
+            _  -> putStrLn "usage:  -f <filename> OR -d <directory> OR -q <filename>" 
 
 
 readMidiFile :: FilePath -> IO ()
-readMidiFile f = 
-  do ms <- readMidiScore f
-     writeMidi (f ++ ".handsep.mid") . midiScoreToMidiFile 
-             . sepHand skyLine . mergeTracks $ ms
-     -- mapM_ (putStrLn . show . voiceStats) (getVoices ms)
-                    
+readMidiFile f = readMidiScore f >>=  writeMidi (f ++ ".handsep.mid") 
+                                   .  midiScoreToMidiFile 
+                                   .  sepHand skyLine . mergeTracks 
 
                       
 voiceStats :: Voice -> (Pitch,Pitch) 
