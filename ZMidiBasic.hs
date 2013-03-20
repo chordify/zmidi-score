@@ -7,7 +7,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , TimeSig (..)
                   , Voice 
                   , Channel
-                  , Pitch
+                  , Pitch (..)
                   , Velocity
                   , Timed (..)
                   , Time
