@@ -41,6 +41,10 @@ showMidiStats fp = do ms <- readMidiScore fp
                       putStrLn . intercalate "\t"  . map showVoiceStats 
                                . getVoices $ ms 
 
+-- | Returns the right hand 'Voice' 
+getRightHand :: MidiScore -> Voice 
+getRightHand = head . getVoices
+                               
 -- | Merges all tracks into one track
 mergeTracks :: MidiScore -> MidiScore
 mergeTracks ms = 
@@ -72,9 +76,13 @@ pickHigh p l | getPitch h > p = ([h], t)
 -- Evaluation
 --------------------------------------------------------------------------------
 
-leftHandRetrieval :: MidiScore -> MidiScore -> PrecisionRecallFMeasure
-leftHandRetrieval gt test = undefined
-
+leftHandRetrieval :: (Voice -> (Voice, Voice)) -> MidiScore 
+                  -> PrecisionRecallFMeasure
+leftHandRetrieval f ms = case length . getVoices $ ms of
+  2 -> noteRetrieval (getRightHand ms) 
+                     (getRightHand . sepHand f . mergeTracks $ ms)
+  _ -> error "We're evaluating a midifile with more or less than 2 tracks"
+  
 noteRetrieval :: Voice -> Voice -> PrecisionRecallFMeasure
 noteRetrieval gt test = precRecF eqf gt test where
   
