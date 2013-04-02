@@ -14,37 +14,47 @@ import System.Environment ( getArgs )
 main :: IO ()
 main = do arg <- getArgs
           case arg of
-            ["-d", d] -> do putStrLn ("filepath\tmin 1\tmax 1\tmin 2\tmax 2")
+            ["-s", d] -> do putStrLn ("filepath\tmin 1\tmax 1\tmin 2\tmax 2")
                             mapDir showMidiStats d
-            ["-f", f] -> readMidiFile f
+            ["-d", d] -> do putStrLn ("filepath\tprecision\trecall\tf-measure")
+                            mapDir evalHandSep d
+            ["-f", f] -> createSepHandMidiFile f
             ["-q", f] ->   readMidiScore f >>= writeMidi (f ++ ".quant.mid") 
                          . midiScoreToMidiFile . quantise ThirtySecond
-            _  -> putStrLn "usage:  -f <filename> OR -d <directory> OR -q <filename>" 
+            _  -> putStrLn ("usage:  -f <filename> OR -d <directory> " ++ 
+                            "OR -s <directory> OR -q <filename>" )
 
+evalHandSep :: FilePath -> IO ()
+evalHandSep f = do putStr (show f ++ "\t")
+                   readMidiScore f >>= print . leftHandRetrieval skyLine
 
-readMidiFile :: FilePath -> IO ()
-readMidiFile f = readMidiScore f >>=  writeMidi (f ++ ".handsep.mid") 
-                                   .  midiScoreToMidiFile 
-                                   .  sepHand skyLine . mergeTracks 
+-- | Takes a 'MidiFile' merges the tracks separates the hands again and 
+-- saves the result to a file
+createSepHandMidiFile :: FilePath -> IO ()
+createSepHandMidiFile f = readMidiScore f >>=  writeMidi (f ++ ".handsep.mid") 
+                        . midiScoreToMidiFile .  sepHand skyLine . mergeTracks 
 
-                      
-voiceStats :: Voice -> (Pitch,Pitch) 
-voiceStats v = let ps = map getPitch v 
-               in (minimum ps, maximum ps)
-
-showVoiceStats :: Voice -> String
-showVoiceStats v = let (mn,mx) = voiceStats v in show mn ++ '\t' : show mx
-
+-- | Prints some statistics of the 'MidiScore' to the console
 showMidiStats :: FilePath -> IO ()
 showMidiStats fp = do ms <- readMidiScore fp
                       putStr (fp ++ "\t")
                       putStrLn . intercalate "\t"  . map showVoiceStats 
-                               . getVoices $ ms 
+                               . getVoices $ ms where
+
+  voiceStats :: Voice -> (Pitch,Pitch)
+  voiceStats v = let ps = map getPitch v 
+                 in (minimum ps, maximum ps)
+
+  showVoiceStats :: Voice -> String
+  showVoiceStats v = let (mn,mx) = voiceStats v in show mn ++ '\t' : show mx
+
 
 -- | Returns the right hand 'Voice' 
 getRightHand :: MidiScore -> Voice 
-getRightHand = head . getVoices
-                               
+getRightHand ms = case getVoices ms of
+  [r,_l] -> r
+  _   -> error "getRightHand: Found a midifile with more or less than 2 tracks"
+
 -- | Merges all tracks into one track
 mergeTracks :: MidiScore -> MidiScore
 mergeTracks ms = 
@@ -78,10 +88,9 @@ pickHigh p l | getPitch h > p = ([h], t)
 
 leftHandRetrieval :: (Voice -> (Voice, Voice)) -> MidiScore 
                   -> PrecisionRecallFMeasure
-leftHandRetrieval f ms = case length . getVoices $ ms of
-  2 -> noteRetrieval (getRightHand ms) 
-                     (getRightHand . sepHand f . mergeTracks $ ms)
-  _ -> error "We're evaluating a midifile with more or less than 2 tracks"
+leftHandRetrieval f ms = 
+  noteRetrieval (getRightHand ms) 
+                (getRightHand . sepHand f . mergeTracks $ ms)
   
 noteRetrieval :: Voice -> Voice -> PrecisionRecallFMeasure
 noteRetrieval gt test = precRecF eqf gt test where
