@@ -25,10 +25,15 @@ main = do arg <- getArgs
             _  -> putStrLn ("usage:  -f <filename> OR -d <directory> " ++ 
                             "OR -s <directory> OR -q <filename>" )
 
+-- We do an automatic
 evalHandSep :: FilePath -> IO (PrecisionRecallFMeasure)
 evalHandSep f = do putStr (show f ++ "\t")
-                   r <- readMidiScore f >>= return . leftHandRetrieval skyLine
-                   print r 
+                   m <- readMidiScore f
+                   let r = leftHandRetrieval skyLine m
+                   -- r <- readMidiScore f >>= return . leftHandRetrieval skyLine -- . quantise ThirtySecond
+                   -- print r 
+                   putStrLn (show r ++ '\t' : (show . hasExpectedHandOrder $ m)
+                                    ++ '\t' : (show . hasTwoDupTracks $ m))
                    return r
 
 -- | Takes a 'MidiFile' merges the tracks separates the hands again and 
@@ -44,14 +49,27 @@ showMidiStats fp = do ms <- readMidiScore fp
                       putStrLn . intercalate "\t"  . map showVoiceStats 
                                . getVoices $ ms where
 
-  voiceStats :: Voice -> (Pitch,Pitch)
-  voiceStats v = let ps = map getPitch v 
-                 in (minimum ps, maximum ps)
-
   showVoiceStats :: Voice -> String
   showVoiceStats v = let (mn,mx) = voiceStats v in show mn ++ '\t' : show mx
 
+voiceStats :: Voice -> (Pitch,Pitch)
+voiceStats v = let ps = map getPitch v 
+               in (minimum ps, maximum ps)  
+  
+hasExpectedHandOrder :: MidiScore -> Bool
+hasExpectedHandOrder ms = case getVoices ms of
+  [r,l] -> let (minR, maxR) = voiceStats r
+               (minL, maxL) = voiceStats l
+           in  minR > minL && maxR > maxL
+  _     -> error ("hasExpectedHandOrder: Found a midifile with more or " ++
+                  "less than 2 tracks")
 
+hasTwoDupTracks :: MidiScore -> Bool
+hasTwoDupTracks ms = case getVoices ms of
+  [r,l] -> r == l
+  _     -> error ("hasExpectedHandOrder: Found a midifile with more or " ++
+                  "less than 2 tracks")
+                  
 -- | Returns the right hand 'Voice' 
 getRightHand :: MidiScore -> Voice 
 getRightHand ms = case getVoices ms of
