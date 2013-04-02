@@ -1,5 +1,6 @@
 module MidiCommonIO ( mapDirInDir
                     , mapDir
+                    , mapDir'
                     , printMidiToFile
                     , readMidiScore
                     )where
@@ -9,7 +10,7 @@ import ZMidi.Core         ( printMidiHeader, printMidiTrack, MidiFile (..)
 import ZMidiBasic         ( MidiScore (..), empty
                           , midiFileToMidiScore )
 import Data.List          ( intercalate )
-import Control.Monad      ( filterM )
+import Control.Monad      ( filterM, void )
 import System.Directory   ( getDirectoryContents, canonicalizePath
                           , doesDirectoryExist )
 import System.IO          ( stderr, hPutStr )
@@ -17,19 +18,24 @@ import System.FilePath    ( (</>) )
 
 
 -- | Applies a function to every directory inside a specific directory
-mapDirInDir :: (FilePath -> IO ()) -> FilePath ->  IO ()
+mapDirInDir :: (FilePath -> IO a) -> FilePath ->  IO ()
 mapDirInDir f fp = do fs  <- getDirectoryContents fp 
                               >>= return . filter (\x -> x /= "." && x /= "..") 
                       cfp <- canonicalizePath fp
                       filterM doesDirectoryExist (fmap (cfp </>) fs) >>= mapM_ f 
 
+-- | Applies a function to every file/dir in a directory, similar to 'mapDir',
+-- but it discards the result of the evaluation
+mapDir' :: (FilePath -> IO a) ->  FilePath -> IO ()
+mapDir' f = void . mapDir f
+
 -- | Applies a function to every file/dir in a directory
-mapDir :: (FilePath -> IO ()) ->  FilePath -> IO ()
+mapDir :: (FilePath -> IO a) ->  FilePath -> IO [a]
 mapDir f fp = do fs <- getDirectoryContents fp >>= 
                    return . filter (\x -> x /= "." && x /= "..") 
                  cin <- canonicalizePath fp
                  putErrStrLn cin
-                 mapM_ (f . (cin </>)) fs where
+                 mapM (f . (cin </>)) fs where
 
   putErrStrLn :: String -> IO ()
   putErrStrLn s = do hPutStr stderr s

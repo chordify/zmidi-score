@@ -2,7 +2,7 @@ module Main (main) where
 
 import ZMidi.Core         ( writeMidi )
 import ZMidiBasic
-import MidiCommonIO       ( readMidiScore, mapDir )
+import MidiCommonIO       ( readMidiScore, mapDir, mapDir' )
 
 import Data.List          ( intercalate, sortBy, groupBy, genericLength
                           , intersectBy )
@@ -15,18 +15,21 @@ main :: IO ()
 main = do arg <- getArgs
           case arg of
             ["-s", d] -> do putStrLn ("filepath\tmin 1\tmax 1\tmin 2\tmax 2")
-                            mapDir showMidiStats d
+                            mapDir' showMidiStats d
             ["-d", d] -> do putStrLn ("filepath\tprecision\trecall\tf-measure")
-                            mapDir evalHandSep d
+                            rs <- mapDir evalHandSep d
+                            putStrLn ("averages\t" ++ (show . averagePRF $ rs))
             ["-f", f] -> createSepHandMidiFile f
             ["-q", f] ->   readMidiScore f >>= writeMidi (f ++ ".quant.mid") 
                          . midiScoreToMidiFile . quantise ThirtySecond
             _  -> putStrLn ("usage:  -f <filename> OR -d <directory> " ++ 
                             "OR -s <directory> OR -q <filename>" )
 
-evalHandSep :: FilePath -> IO ()
+evalHandSep :: FilePath -> IO (PrecisionRecallFMeasure)
 evalHandSep f = do putStr (show f ++ "\t")
-                   readMidiScore f >>= print . leftHandRetrieval skyLine
+                   r <- readMidiScore f >>= return . leftHandRetrieval skyLine
+                   print r 
+                   return r
 
 -- | Takes a 'MidiFile' merges the tracks separates the hands again and 
 -- saves the result to a file
@@ -130,6 +133,15 @@ sortIntersect (x:xs) ys
   | otherwise      =     sortIntersect xs rest
       where rest = dropWhile (< x) ys
  -}
+ 
+-- | Calculates the average of a list of 'PrecisionRecallFMeasure' triplets
+averagePRF :: [PrecisionRecallFMeasure] -> PrecisionRecallFMeasure
+averagePRF prfs = prfDiv (genericLength prfs) . foldr1 step $ prfs where
+                
+      step (PRF pa ra fa) (PRF pb rb fb) = PRF (pa + pb) (ra + rb) (fa + fb)
+
+      prfDiv :: Double -> PrecisionRecallFMeasure -> PrecisionRecallFMeasure 
+      prfDiv len (PRF p r f) = PRF (p/len)   (r/len)   (f/len)  
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------

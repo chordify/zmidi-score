@@ -1,11 +1,11 @@
 module Main where
 
-import ZMidi.Core ( readMidi, printMidi)
+import ZMidi.Core         ( readMidi )
 import ZMidiBasic
-import MidiCommonIO ( mapDirInDir, mapDir, readMidiScore)
+import MidiCommonIO       ( mapDirInDir, mapDir, readMidiScore )
 
-import System.Environment (getArgs)
-import Data.IntMap.Lazy (keys)
+import System.Environment ( getArgs )
+import Data.IntMap.Lazy   ( keys )
 
 main :: IO ()
 main = do arg <- getArgs
