@@ -33,9 +33,14 @@ evalHandSep f = do putStr (show f ++ "\t")
                    -- r <- readMidiScore f >>= return . leftHandRetrieval skyLine -- . quantise ThirtySecond
                    -- print r 
                    putStrLn (show r ++ '\t' : (show . hasExpectedHandOrder $ m)
-                                    ++ '\t' : (show . hasTwoDupTracks $ m))
+                                    ++ '\t' : (show . hasTwoDupTracks $ m)
+                                    ++ '\t' : (intercalate "\t" 
+                                        . map (show . countChan) $ getVoices m))
                    return r
 
+-- listChanPerVoice :: [Voice] -> String
+-- listChanPerVoice = intercalate "\t" . map (show . countChan)
+                   
 -- | Takes a 'MidiFile' merges the tracks separates the hands again and 
 -- saves the result to a file
 createSepHandMidiFile :: FilePath -> IO ()
@@ -159,7 +164,8 @@ averagePRF prfs = prfDiv (genericLength prfs) . foldr1 step $ prfs where
       step (PRF pa ra fa) (PRF pb rb fb) = PRF (pa + pb) (ra + rb) (fa + fb)
 
       prfDiv :: Double -> PrecisionRecallFMeasure -> PrecisionRecallFMeasure 
-      prfDiv len (PRF p r f) = PRF (p/len)   (r/len)   (f/len)  
+      prfDiv len (PRF p r f) = PRF (p/len)   (r/len)   (f/len)
+
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
@@ -168,3 +174,10 @@ setChans c = map (setChan c)
 
 setChan :: Channel -> Timed ScoreEvent -> Timed ScoreEvent
 setChan c tse = fmap f tse where f ne = ne {channel = c}
+
+-- | Returns the number of different channels used in NoteEvents within a track
+countChan :: Voice -> Int
+countChan = length . groupBy ((==) `on` f) . sortBy (comparing f)
+  where f = channel . getEvent
+
+  
