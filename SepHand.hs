@@ -1,8 +1,8 @@
 module Main (main) where
 
-import ZMidi.Core         ( writeMidi )
+import ZMidi.Core         ( writeMidi, MidiFile (..) )
 import ZMidiBasic
-import MidiCommonIO       ( readMidiScore, mapDir, mapDir' )
+import MidiCommonIO       ( readMidiFile, readMidiScore, mapDir, mapDir' )
 
 import Data.List          ( intercalate, sortBy, groupBy, genericLength
                           , intersectBy )
@@ -20,6 +20,7 @@ main = do arg <- getArgs
                             rs <- mapDir evalHandSep d
                             putStrLn ("averages\t" ++ (show . averagePRF $ rs))
             ["-f", f] -> createSepHandMidiFile f
+            ["-r", f] -> reverse2Tracks f
             ["-q", f] ->   readMidiScore f >>= writeMidi (f ++ ".quant.mid") 
                          . midiScoreToMidiFile . quantise ThirtySecond
             _  -> putStrLn ("usage:  -f <filename> OR -d <directory> " ++ 
@@ -38,8 +39,6 @@ evalHandSep f = do putStr (show f ++ "\t")
                                         . map (show . countChan) $ getVoices m))
                    return r
 
--- listChanPerVoice :: [Voice] -> String
--- listChanPerVoice = intercalate "\t" . map (show . countChan)
                    
 -- | Takes a 'MidiFile' merges the tracks separates the hands again and 
 -- saves the result to a file
@@ -179,5 +178,15 @@ setChan c tse = fmap f tse where f ne = ne {channel = c}
 countChan :: Voice -> Int
 countChan = length . groupBy ((==) `on` f) . sortBy (comparing f)
   where f = channel . getEvent
+  
+reverse2Tracks :: FilePath -> IO ()
+reverse2Tracks f = 
+  do mf <- readMidiFile f
+     case mf_tracks mf of
+       -- two tracks
+       [t1,t2]    -> writeMidi (f ++ ".rev2trk.mid") mf {mf_tracks = [t2,t1]}
+       -- two tracks and a meta data track 
+       [t1,t2,t3] -> writeMidi (f ++ ".rev2trk.mid") mf {mf_tracks = [t1,t3,t2]}
+       _          -> error ("MidiFile " ++ f ++ "does not have 2 tracks.")
 
   
