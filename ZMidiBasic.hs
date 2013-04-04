@@ -28,6 +28,9 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , toMidiNr
                   , toPitch
                   , getPitch
+                  -- * MidiFile Utilities
+                  , hasNotes 
+                  , isNoteOnEvent
                   -- * Showing
                   , showMidiScore
                   , showVoices
@@ -40,16 +43,16 @@ import ZMidi.Core          ( MidiFile (..), MidiEvent (..), MidiFormat (..)
                            , MidiRunningStatus (..), DeltaTime
                            )
 import Control.Monad.State ( State, modify, get, gets, put
-                           , evalState, execState
-                           )
+                           , evalState, execState )
 import Control.Monad       ( mapAndUnzipM )
 import Control.Arrow       ( first, second )
 import Data.Word           ( Word8 )
 import Data.Int            ( Int8 )
 import Data.Char           ( toLower )
-import Data.Maybe          ( catMaybes, mapMaybe )
+import Data.Maybe          ( catMaybes, mapMaybe, isJust )
 import Data.Ord            ( comparing )
-import Data.List           ( partition, intersperse, sortBy, sort, genericLength )
+import Data.List           ( partition, intersperse, sortBy, sort
+                           , genericLength, find )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( insertWith, IntMap, findMin, keys, delete )
 import qualified Data.IntMap.Lazy as M ( empty )
@@ -561,5 +564,14 @@ toPitch = Pitch . midiNrToPitch where
 
 invalidMidiNumberError :: Show a => a -> b
 invalidMidiNumberError w = error ("invalid MIDI note number" ++ show w)
-                         
-                         
+
+--------------------------------------------------------------------------------
+-- Some MidiFile utilities
+--------------------------------------------------------------------------------
+
+hasNotes :: MidiTrack -> Bool
+hasNotes = isJust . find isNoteOnEvent . getTrackMessages 
+
+isNoteOnEvent :: MidiMessage -> Bool
+isNoteOnEvent (_, (VoiceEvent _ (NoteOn _ _ _))) = True
+isNoteOnEvent _                                  = False
