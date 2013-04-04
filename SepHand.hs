@@ -182,11 +182,8 @@ countChan = length . groupBy ((==) `on` f) . sortBy (comparing f)
 reverse2Tracks :: FilePath -> IO ()
 reverse2Tracks f = 
   do mf <- readMidiFile f
-     case mf_tracks mf of
-       -- two tracks
-       [t1,t2]    -> writeMidi (f ++ ".rev2trk.mid") mf {mf_tracks = [t2,t1]}
-       -- two tracks and a meta data track 
-       [t1,t2,t3] -> writeMidi (f ++ ".rev2trk.mid") mf {mf_tracks = [t1,t3,t2]}
-       _          -> error ("MidiFile " ++ f ++ "does not have 2 tracks.")
+     let (empty, t1 : t2 : rest) = span (not . hasNotes) . mf_tracks $ mf
+         err           = error ("MidiFile " ++ f ++ "does not have 2 tracks.")
+     writeMidi (f ++ ".rev2trk.mid") mf {mf_tracks = empty ++ (t1 : t2 : rest)}
+     
 
-  
