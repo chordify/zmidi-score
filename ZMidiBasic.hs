@@ -31,7 +31,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   -- * MidiFile Utilities
                   , hasNotes 
                   , isNoteOnEvent
-                  , removeInstrNames
+                  , removeLabels
                   -- * Showing
                   , showMidiScore
                   , showVoices
@@ -578,13 +578,13 @@ isNoteOnEvent :: MidiMessage -> Bool
 isNoteOnEvent (_, (VoiceEvent _ (NoteOn _ _ _))) = True
 isNoteOnEvent _                                  = False
 
-removeInstrNames :: MidiFile -> MidiFile
-removeInstrNames f = f { mf_tracks = map filterLab . mf_tracks $ f } where
+removeLabels :: MidiFile -> MidiFile
+removeLabels f = f { mf_tracks = map filterLab . mf_tracks $ f } where
   
   filterLab :: MidiTrack -> MidiTrack
-  filterLab = MidiTrack . filter isLab . getTrackMessages
+  filterLab = MidiTrack . filter (not . isLab) . getTrackMessages
   
   isLab :: MidiMessage -> Bool
-  isLab (_, (MetaEvent (TextEvent INSTRUMENT_NAME _))) = True
-  isLab _                                              = False
+  isLab (_, (MetaEvent (TextEvent _ _))) = True
+  isLab _                                = False
   

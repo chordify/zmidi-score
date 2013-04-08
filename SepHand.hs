@@ -3,8 +3,8 @@ module Main (main) where
 import ZMidi.Core         ( writeMidi, MidiFile (..) )
 import ZMidiBasic
 import MidiCommonIO       ( readMidiFile, readMidiScore, mapDir
-                          , mapDir', logDuplicates, writeMidiScore )
-
+                          , mapDir', logDuplicates, writeMidiScore
+                          , removeTrackLabels )
 import Data.List          ( intercalate, sortBy, groupBy, genericLength
                           , intersectBy )
 import Data.Function      ( on )
@@ -25,6 +25,7 @@ main = do arg <- getArgs
             ["-q", f] ->   readMidiScore f >>= writeMidi (f ++ ".quant.mid") 
                          . midiScoreToMidiFile . quantise ThirtySecond
             ["-l", d] -> logDuplicates d
+            ["-n", f] -> removeTrackLabels f
             ["--test", f] -> testMid f
             _  -> putStrLn ("usage:  -f <filename> OR -d <directory> " ++ 
                             "OR -s <directory> OR -q <filename>" )

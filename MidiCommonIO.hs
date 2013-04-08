@@ -1,21 +1,23 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE TupleSections           #-}
-module MidiCommonIO ( mapDirInDir
+module MidiCommonIO (-- * Mapping
+                      mapDirInDir
                     , mapDir
                     , mapDir'
-                    , printMidiToFile
+                    -- * Reading and Writing
                     , readMidiFile
                     , readMidiScore
                     , writeMidiScore
                     -- * Utilities
+                    , printMidiToFile
                     , logDuplicates
-                    , removeInstrLabels
+                    , removeTrackLabels
                     )where
                     
 import ZMidi.Core         ( printMidiHeader, printMidiTrack, MidiFile (..)
                           , readMidi, writeMidi )
 import ZMidiBasic         ( MidiScore (..), midiFileToMidiScore
-                          , midiScoreToMidiFile, removeInstrNames )
+                          , midiScoreToMidiFile, removeLabels )
 import Data.List          ( intercalate )
 import Control.Monad      ( filterM, void )
 import System.Directory   ( getDirectoryContents, canonicalizePath
@@ -23,6 +25,9 @@ import System.Directory   ( getDirectoryContents, canonicalizePath
 import System.IO          ( stderr, hPutStr )
 import System.FilePath    ( (</>) )
 
+--------------------------------------------------------------------------------
+-- Mapping
+--------------------------------------------------------------------------------
 
 -- | Applies a function to every directory inside a specific directory
 mapDirInDir :: (FilePath -> IO a) -> FilePath ->  IO ()
@@ -47,6 +52,10 @@ mapDir f fp = do fs  <- getCurDirectoryContents fp
   putErrStrLn s = do hPutStr stderr s
                      hPutStr stderr "\n"
 
+--------------------------------------------------------------------------------
+-- Reading & Writing
+--------------------------------------------------------------------------------
+
 -- | Reads a 'MidiFile' converts it into a 'MidiScore' and returns it
 readMidiScore :: FilePath -> IO (MidiScore)
 readMidiScore f = readMidiFile f >>= return . midiFileToMidiScore
@@ -61,6 +70,10 @@ readMidiFile  f = do mf <- readMidi f
 writeMidiScore :: MidiScore -> FilePath -> IO ()
 writeMidiScore mf f = writeMidi f . midiScoreToMidiFile $ mf
 
+                      
+--------------------------------------------------------------------------------
+-- Utitilities
+--------------------------------------------------------------------------------
 
 -- | Writes the contents of a 'MidiFile' to a file.
 printMidiToFile :: MidiFile -> FilePath -> IO ()
@@ -83,16 +96,18 @@ logDuplicates fp = do midis <-  getCurDirectoryContents fp
   checkFile midis (f, mf) = case filter (\(x,y) -> x /= f && y == mf) midis of
     [] -> return ()
     l  -> mapM_ (\(m,_) -> putStrLn (f ++ " == " ++ m)) l
-
+  
+-- | Removes the Track labels from a 'MidiFile'
+removeTrackLabels :: FilePath -> IO ()
+removeTrackLabels f = readMidiFile f >>= 
+                      writeMidi (f ++ ".noLab.mid") . removeLabels
+                      
 --------------------------------------------------------------------------------
--- Directory utils
+-- Unexported directory utils
 --------------------------------------------------------------------------------
 
 -- | Like 'getCurDirectoryContents', but filters the results for "." and ".."
 getCurDirectoryContents :: FilePath -> IO [FilePath]
 getCurDirectoryContents fp = 
   getDirectoryContents fp >>= return . filter (\x -> x /= "." && x /= "..") 
-  
-removeInstrLabels :: FilePath -> IO ()
-removeInstrLabels f = readMidiFile f >>= 
-                      writeMidi (f ++ ".noLab.mid") . removeInstrNames
+
