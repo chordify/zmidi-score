@@ -6,13 +6,15 @@ module MidiCommonIO ( mapDirInDir
                     , printMidiToFile
                     , readMidiFile
                     , readMidiScore
+                    , writeMidiScore
                     -- * Utilities
                     , logDuplicates
                     )where
                     
 import ZMidi.Core         ( printMidiHeader, printMidiTrack, MidiFile (..)
-                          , readMidi )
-import ZMidiBasic         ( MidiScore (..), midiFileToMidiScore )
+                          , readMidi, writeMidi )
+import ZMidiBasic         ( MidiScore (..), midiFileToMidiScore
+                          , midiScoreToMidiFile )
 import Data.List          ( intercalate )
 import Control.Monad      ( filterM, void )
 import System.Directory   ( getDirectoryContents, canonicalizePath
@@ -53,7 +55,12 @@ readMidiFile :: FilePath -> IO (MidiFile)
 readMidiFile  f = do mf <- readMidi f
                      case mf of Left  err -> error (f ++ '\t' : show err)
                                 Right mid -> return mid
-                     
+
+-- | Writes a 'MidiScore' to a file.
+writeMidiScore :: MidiScore -> FilePath -> IO ()
+writeMidiScore mf f = writeMidi f . midiScoreToMidiFile $ mf
+
+
 -- | Writes the contents of a 'MidiFile' to a file.
 printMidiToFile :: MidiFile -> FilePath -> IO ()
 printMidiToFile mf fp = 

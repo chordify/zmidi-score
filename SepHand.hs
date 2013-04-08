@@ -3,7 +3,7 @@ module Main (main) where
 import ZMidi.Core         ( writeMidi, MidiFile (..) )
 import ZMidiBasic
 import MidiCommonIO       ( readMidiFile, readMidiScore, mapDir
-                          , mapDir', logDuplicates )
+                          , mapDir', logDuplicates, writeMidiScore )
 
 import Data.List          ( intercalate, sortBy, groupBy, genericLength
                           , intersectBy )
@@ -25,16 +25,23 @@ main = do arg <- getArgs
             ["-q", f] ->   readMidiScore f >>= writeMidi (f ++ ".quant.mid") 
                          . midiScoreToMidiFile . quantise ThirtySecond
             ["-l", d] -> logDuplicates d
+            ["--test", f] -> testMid f
             _  -> putStrLn ("usage:  -f <filename> OR -d <directory> " ++ 
                             "OR -s <directory> OR -q <filename>" )
 
+                            
+testMid :: FilePath -> IO ()
+testMid f = do mf <- readMidiScore f                             
+               let (mel : rest) = getVoices mf
+                   (mel', rem) = skyLine mel
+               print rem
+               writeMidiScore mf {getVoices = (mel':rest)} (f ++ ".test.mid") 
+                            
 -- We do an automatic
 evalHandSep :: FilePath -> IO (PrecisionRecallFMeasure)
 evalHandSep f = do putStr (show f ++ "\t")
                    m <- readMidiScore f
-                   let r = leftHandRetrieval skyLine m
-                   -- r <- readMidiScore f >>= return . leftHandRetrieval skyLine -- . quantise ThirtySecond
-                   -- print r 
+                   let r = melodyRetrieval (skyLineLowLim (Pitch (0,0)))  m
                    putStrLn (show r ++ '\t' : (show . hasExpectedHandOrder $ m)
                                     ++ '\t' : (show . hasTwoDupTracks $ m)
                                     ++ '\t' : (intercalate "\t" 
@@ -46,7 +53,8 @@ evalHandSep f = do putStr (show f ++ "\t")
 -- saves the result to a file
 createSepHandMidiFile :: FilePath -> IO ()
 createSepHandMidiFile f = readMidiScore f >>=  writeMidi (f ++ ".handsep.mid") 
-                        . midiScoreToMidiFile .  sepHand skyLine . mergeTracks 
+                        . midiScoreToMidiFile 
+                        . sepHand (skyLineLowLim (Pitch (0,0))) . mergeTracks 
 
 -- | Prints some statistics of the 'MidiScore' to the console
 showMidiStats :: FilePath -> IO ()
@@ -94,31 +102,43 @@ sepHand :: (Voice -> (Voice, Voice)) -> MidiScore -> MidiScore
 sepHand f mf = case getVoices mf of
   [x] -> let (r,l) = f x in mf {getVoices = [r,l]}
   _   -> error "sepHand: more or less than 1 voice!"
+
+-- | An implementation of the "skyline algorithm" that picks the highest note  
+-- in a melody (high, low)
+skyLine :: Voice -> (Voice, Voice)    
+skyLine = skyLineLowLim (Pitch (-5,0))
     
 -- | An implementation of the "skyline algorithm" that picks the highest note
-skyLine :: Voice -> (Voice, Voice)
-skyLine = (f 0 *** f 1) . unzip . map (pickHigh p) . groupBy ((==) `on` onset)
+-- in a melody (high, low), and has a lower limit. All notes below a 'Pitch' 
+-- /x/ belong to the accompaniment
+skyLineLowLim :: Pitch -> Voice -> (Voice, Voice)
+skyLineLowLim p = (f 0 *** f 1) . unzip . map (pickHigh p) 
+                                        . groupBy ((==) `on` onset)
   where f c = setChans c . concat
-        p   = Pitch (0, 0)
 
 -- | Picks the highest notes and separates them from the rest (high,low)
 pickHigh :: Pitch -> [Timed ScoreEvent] 
          -> ([Timed ScoreEvent],[Timed ScoreEvent])
 pickHigh _ [ ] = error "pickHigh: empty list"
-pickHigh p l | getPitch h > p = ([h], t)
-             | otherwise      = ([ ], l) 
-                 where (h:t)  = reverse . sortBy (comparing getPitch) $ l 
+pickHigh p l | getPitch h >= p = ([h], t)
+             | otherwise       = ([ ], l) 
+                 where (h:t)   = reverse . sortBy (comparing getPitch) $ l 
 
 --------------------------------------------------------------------------------
 -- Evaluation
 --------------------------------------------------------------------------------
 
-leftHandRetrieval :: (Voice -> (Voice, Voice)) -> MidiScore 
+-- | Does the melody retrieval based on a separation function. 
+-- N.B. in the evaluation we ignore chords in the groundtruth melody track,
+-- and only the highest note is taken into consideration.
+melodyRetrieval :: (Voice -> (Voice, Voice)) -> MidiScore 
                   -> PrecisionRecallFMeasure
-leftHandRetrieval f ms = 
-  noteRetrieval (getRightHand ms) 
+melodyRetrieval f ms = 
+  noteRetrieval (fst . skyLine . getRightHand $ ms) 
                 (getRightHand . sepHand f . mergeTracks $ ms)
-  
+
+-- | Given a groundtruth 'Voice' (first argument) and a test 'Voice' calculates
+-- the recall, precision and F-meaures
 noteRetrieval :: Voice -> Voice -> PrecisionRecallFMeasure
 noteRetrieval gt test = precRecF eqf gt test where
   
@@ -143,20 +163,6 @@ data PrecisionRecallFMeasure = PRF Double Double Double
 
 instance Show PrecisionRecallFMeasure where
   show (PRF p r f) = intercalate "\t" . map show $ [p,r,f]
-  
-{-
--- | a version of 'Data.List.intersect' that takes advantage of the fact that
--- the two intersected lists are sorted ascendingly (it is approximatly 30 times
--- as fast)
-sortIntersect :: Ord a => [a] -> [a] -> [a]
-sortIntersect [] _  = []
-sortIntersect _  [] = []
-sortIntersect (x:xs) ys  
-  | null rest      =     sortIntersect xs rest
-  | x == head rest = x : sortIntersect xs (tail rest)
-  | otherwise      =     sortIntersect xs rest
-      where rest = dropWhile (< x) ys
- -}
  
 -- | Calculates the average of a list of 'PrecisionRecallFMeasure' triplets
 averagePRF :: [PrecisionRecallFMeasure] -> PrecisionRecallFMeasure
@@ -170,6 +176,7 @@ averagePRF prfs = prfDiv (genericLength prfs) . foldr1 step $ prfs where
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
+
 setChans :: Channel -> [Timed ScoreEvent] -> [Timed ScoreEvent]
 setChans c = map (setChan c)
 
@@ -189,11 +196,5 @@ reverse2Tracks f =
      -- Also, somethimes additional information is stored in some trailing
      -- tracks.
      let (empty, t1 : t2 : rest) = span (not . hasNotes) . mf_tracks $ mf
-         err           = error ("MidiFile " ++ f ++ "does not have 2 tracks.")
      writeMidi (f ++ ".rev2trk.mid") mf {mf_tracks = empty ++ (t2 : t1 : rest)}
      
-     
-
-
-     
-
