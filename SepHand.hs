@@ -2,7 +2,8 @@ module Main (main) where
 
 import ZMidi.Core         ( writeMidi, MidiFile (..) )
 import ZMidiBasic
-import MidiCommonIO       ( readMidiFile, readMidiScore, mapDir, mapDir' )
+import MidiCommonIO       ( readMidiFile, readMidiScore, mapDir
+                          , mapDir', logDuplicates )
 
 import Data.List          ( intercalate, sortBy, groupBy, genericLength
                           , intersectBy )
@@ -23,6 +24,7 @@ main = do arg <- getArgs
             ["-r", f] -> reverse2Tracks f
             ["-q", f] ->   readMidiScore f >>= writeMidi (f ++ ".quant.mid") 
                          . midiScoreToMidiFile . quantise ThirtySecond
+            ["-l", d] -> logDuplicates d
             _  -> putStrLn ("usage:  -f <filename> OR -d <directory> " ++ 
                             "OR -s <directory> OR -q <filename>" )
 
