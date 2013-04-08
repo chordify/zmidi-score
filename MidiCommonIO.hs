@@ -1,3 +1,5 @@
+{-# OPTIONS_GHC -Wall                #-}
+{-# LANGUAGE TupleSections           #-}
 module MidiCommonIO ( mapDirInDir
                     , mapDir
                     , mapDir'
@@ -31,8 +33,7 @@ mapDir' f = void . mapDir f
 
 -- | Applies a function to every file/dir in a directory
 mapDir :: (FilePath -> IO a) ->  FilePath -> IO [a]
-mapDir f fp = do fs <- getDirectoryContents fp >>= 
-                   return . filter (\x -> x /= "." && x /= "..") 
+mapDir f fp = do fs  <- getCurDirectoryContents fp
                  cin <- canonicalizePath fp
                  putErrStrLn cin
                  mapM (f . (cin </>)) fs where
@@ -56,5 +57,24 @@ printMidiToFile mf fp =
   let hd = printMidiHeader . mf_header $ mf
       ts = concatMap printMidiTrack . mf_tracks $ mf
   in  writeFile fp . intercalate "\n" $ (hd ++ ts)
+  
 
+logDuplicates :: FilePath -> IO ()
+logDuplicates fp = do midis <-  getCurDirectoryContents fp 
+                            >>= mapM (\x -> readMidiFile x >>= return . (x,))
+                      mapM_ (checkFile midis) midis where
+    
+  checkFile :: [(FilePath, MidiFile)] -> (FilePath, MidiFile) -> IO ()
+  checkFile midis (f, mf) = case filter ((== mf) . snd) midis of
+    [] -> return ()
+    l  -> mapM_ (\(m,_) -> putStrLn (f ++ " == " ++ m)) l
+
+--------------------------------------------------------------------------------
+-- Directory utils
+--------------------------------------------------------------------------------
+
+-- | Like 'getCurDirectoryContents', but filters the results for "." and ".."
+getCurDirectoryContents :: FilePath -> IO [FilePath]
+getCurDirectoryContents fp = 
+  getDirectoryContents fp >>= return . filter (\x -> x /= "." && x /= "..") 
 

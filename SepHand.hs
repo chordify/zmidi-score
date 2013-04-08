@@ -179,11 +179,19 @@ countChan :: Voice -> Int
 countChan = length . groupBy ((==) `on` f) . sortBy (comparing f)
   where f = channel . getEvent
   
+-- | Reverses the order of the first two tracks in a 'MidiFile'
 reverse2Tracks :: FilePath -> IO ()
 reverse2Tracks f = 
   do mf <- readMidiFile f
+     -- It is customary to use a first track for storing meta data.
+     -- Also, somethimes additional information is stored in some trailing
+     -- tracks.
      let (empty, t1 : t2 : rest) = span (not . hasNotes) . mf_tracks $ mf
          err           = error ("MidiFile " ++ f ++ "does not have 2 tracks.")
-     writeMidi (f ++ ".rev2trk.mid") mf {mf_tracks = empty ++ (t1 : t2 : rest)}
+     writeMidi (f ++ ".rev2trk.mid") mf {mf_tracks = empty ++ (t2 : t1 : rest)}
+     
+     
+
+
      
 
