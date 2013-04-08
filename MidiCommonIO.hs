@@ -9,12 +9,13 @@ module MidiCommonIO ( mapDirInDir
                     , writeMidiScore
                     -- * Utilities
                     , logDuplicates
+                    , removeInstrLabels
                     )where
                     
 import ZMidi.Core         ( printMidiHeader, printMidiTrack, MidiFile (..)
                           , readMidi, writeMidi )
 import ZMidiBasic         ( MidiScore (..), midiFileToMidiScore
-                          , midiScoreToMidiFile )
+                          , midiScoreToMidiFile, removeInstrNames )
 import Data.List          ( intercalate )
 import Control.Monad      ( filterM, void )
 import System.Directory   ( getDirectoryContents, canonicalizePath
@@ -91,4 +92,7 @@ logDuplicates fp = do midis <-  getCurDirectoryContents fp
 getCurDirectoryContents :: FilePath -> IO [FilePath]
 getCurDirectoryContents fp = 
   getDirectoryContents fp >>= return . filter (\x -> x /= "." && x /= "..") 
-
+  
+removeInstrLabels :: FilePath -> IO ()
+removeInstrLabels f = readMidiFile f >>= 
+                      writeMidi (f ++ ".noLab.mid") . removeInstrNames

@@ -31,6 +31,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   -- * MidiFile Utilities
                   , hasNotes 
                   , isNoteOnEvent
+                  , removeInstrNames
                   -- * Showing
                   , showMidiScore
                   , showVoices
@@ -41,6 +42,7 @@ import ZMidi.Core          ( MidiFile (..), MidiEvent (..), MidiFormat (..)
                            , MidiMessage, MidiTrack (..), MidiHeader (..) 
                            , MidiScaleType (..), MidiTimeDivision (..)
                            , MidiRunningStatus (..), DeltaTime
+                           , MidiTextType (..) 
                            )
 import Control.Monad.State ( State, modify, get, gets, put
                            , evalState, execState )
@@ -575,3 +577,14 @@ hasNotes = isJust . find isNoteOnEvent . getTrackMessages
 isNoteOnEvent :: MidiMessage -> Bool
 isNoteOnEvent (_, (VoiceEvent _ (NoteOn _ _ _))) = True
 isNoteOnEvent _                                  = False
+
+removeInstrNames :: MidiFile -> MidiFile
+removeInstrNames f = f { mf_tracks = map filterLab . mf_tracks $ f } where
+  
+  filterLab :: MidiTrack -> MidiTrack
+  filterLab = MidiTrack . filter isLab . getTrackMessages
+  
+  isLab :: MidiMessage -> Bool
+  isLab (_, (MetaEvent (TextEvent INSTRUMENT_NAME _))) = True
+  isLab _                                              = False
+  
