@@ -12,7 +12,6 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , Timed (..)
                   , Time
                   , ScoreEvent (..)
-                  , empty
                   -- * Transformation
                   , midiFileToMidiScore
                   , midiScoreToMidiFile
@@ -42,7 +41,6 @@ import ZMidi.Core          ( MidiFile (..), MidiEvent (..), MidiFormat (..)
                            , MidiMessage, MidiTrack (..), MidiHeader (..) 
                            , MidiScaleType (..), MidiTimeDivision (..)
                            , MidiRunningStatus (..), DeltaTime
-                           , MidiTextType (..) 
                            )
 import Control.Monad.State ( State, modify, get, gets, put
                            , evalState, execState )
@@ -127,9 +125,6 @@ data ScoreEvent = NoteEvent     { channel     :: Channel
                                 } deriving (Eq, Ord, Show)
 
 type TickMap = IntMap Time
-
-empty :: MidiScore
-empty = MidiScore [] [] 0 MF1 [] 0 []
 
 --------------------------------------------------------------------------------
 -- Some ad-hoc show instances

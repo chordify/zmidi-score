@@ -34,8 +34,8 @@ main = do arg <- getArgs
 melodySkyline :: FilePath -> IO ()
 melodySkyline f = do mf <- readMidiScore f                             
                      let (mel : rest) = getVoices mf
-                         (mel', rem) = skyLine mel
-                     print rem
+                         (mel', remv) = skyLine mel
+                     print remv
                      writeMidiScore mf {getVoices = (mel':rest)} (f ++ ".test.mid") 
                             
 -- We do an automatic
@@ -72,7 +72,9 @@ showMidiStats fp = do ms <- readMidiScore fp
 voiceStats :: Voice -> (Pitch,Pitch)
 voiceStats v = let ps = map getPitch v 
                in (minimum ps, maximum ps)  
-  
+
+-- | Checkes if the both the lowest and the highest note in the melody were 
+-- higher than the lowest and highest note in the accompaniment.
 hasExpectedHandOrder :: MidiScore -> Bool
 hasExpectedHandOrder ms = case getVoices ms of
   [r,l] -> let (minR, maxR) = voiceStats r
@@ -81,17 +83,22 @@ hasExpectedHandOrder ms = case getVoices ms of
   _     -> error ("hasExpectedHandOrder: Found a midifile with more or " ++
                   "less than 2 tracks")
 
+-- | Returns true if the two tracks in the MidiScore are duplicates
 hasTwoDupTracks :: MidiScore -> Bool
 hasTwoDupTracks ms = case getVoices ms of
   [r,l] -> r == l
   _     -> error ("hasExpectedHandOrder: Found a midifile with more or " ++
                   "less than 2 tracks")
-                  
--- | Returns the right hand 'Voice' 
-getRightHand :: MidiScore -> Voice 
-getRightHand ms = case getVoices ms of
+
+--------------------------------------------------------------------------------
+-- Melody Finding
+--------------------------------------------------------------------------------
+
+-- | Returns the melody 'Voice' 
+getMelody :: MidiScore -> Voice 
+getMelody ms = case getVoices ms of
   [r,_l] -> r
-  _   -> error "getRightHand: Found a midifile with more or less than 2 tracks"
+  _   -> error "getMelody: Found a midifile with more or less than 2 tracks"
 
 -- | Merges all tracks into one track
 mergeTracks :: MidiScore -> MidiScore
@@ -137,8 +144,8 @@ pickHigh p l | getPitch h >= p = ([h], t)
 melodyRetrieval :: (Voice -> (Voice, Voice)) -> MidiScore 
                   -> PrecisionRecallFMeasure
 melodyRetrieval f ms = 
-  noteRetrieval (fst . skyLine . getRightHand $ ms) 
-                (getRightHand . sepHand f . mergeTracks $ ms)
+  noteRetrieval (fst . skyLine . getMelody $ ms) 
+                (getMelody . sepHand f . mergeTracks $ ms)
 
 -- | Given a groundtruth 'Voice' (first argument) and a test 'Voice' calculates
 -- the recall, precision and F-meaures
