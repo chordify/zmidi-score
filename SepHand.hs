@@ -26,23 +26,23 @@ main = do arg <- getArgs
                          . midiScoreToMidiFile . quantise ThirtySecond
             ["-l", d] -> logDuplicates d
             ["-n", f] -> removeTrackLabels f
-            ["--test", f] -> testMid f
+            ["--test", f] -> melodySkyline f
             _  -> putStrLn ("usage:  -f <filename> OR -d <directory> " ++ 
                             "OR -s <directory> OR -q <filename>" )
 
-                            
-testMid :: FilePath -> IO ()
-testMid f = do mf <- readMidiScore f                             
-               let (mel : rest) = getVoices mf
-                   (mel', rem) = skyLine mel
-               print rem
-               writeMidiScore mf {getVoices = (mel':rest)} (f ++ ".test.mid") 
+-- For checking the removal of chords in the melody track
+melodySkyline :: FilePath -> IO ()
+melodySkyline f = do mf <- readMidiScore f                             
+                     let (mel : rest) = getVoices mf
+                         (mel', rem) = skyLine mel
+                     print rem
+                     writeMidiScore mf {getVoices = (mel':rest)} (f ++ ".test.mid") 
                             
 -- We do an automatic
 evalHandSep :: FilePath -> IO (PrecisionRecallFMeasure)
 evalHandSep f = do putStr (show f ++ "\t")
                    m <- readMidiScore f
-                   let r = melodyRetrieval (skyLineLowLim (Pitch (0,0)))  m
+                   let r = melodyRetrieval (skyLineLowLim (Pitch (0,0))) m 
                    putStrLn (show r ++ '\t' : (show . hasExpectedHandOrder $ m)
                                     ++ '\t' : (show . hasTwoDupTracks $ m)
                                     ++ '\t' : (intercalate "\t" 
@@ -55,7 +55,9 @@ evalHandSep f = do putStr (show f ++ "\t")
 createSepHandMidiFile :: FilePath -> IO ()
 createSepHandMidiFile f = readMidiScore f >>=  writeMidi (f ++ ".handsep.mid") 
                         . midiScoreToMidiFile 
-                        . sepHand (skyLineLowLim (Pitch (0,0))) . mergeTracks 
+                        . sepHand (skyLineLowLim (Pitch (0,0))) 
+                        . mergeTracks 
+                        -- . quantise FourtyEighth 
 
 -- | Prints some statistics of the 'MidiScore' to the console
 showMidiStats :: FilePath -> IO ()

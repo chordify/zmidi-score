@@ -245,7 +245,8 @@ showVoices ms = concat . intersperse "\n"
 
 -- | The 'ShortestNote' determines the minimal grid length of a quantised 
 -- 'MidiScore', when quantised with 'quantise'.
-data ShortestNote = Eighth | Sixteenth | ThirtySecond | SixtyFourth
+data ShortestNote = Eighth | Sixteenth | ThirtySecond 
+                  | FourtyEighth | SixtyFourth
                     deriving (Eq, Show)
 
 type GridUnit = Time
@@ -267,6 +268,7 @@ toGridUnit :: ShortestNote -> GridUnit
 toGridUnit Eighth       = 2
 toGridUnit Sixteenth    = 4
 toGridUnit ThirtySecond = 8
+toGridUnit FourtyEighth = 12
 toGridUnit SixtyFourth  = 16
     
 snap :: GridUnit -> Time -> Time
