@@ -180,7 +180,7 @@ instance Show Pitch where
 
 -- Show a MidiScore in a readable way
 showMidiScore :: MidiScore -> String
-showMidiScore ms@(MidiScore k ts mf tpb st tp _vs) = "Key: "      ++ show k 
+showMidiScore ms@(MidiScore k ts tpb mf tp st _vs) = "Key: "      ++ show k 
                                      ++ "\nMeter: "  ++ show ts
                                      ++ "\nTicks per Beat: "  ++ show tpb 
                                      ++ "\nMidi format: " ++ show mf 
