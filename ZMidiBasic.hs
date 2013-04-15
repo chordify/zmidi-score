@@ -27,6 +27,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , toMidiNr
                   , toPitch
                   , getPitch
+                  , pitchClass
                   -- * MidiFile Utilities
                   , hasNotes 
                   , isNoteOnEvent
@@ -100,6 +101,9 @@ type Voice      = [Timed ScoreEvent]
 
 type Channel    = Word8
 newtype Pitch   = Pitch (Int, Int) deriving (Eq, Ord) -- (Octave, Pitch class)
+
+newtype PitchClass = PitchClass Int deriving (Eq, Ord) 
+
 type Velocity   = Word8
 type Time       = Int
 
@@ -151,22 +155,25 @@ instance Show Key where
 instance Show Pitch where
   show (Pitch (oct, p)) = show oct ++ showPitch p where
 
-    -- shows the Midi number in a musical way
-    -- N.B. ignoring all pitch spelling, at the moment
-    showPitch :: Int -> String
-    showPitch  0 = "C "
-    showPitch  1 = "C#"
-    showPitch  2 = "D "
-    showPitch  3 = "D#"
-    showPitch  4 = "E "
-    showPitch  5 = "F "
-    showPitch  6 = "F#"
-    showPitch  7 = "G "
-    showPitch  8 = "G#"
-    showPitch  9 = "A "
-    showPitch 10 = "Bb"
-    showPitch 11 = "B "
-    showPitch n  = invalidMidiNumberError n
+instance Show PitchClass where
+  show (PitchClass p) = showPitch p
+  
+-- shows the Midi number in a musical way
+-- N.B. ignoring all pitch spelling, at the moment
+showPitch :: Int -> String
+showPitch  0 = "C "
+showPitch  1 = "C#"
+showPitch  2 = "D "
+showPitch  3 = "D#"
+showPitch  4 = "E "
+showPitch  5 = "F "
+showPitch  6 = "F#"
+showPitch  7 = "G "
+showPitch  8 = "G#"
+showPitch  9 = "A "
+showPitch 10 = "Bb"
+showPitch 11 = "B "
+showPitch n  = invalidMidiNumberError n
 
 -- instance Ord Pitch where
   -- compare (Pitch (octA, pcA)) 
@@ -529,6 +536,10 @@ isTempoChange _                          = False
 isNoteEvent :: Timed ScoreEvent -> Bool
 isNoteEvent (Timed _ (NoteEvent _ _ _ _ )) = True
 isNoteEvent _                              = False
+
+-- | Returns the 'PitchClass' of a particular 'Pitch'.
+pitchClass :: Pitch -> PitchClass
+pitchClass (Pitch (_, pc)) = PitchClass pc
 
 -- | Returns the 'Pitch' of a 'Timed' 'ScoreEvent'. In case of a non-'NoteEvent'
 -- an error will be thrown
