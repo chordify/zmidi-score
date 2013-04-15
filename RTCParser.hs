@@ -2,10 +2,11 @@
 {-# LANGUAGE FlexibleContexts        #-}
 module RTCParser where
 
-import Text.ParserCombinators.UU.Core           ( (<$>), (<*>), (<*) )
+import Text.ParserCombinators.UU.Core           ( (<$>), (<$), (<*>), (<*), (*>), (<|>))
 import Text.ParserCombinators.UU.BasicInstances ( Parser, pSym )
-import Text.ParserCombinators.UU.Derived        ( pListSep )
-import Text.ParserCombinators.UU.Utils          ( pQuotedString, pInteger )
+import Text.ParserCombinators.UU.Derived        ( pListSep, pMany )
+import Text.ParserCombinators.UU.Utils          ( pInteger, pAscii )
+import HarmTrace.Base.Parsing                   ( pString )
 
 
 data RTC = RTC { id         :: Int
@@ -29,6 +30,8 @@ data RTC = RTC { id         :: Int
                
 data RTCYear = Year   Int
              | Approx Int
+             | Pre    Int
+             | Range  Int Int
              | Modern
              | OtherYear String deriving (Show, Eq, Ord)
                
@@ -46,31 +49,40 @@ pCompendium = pListSep pComma pRTC
 pRTC :: Parser RTC
 pRTC = RTC <$> pInteger      <* pComma -- id         :: Int
            <*> pHasContent   <* pComma -- midiExist  :: Bool
-           <*> pQuotedString <* pComma -- title      :: String
-           <*> pQuotedString <* pComma -- subtitle   :: String
-           <*> pQuotedString <* pComma -- composer   :: String
-           <*> pQuotedString <* pComma -- lyricist   :: String
+           <*> pRTCString    <* pComma -- title      :: String
+           <*> pRTCString    <* pComma -- subtitle   :: String
+           <*> pRTCString    <* pComma -- composer   :: String
+           <*> pRTCString    <* pComma -- lyricist   :: String
            <*> pRTCYear      <* pComma -- year       :: RTCYear
-           <*> pQuotedString <* pComma -- publisher  :: String
+           <*> pRTCString    <* pComma -- publisher  :: String
            <*> pRTCType      <* pComma -- rtctype    :: RTCType
-           <*> pQuotedString <* pComma -- source     :: String 
-           <*> pQuotedString <* pComma -- status     :: String
-           <*> pQuotedString <* pComma -- folio      :: String
-           <*> pQuotedString <* pComma -- folioDet   :: String
+           <*> pRTCString    <* pComma -- source     :: String 
+           <*> pRTCString    <* pComma -- status     :: String
+           <*> pRTCString    <* pComma -- folio      :: String
+           <*> pRTCString    <* pComma -- folioDet   :: String
            <*> pRTCFolder    <* pComma -- folders    :: [RTCFolder]
            <*> pInteger      <* pComma -- length     :: Int
 
 pHasContent :: Parser Bool
-pHasContent = undefined
+pHasContent = null <$> pRTCString -- perhaps check for x
 
 pRTCYear :: Parser RTCYear
-pRTCYear = undefined
+pRTCYear =   Year      <$>  pInteger
+         <|> Pre       <$> (pString "ca "  *> pInteger)
+         <|> Pre       <$> (pSym  '~'      *> pInteger)
+         <|> Approx    <$> (pString "pre " *> pInteger)
+         <|> Range     <$>  pInteger <*> (pString " - " *> pInteger)
+         <|> Modern    <$  pString "[modern]"
+         <|> OtherYear <$> pRTCString
 
 pRTCType :: Parser RTCType
 pRTCType = undefined
 
 pRTCFolder :: Parser [RTCFolder]
 pRTCFolder = undefined
+
+pRTCString :: Parser String
+pRTCString = pMany pAscii
 
 pComma :: Parser Char
 pComma = pSym ','
