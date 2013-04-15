@@ -2,7 +2,10 @@
 {-# LANGUAGE FlexibleContexts        #-}
 module RTCParser where
 
-import Text.ParserCombinators.UU.BasicInstances
+import Text.ParserCombinators.UU.Core           ( (<$>), (<*>), (<*) )
+import Text.ParserCombinators.UU.BasicInstances ( Parser, pSym )
+import Text.ParserCombinators.UU.Derived        ( pListSep )
+import Text.ParserCombinators.UU.Utils          ( pQuotedString, pInteger )
 
 
 data RTC = RTC { id         :: Int
@@ -38,7 +41,36 @@ data RTCFolder = Cowles | Crausaz | Edwards | Intartaglia | MacDonald
                 
                 
 pCompendium :: Parser [RTC] 
-pCompendium = undefined
+pCompendium = pListSep pComma pRTC
 
 pRTC :: Parser RTC
-pRTC = undefined
+pRTC = RTC <$> pInteger      <* pComma -- id         :: Int
+           <*> pHasContent   <* pComma -- midiExist  :: Bool
+           <*> pQuotedString <* pComma -- title      :: String
+           <*> pQuotedString <* pComma -- subtitle   :: String
+           <*> pQuotedString <* pComma -- composer   :: String
+           <*> pQuotedString <* pComma -- lyricist   :: String
+           <*> pRTCYear      <* pComma -- year       :: RTCYear
+           <*> pQuotedString <* pComma -- publisher  :: String
+           <*> pRTCType      <* pComma -- rtctype    :: RTCType
+           <*> pQuotedString <* pComma -- source     :: String 
+           <*> pQuotedString <* pComma -- status     :: String
+           <*> pQuotedString <* pComma -- folio      :: String
+           <*> pQuotedString <* pComma -- folioDet   :: String
+           <*> pRTCFolder    <* pComma -- folders    :: [RTCFolder]
+           <*> pInteger      <* pComma -- length     :: Int
+
+pHasContent :: Parser Bool
+pHasContent = undefined
+
+pRTCYear :: Parser RTCYear
+pRTCYear = undefined
+
+pRTCType :: Parser RTCType
+pRTCType = undefined
+
+pRTCFolder :: Parser [RTCFolder]
+pRTCFolder = undefined
+
+pComma :: Parser Char
+pComma = pSym ','
