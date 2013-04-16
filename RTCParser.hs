@@ -15,8 +15,11 @@ import Data.ListLike.Text.Text                  ( )
 
 
 parseComp :: FilePath -> IO ()
-parseComp f = readFile f >>= print . parseRTC
+parseComp f = readFile f >>= print . filter midiExist . parseRTC
 
+--------------------------------------------------------------------------------
+-- Some datatypes for representing the RagTimeCompendium
+--------------------------------------------------------------------------------
 
 data RTC = RTC { id         :: RTCID
                , midiExist  :: Bool
@@ -57,13 +60,17 @@ data RTCFolder = Cowles | Crausaz | Edwards | Intartaglia | MacDonald
  
 instance Show RTC where
   show (RTC i md tit subtit comp lyr yr pub tp src stat fol folDet fold aux l)
-    = intercalate ", " [ show i, show md, show tit, show subtit, show comp
+    = intercalate ", " . filter (/= "\"\"") $
+                       [ show i, show md, show tit, show subtit, show comp
                        , show lyr, show yr, show pub, show tp, show src
                        , show stat, show fol, show folDet, show fold, show aux
                        , show l]
   
   showList rtc s = s ++ (intercalate "\n" . map show $ rtc)
-                
+
+--------------------------------------------------------------------------------
+-- Parsing the Compendium
+--------------------------------------------------------------------------------
 
 parseRTC :: String -> [RTC]
 parseRTC = map doLine . T.lines . pack
@@ -74,7 +81,7 @@ doLine t = case split (=='\t') . T.filter (/= '\"') $ t of
      : tp : src : stat : fol    : folDet :rest ) 
       -> let (fldrs, (aux : [ln])) = splitAt 10 rest
          in RTC (parseField pRTCID NoID i)          -- id         :: Int
-             (T.null md)                            -- midiExist  :: Bool
+             (not . T.null $ md)                    -- midiExist  :: Bool
              tit                                    -- title      :: Text
              subtit                                 -- subtitle   :: Text
              comp                                   -- composer   :: Text
