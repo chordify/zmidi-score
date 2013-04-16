@@ -4,8 +4,8 @@ module RTCParser where
 
 import Text.ParserCombinators.UU.Core           ( (<$>), (<$), (<*>), (*>)
                                                 , (<|>), P )
-import Text.ParserCombinators.UU.BasicInstances ( Parser, pSym, pRange, Str, LineColPos )
-import Text.ParserCombinators.UU.Derived        ( pMany )
+import Text.ParserCombinators.UU.BasicInstances ( Parser, pSym, Str, LineColPos )
+-- import Text.ParserCombinators.UU.Derived        ( pMany )
 import Text.ParserCombinators.UU.Utils          ( pInteger )
 import HarmTrace.Base.Parsing                   ( pString, parseDataSafe, parseDataWithErrors )
 -- import Data.Maybe                               ( catMaybes ) 
@@ -69,10 +69,6 @@ instance Show RTC where
   
   showList rtc s = s ++ (intercalate "\n" . map show $ rtc)
                 
--- pCompendium :: Parser [RTC] 
--- pCompendium = pListSep pComma pRTC
-
--- data Test = Test Int Bool String String String deriving Show
 
 parseRTC :: String -> [RTC]
 parseRTC = map doLine . T.lines . pack
@@ -106,10 +102,6 @@ parseField p empt t
   | T.null t  = empt
   | otherwise = parseDataSafe p t
 
-        
-pHasContent :: Parser Bool
-pHasContent = null <$> pRTCString -- perhaps check for x
-
 pRTCYear :: Parser RTCYear
 pRTCYear =   Year      <$>  pInteger
          <|> Pre       <$> (pString "ca "  *> pInteger)
@@ -125,29 +117,3 @@ pRTCType =   TypeR <$ pSym 'R'
          <|> TypeS <$ pSym 'S'
          <|> TypeI <$ pSym 'I'
          -- <|> TypeUnknown <$> pRTCString
-         
--- pRTCFolder :: Parser [RTCFolder]
--- pRTCFolder =   catMaybes . zipWith selectFold flds <$> pExact 10 pMaybeFolder where
-
-  -- selectFold :: RTCFolder -> Maybe Char -> Maybe RTCFolder
-  -- selectFold f mc = maybe Nothing (const $ Just f) mc
-
-  -- flds = [ Cowles, Crausaz, Edwards, Intartaglia, MacDonald
-         -- , PittPayne, Reublin, Trachtman, Watanabe, Wilson  ]
-
-  -- pMaybeFolder :: Parser (Maybe Char)
-  -- pMaybeFolder = pMaybe (pSym 'x')               
-
-
-pRTCString :: Parser String
-pRTCString =   pMany pValidChar
-           -- <|> ((:) <$> (pSym ' ') <*> (pure []))
-           
--- Valid characters are:
--- !\"#$%&'()*+
--- -./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~
-pValidChar :: Parser Char
-pValidChar = pRange (' ', '~') 
-           
-pComma :: Parser Char
-pComma = pSym '\t'
