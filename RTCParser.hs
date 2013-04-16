@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE FlexibleContexts        #-}
-module RTCParser where
+module RTCParser (parseRTCFile, parseRTC, RTC (..)) where
 
 import Text.ParserCombinators.UU.Core           ( (<$>), (<$), (<*>), (*>), (<*)
                                                 , (<|>), P )
@@ -14,13 +14,14 @@ import qualified Data.Text as T                 ( lines, null, filter )
 import Data.ListLike.Text.Text                  ( )
 
 
-parseComp :: FilePath -> IO ()
-parseComp f = readFile f >>= print . filter midiExist . parseRTC
+parseRTCFile :: FilePath -> IO ()
+parseRTCFile f = readFile f >>= print . filter midiExist . parseRTC
 
 --------------------------------------------------------------------------------
 -- Some datatypes for representing the RagTimeCompendium
 --------------------------------------------------------------------------------
 
+-- | Represents a RagTime Compendium entry
 data RTC = RTC { id         :: RTCID
                , midiExist  :: Bool
                , title      :: Text
@@ -38,9 +39,30 @@ data RTC = RTC { id         :: RTCID
                , auxFolders :: Text
                , len        :: Int
                } deriving (Eq, Ord)
-               
+
+-- | Represents a ragtime compendium identifyer
 data RTCID   = RTCID Int | New | NoID deriving (Show, Eq, Ord)
-               
+
+-- | Stores a copyright date
+-- Ideally, the year of copyright as stated on the sheet music copyright page 
+-- - but some of this music was not copyrighted so the only practicable date 
+-- for such items is the year of publication or even composition. In this 
+-- listing minor errors in date (one year here or there) has not been considered
+-- serious - it has been seen as being more important to list the item. 
+
+-- ~ means about (e.g. about 1910); c/c means composed/copyright date 
+-- (e.g. 1910c/c1924).  “Pre xxxx” generally means there is a piano roll or 
+-- recording in this year (and so far as I am aware many of these titles were 
+-- never issued as printed scores); in rare cases it may be the year of death 
+-- of the composer.
+
+-- In some cases publishers are known to have issued an orchestration 
+-- (by an arranger) first in order to create awareness and demand, and then 
+-- later they issued the instrumental (or song).  This would mean that the
+ -- base composition (the instrumental or song) was from an earlier date than 
+ -- its first publication (which is the date usually cited).  Where there is 
+ -- evidence of an earlier published orchestration it has been noted, e.g. 
+ -- i 1914 (o 1912). 
 data RTCYear = Year   Int
              | Approx Int
              | Pre    Int
@@ -51,7 +73,19 @@ data RTCYear = Year   Int
              | YNone
              | OtherYear Text deriving (Show, Eq, Ord)
 
-             
+-- | Type - unfortunately somewhat a grey area, but there are hundreds of 
+-- corrections in this version.	
+-- B = Blues
+-- F = Fox Trot
+-- I = Intermezzo or Two Step
+-- M = March
+-- N = Novelty
+-- O = Opera or  classical
+-- P = Polkas or Parlor Piano pieces
+-- R = Ragtime composed before about 1945
+-- S = Ragtime Style Song
+-- W = Waltz
+-- Y = Contemporary Ragtime
 data RTCType = RTCType Char | TNone deriving (Show, Eq, Ord)
 
 data RTCFolder = Cowles | Crausaz | Edwards | Intartaglia | MacDonald
@@ -75,6 +109,7 @@ instance Show RTC where
 parseRTC :: String -> [RTC]
 parseRTC = map doLine . T.lines . pack
 
+-- parses one ragtime entry
 doLine :: Text -> RTC
 doLine t = case split (=='\t') . T.filter (/= '\"') $ t of
   (i : md : tit : subtit : comp : lyr : yr : pub 
@@ -121,6 +156,7 @@ parseField p empt t
   | T.null t  = empt
   | otherwise = parseDataSafe p t
 
+-- | Parses a year
 pRTCYear :: Parser RTCYear
 pRTCYear =   Year        <$>  pInteger
          <|> Decade      <$> pInteger <* pString "'s"

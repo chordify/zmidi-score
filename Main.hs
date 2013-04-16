@@ -10,7 +10,7 @@ import Data.IntMap.Lazy   ( keys )
 
 -- other libraries
 import System.Console.ParseArgs
-import RTCParser          ( parseComp )
+import RTCParser          ( parseRTCFile )
 
 data RagArgs = Mode| MidiDir | RTC | MidiFile deriving (Eq, Ord, Show)
 
@@ -48,13 +48,14 @@ main = do args <- parseArgsIO ArgsComplete myArgs
             ("stat", Left f ) -> doScore f
             ("stat", Right d) -> mapDirInDir (mapDir showMidiStats) d
             ("rtc" , Right d) -> do case getArg args RTC of
-                                      Just c  -> parseComp c
+                                      Just c  -> parseRTCFile c
                                       Nothing -> usageError args 
                                                  "no compendium specified"
             (m     , _      ) -> usageError args ("invalid mode: " ++ m )
             
             
-
+-- | Checks for either a directory or file argument, returns them in an Either
+-- or throws an error otherwise
 fileOrDir :: Args RagArgs -> Either FilePath FilePath
 fileOrDir args = case (getArg args MidiFile, getArg args MidiDir) of
    (Just _, Just _) -> usageError args "found both a directory and file"
@@ -66,7 +67,8 @@ fileOrDir args = case (getArg args MidiFile, getArg args MidiDir) of
 -- | do stuff with a 'MidiScore' ...
 doScore :: FilePath -> IO ()
 doScore f = readMidiScore f >>= putStrLn . showMidiScore
-                                
+
+-- | Print some stats
 showMidiStats :: FilePath -> IO ()
 showMidiStats fp = do mf <- readMidi fp
                       case mf of
