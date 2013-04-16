@@ -2,20 +2,20 @@
 {-# LANGUAGE FlexibleContexts        #-}
 module RTCParser where
 
-import Text.ParserCombinators.UU.Core           ( (<$>), (<$), (<*>), (<*), (*>)
-                                                , (<|>), pure )
-import Text.ParserCombinators.UU.BasicInstances ( Parser, pSym, pRange )
-import Text.ParserCombinators.UU.Derived        ( pListSep, pMany, pMaybe, pExact )
-import Text.ParserCombinators.UU.Utils          ( pInteger, pAscii )
+import Text.ParserCombinators.UU.Core           ( (<$>), (<$), (<*>), (*>)
+                                                , (<|>), P )
+import Text.ParserCombinators.UU.BasicInstances ( Parser, pSym, pRange, Str, LineColPos )
+import Text.ParserCombinators.UU.Derived        ( pMany )
+import Text.ParserCombinators.UU.Utils          ( pInteger )
 import HarmTrace.Base.Parsing                   ( pString, parseDataSafe, parseDataWithErrors )
-import Data.Maybe                               ( catMaybes ) 
+-- import Data.Maybe                               ( catMaybes ) 
 import Data.List                                ( intercalate )
-import Data.Text                                ( pack, unpack, split, Text, empty)
-import qualified Data.Text as T                 ( lines, length, null )
-import Data.ListLike.Text.Text 
+import Data.Text                                ( pack, split, Text, empty)
+import qualified Data.Text as T                 ( lines, null, filter )
+import Data.ListLike.Text.Text                  ( )
 -- import Data.ListLike.Base (ListLike)
 
-import Debug.Trace 
+-- import Debug.Trace 
 
 parseComp :: FilePath -> IO ()
 -- test f = readFile f >>= print . parseDataWithErrors pCompendium 
@@ -50,9 +50,10 @@ data RTCYear = Year   Int
              | Pre    Int
              | Range  Int Int
              | Modern
+             | YNone
              | OtherYear String deriving (Show, Eq, Ord)
                
-data RTCType = TypeR | TypeY | TypeS | TypeI 
+data RTCType = TypeR | TypeY | TypeS | TypeI | TNone
              | TypeUnknown String deriving (Show, Eq, Ord)
 
 data RTCFolder = Cowles | Crausaz | Edwards | Intartaglia | MacDonald
@@ -77,26 +78,35 @@ parseRTC :: String -> [RTC]
 parseRTC = map doLine . T.lines . pack
 
 doLine :: Text -> RTC
-doLine t = let fields = split (=='\t') t
-           in  case length fields of
-                 25 -> toRTC fields
-                 _  -> error ("unexpected number of fields: " ++ show t)
+doLine t = case split (=='\t') . T.filter (/= '\"') $ t of
+  (i : md : tit : subtit : comp : lyr : yr : pub 
+     : tp : src : stat : fol    : folDet :rest ) 
+      -> RTC (parseField pInteger (-1) i)    -- id         :: Int
+             (T.null md)                     -- midiExist  :: Bool
+             tit                             -- title      :: Text
+             subtit                          -- subtitle   :: Text
+             comp                            -- composer   :: Text
+             lyr                             -- lyricist   :: Text
+             (parseField pRTCYear YNone yr ) -- year       :: RTCYear
+             pub                             -- publisher  :: Text
+             (parseField pRTCType TNone tp)  -- rtctype    :: RTCType
+             src                             -- source     :: Text 
+             stat                            -- status     :: Text
+             fol                             -- folio      :: Text
+             folDet                          -- folioDet   :: Text
+             []                              -- folders    :: [RTCFolder]
+             empty                           -- auxFolders :: Text
+             0                               -- len        :: Int
+  _    -> error ("unexpected number of fields: " ++ show t)
 
+-- Given a parser, an empty string option, and a text, returns the parsed result
+-- or the empty string option
+parseField :: P (Str Char Text LineColPos) b -> b -> Text -> b
+parseField p empt t 
+  | T.null t  = empt
+  | otherwise = parseDataSafe p t
 
-toRTC :: [Text] -> RTC
-toRTC (i : md : tit : subtit : comp : lyr : yr : pub : tp : src : stat 
-         : fol : folDet :rest ) =
-    RTC (parseDataSafe pInteger i)
-        (T.null md) 
-        tit subtit comp lyr
-        (parseDataSafe pRTCYear yr )
-        pub
-        (parseDataSafe pRTCType tp)
-        src stat fol folDet
-        []
-        empty
-        0 
-
+        
 pHasContent :: Parser Bool
 pHasContent = null <$> pRTCString -- perhaps check for x
 
