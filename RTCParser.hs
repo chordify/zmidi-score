@@ -2,11 +2,11 @@
 {-# LANGUAGE FlexibleContexts        #-}
 module RTCParser where
 
-import Text.ParserCombinators.UU.Core           ( (<$>), (<$), (<*>), (*>)
+import Text.ParserCombinators.UU.Core           ( (<$>), (<$), (<*>), (*>), (<*)
                                                 , (<|>), P )
 import Text.ParserCombinators.UU.BasicInstances ( Parser, pSym, Str, LineColPos )
 -- import Text.ParserCombinators.UU.Derived        ( pMany )
-import Text.ParserCombinators.UU.Utils          ( pInteger )
+import Text.ParserCombinators.UU.Utils          ( pInteger, lexeme, pUpper )
 import HarmTrace.Base.Parsing                   ( pString, parseDataSafe, parseDataWithErrors )
 -- import Data.Maybe                               ( catMaybes ) 
 import Data.List                                ( intercalate )
@@ -25,7 +25,7 @@ parseComp f = readFile f >>= print . parseRTC
 -- test = print $ parseDataSafe pRTC 
   -- "2\t \t 3 \t \t\"Williams, Spencer\""-- "		1928	(Unpublished)	R	Brier															0"
 
-data RTC = RTC { id         :: Int
+data RTC = RTC { id         :: RTCID
                , midiExist  :: Bool
                , title      :: Text
                , subtitle   :: Text
@@ -43,18 +43,23 @@ data RTC = RTC { id         :: Int
                , len        :: Int
                } deriving (Eq, Ord)
                
-               
+data RTCID   = RTCID Int | New | NoID deriving (Show, Eq, Ord)
                
 data RTCYear = Year   Int
              | Approx Int
              | Pre    Int
              | Range  Int Int
+             | Decade Int
              | Modern
+             | IOYear Int Int
              | YNone
-             | OtherYear String deriving (Show, Eq, Ord)
+             | OtherYear Text deriving (Show, Eq, Ord)
                
-data RTCType = TypeR | TypeY | TypeS | TypeI | TNone
-             | TypeUnknown String deriving (Show, Eq, Ord)
+-- data RTCType = TypeR | TypeY | TypeS | TypeI | TypeB | TypeM | TypeN | TypeF 
+             -- | TypeP | TypeW | TypeT | TNone
+             -- | TypeUnknown String deriving (Show, Eq, Ord)
+             
+data RTCType = RTCType Char | TNone deriving (Show, Eq, Ord)
 
 data RTCFolder = Cowles | Crausaz | Edwards | Intartaglia | MacDonald
                | PittPayne | Reublin | Trachtman | Watanabe | Wilson 
@@ -77,13 +82,13 @@ doLine :: Text -> RTC
 doLine t = case split (=='\t') . T.filter (/= '\"') $ t of
   (i : md : tit : subtit : comp : lyr : yr : pub 
      : tp : src : stat : fol    : folDet :rest ) 
-      -> RTC (parseField pInteger (-1) i)    -- id         :: Int
+      -> RTC (parseField pRTCID NoID i)    -- id         :: Int
              (T.null md)                     -- midiExist  :: Bool
              tit                             -- title      :: Text
              subtit                          -- subtitle   :: Text
              comp                            -- composer   :: Text
              lyr                             -- lyricist   :: Text
-             (parseField pRTCYear YNone yr ) -- year       :: RTCYear
+             (parseFieldFail pRTCYear OtherYear yr ) -- year       :: RTCYear
              pub                             -- publisher  :: Text
              (parseField pRTCType TNone tp)  -- rtctype    :: RTCType
              src                             -- source     :: Text 
@@ -95,6 +100,11 @@ doLine t = case split (=='\t') . T.filter (/= '\"') $ t of
              0                               -- len        :: Int
   _    -> error ("unexpected number of fields: " ++ show t)
 
+parseFieldFail :: P (Str Char Text LineColPos) b -> (Text -> b) -> Text -> b
+parseFieldFail p f t = case parseDataWithErrors p t of
+                        (r, []) -> r
+                        (_, _ ) -> f t
+  
 -- Given a parser, an empty string option, and a text, returns the parsed result
 -- or the empty string option
 parseField :: P (Str Char Text LineColPos) b -> b -> Text -> b
@@ -103,17 +113,33 @@ parseField p empt t
   | otherwise = parseDataSafe p t
 
 pRTCYear :: Parser RTCYear
-pRTCYear =   Year      <$>  pInteger
-         <|> Pre       <$> (pString "ca "  *> pInteger)
-         <|> Pre       <$> (pSym  '~'      *> pInteger)
-         <|> Approx    <$> (pString "pre " *> pInteger)
-         <|> Range     <$>  pInteger <*> (pString " - " *> pInteger)
-         <|> Modern    <$  pString "[modern]"
-         -- <|> OtherYear <$> pRTCString
+pRTCYear =   Year        <$>  pInteger
+         <|> Decade      <$> pInteger <* pString "'s"
+         <|> Approx      <$> (pString "ca "  *> pInteger)
+         <|> Approx      <$> (pSym  '~'      *> pInteger)
+         <|> Pre         <$> (pString "pre " *> pInteger)
+         <|> Range       <$>  pInteger <*> (pString "-" *> pInteger)
+         <|> IOYear      <$> (pString "i " *> pInteger) 
+                         <*> (pString ", o " *> pInteger)
+         <|> flip IOYear <$> (pString "o " *> pInteger) 
+                         <*> (pString ", i " *> pInteger)
+         <|> Modern      <$  pString "[modern]"
 
-pRTCType :: Parser RTCType
-pRTCType =   TypeR <$ pSym 'R'
-         <|> TypeY <$ pSym 'Y'
-         <|> TypeS <$ pSym 'S'
-         <|> TypeI <$ pSym 'I'
-         -- <|> TypeUnknown <$> pRTCString
+pRTCID =   RTCID <$> pInteger
+       <|> New   <$  pString "new"
+     
+pRTCType :: Parser RTCType 
+pRTCType = lexeme (RTCType <$> pUpper)
+     
+-- pRTCType :: Parser RTCType
+-- pRTCType =   TypeR <$ pSym 'R'
+         -- <|> TypeY <$ pSym 'Y'
+         -- <|> TypeS <$ pSym 'S'
+         -- <|> TypeI <$ pSym 'I'
+         -- <|> TypeB <$ pSym 'B'
+         -- <|> TypeM <$ pSym 'M'
+         -- <|> TypeN <$ pSym 'N'
+         -- <|> TypeF <$ pSym 'F'
+         -- <|> TypeP <$ pSym 'P'
+         -- <|> TypeW <$ pSym 'W'
+         -- <|> TypeT <$ pSym 'T'
