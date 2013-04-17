@@ -93,7 +93,7 @@ folderMapSwap = map swap folderMap
 noMatchDist :: Int
 noMatchDist = 5
 
-match :: RTC -> [RTCMidi] -> (RTCMidi, RTC)
+match :: RTC -> [RTCMidi] -> (RTC, RTCMidi)
 match rtc ms = case  head . sortBy (comparing snd) . map (matchFN rtc) $ ms of 
   (r, 0) -> r
   (r, s) -> error $ show (r, s)

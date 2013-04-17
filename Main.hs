@@ -3,13 +3,14 @@ module Main where
 
 import ZMidi.Core         ( readMidi )
 import ZMidiBasic
-import MidiCommonIO       ( mapDirInDir, mapDir, readMidiScore )
+import MidiCommonIO       ( mapDirInDir, mapDir', readMidiScore )
 
 -- import System.Environment ( getArgs )
 import Data.IntMap.Lazy   ( keys )
 
 -- other libraries
 import System.Console.ParseArgs
+import Control.Monad      ( void )
 import RTCParser          ( readRTC )
 import MatchFile          ( readRTCMidiPath )
 
@@ -47,7 +48,7 @@ main :: IO ()
 main = do args <- parseArgsIO ArgsComplete myArgs
           case (getRequiredArg args Mode, fileOrDir args) of
             ("stat", Left f ) -> doScore f
-            ("stat", Right d) -> mapDirInDir (mapDir showMidiStats) d
+            ("stat", Right d) -> void . mapDirInDir (mapDir' showMidiStats) $ d
             ("rtc" , Right d) -> do case getArg args RTC of
                                       Just c  -> mainRTC c d
                                       Nothing -> usageError args 
@@ -55,7 +56,7 @@ main = do args <- parseArgsIO ArgsComplete myArgs
             (m     , _      ) -> usageError args ("invalid mode: " ++ m )
             
 mainRTC :: FilePath -> FilePath -> IO()
-mainRTC comp dir = mapDirInDir (mapDir (\f -> readRTCMidiPath dir f >>= print)) dir
+mainRTC comp dir = void . mapDirInDir (mapDir' (\f -> readRTCMidiPath dir f >>= print)) $ dir
 
 
 -- | Checks for either a directory or file argument, returns them in an Either
