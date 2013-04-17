@@ -13,8 +13,8 @@ import Data.Text                                ( pack, split, Text )
 import qualified Data.Text as T                 ( lines, null, filter )
 import Data.ListLike.Text.Text                  ( )
 
-readRTC :: FilePath -> IO ()
-readRTC f = readFile f >>= print . filter midiExist . parseRTC
+readRTC :: FilePath -> IO [RTC]
+readRTC f = readFile f >>= return . filter midiExist . parseRTC
 
 --------------------------------------------------------------------------------
 -- Some datatypes for representing the RagTimeCompendium

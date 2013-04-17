@@ -4,11 +4,11 @@ module MatchFile where
 import Data.Array
 import Data.Tuple        ( swap )
 import Data.List         ( stripPrefix, sortBy )
-import Data.Text         ( unpack )
+import Data.Text         ( unpack, pack, strip, breakOn  )
 import Data.Ord          ( comparing )
 
 import RTCParser
-
+import MidiCommonIO      ( mapDir, mapDirInDir )
 
 import System.FilePath   ( (</>), splitDirectories, takeFileName
                          , isPathSeparator, dropExtension )
@@ -17,6 +17,10 @@ data RTCMidi = RTCMidi { baseDir  :: FilePath
                        , folder   :: RTCFolder 
                        , fileName :: String
                        } deriving (Show, Eq)
+ 
+readRTCMidis :: FilePath -> IO [RTCMidi]
+readRTCMidis d =   mapDirInDir (mapDir (readRTCMidiPath d)) d 
+               >>= return . concat
   
 readRTCMidiPath :: FilePath -> FilePath -> IO (RTCMidi)
 readRTCMidiPath bd fp = return $ fromPath bd fp
@@ -34,6 +38,46 @@ toPath :: RTCMidi -> FilePath
 toPath rtcf = case lookup (folder rtcf) folderMap of
   Just f  -> baseDir rtcf </> f </> fileName rtcf
   Nothing -> error ("folder not found" ++ show rtcf)
+
+
+--------------------------------------------------------------------------------
+-- Matching Filenames
+--------------------------------------------------------------------------------
+
+noMatchDist :: Int
+noMatchDist = 5
+
+match :: [RTCMidi] -> RTC -> (RTC, RTCMidi)
+match ms rtc = case  head . sortBy (comparing snd) . map (matchFN rtc) $ ms of 
+  (r, 0) -> r
+  (r, s) -> error $ show (r, s)
+  
+
+matchFN :: RTC -> RTCMidi -> ((RTC, RTCMidi), Int)
+matchFN rtc mid = ((rtc, mid), editDistance (==) (preProcRTC rtc) (preProcRTCMidi mid))
+
+preProcRTCMidi :: RTCMidi -> String
+preProcRTCMidi = unpack . strip . fst . breakOn (pack " - ") . pack . fileName 
+
+preProcRTC :: RTC -> String
+preProcRTC = unpack . strip . title
+
+editDistance :: Eq a => (a -> a-> Bool) -> [a] -> [a] -> Int
+editDistance eq xs ys = fromIntegral (table ! (m,n))
+    where
+    (m,n) = (length xs, length ys)
+    x     = array (1,m) (zip [1..] xs)
+    y     = array (1,n) (zip [1..] ys)
+ 
+    table :: Array (Int,Int) Int
+    table = array bnds [(ij, dist ij) | ij <- range bnds]
+    bnds  = ((0,0),(m,n))
+ 
+    dist (0,j) = j
+    dist (i,0) = i
+    dist (i,j) = minimum [table ! (i-1,j) + 1, table ! (i,j-1) + 1,
+        if (x ! i) `eq` (y ! j) then table ! (i-1,j-1) else 1 + table ! (i-1,j-1)]
+        
   
 --------------------------------------------------------------------------------
 -- Mapping from RTC Folders to sub directories
@@ -85,41 +129,4 @@ folderMap =
  
 folderMapSwap :: [(String, RTCFolder)]
 folderMapSwap = map swap folderMap
-
---------------------------------------------------------------------------------
--- Matching Filenames
---------------------------------------------------------------------------------
-
-noMatchDist :: Int
-noMatchDist = 5
-
-match :: RTC -> [RTCMidi] -> (RTC, RTCMidi)
-match rtc ms = case  head . sortBy (comparing snd) . map (matchFN rtc) $ ms of 
-  (r, 0) -> r
-  (r, s) -> error $ show (r, s)
-  
-
-matchFN :: RTC -> RTCMidi -> ((RTC, RTCMidi), Int)
-matchFN rtc mid = ((rtc, mid), editDistance (preProcRTC rtc) (preProcRTCMidi mid))
-
-preProcRTCMidi :: RTCMidi -> String
-preProcRTCMidi = dropExtension . fileName 
-
-preProcRTC :: RTC -> String
-preProcRTC = unpack . title
-
-editDistance :: Eq a => [a] -> [a] -> Int
-editDistance xs ys = fromIntegral (table ! (m,n))
-    where
-    (m,n) = (length xs, length ys)
-    x     = array (1,m) (zip [1..] xs)
-    y     = array (1,n) (zip [1..] ys)
- 
-    table :: Array (Int,Int) Int
-    table = array bnds [(ij, dist ij) | ij <- range bnds]
-    bnds  = ((0,0),(m,n))
- 
-    dist (0,j) = j
-    dist (i,0) = i
-    dist (i,j) = minimum [table ! (i-1,j) + 1, table ! (i,j-1) + 1,
-        if x ! i == y ! j then table ! (i-1,j-1) else 1 + table ! (i-1,j-1)]
+        
