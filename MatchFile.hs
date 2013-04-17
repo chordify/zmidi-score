@@ -8,26 +8,27 @@ import Data.List         ( stripPrefix )
 import RTCParser
 
 
-import System.FilePath   ( (</>), splitDirectories, takeFileName, isPathSeparator )
+import System.FilePath   ( (</>), splitDirectories, takeFileName
+                         , isPathSeparator, dropExtension )
 
-data RTCFile = RTCFile { baseDir  :: FilePath
+data RTCMidi = RTCMidi { baseDir  :: FilePath
                        , folder   :: RTCFolder 
                        , fileName :: String
                        } deriving (Show, Eq)
   
-readRTCFile :: FilePath -> FilePath -> IO (RTCFile)
-readRTCFile bd fp = return $ fromPath bd fp
+readRTCMidiPath :: FilePath -> FilePath -> IO (RTCMidi)
+readRTCMidiPath bd fp = return $ fromPath bd fp
   
-fromPath :: FilePath -> FilePath -> RTCFile
+fromPath :: FilePath -> FilePath -> RTCMidi
 fromPath bd fp = 
   case stripPrefix (bd </> "") fp of
     Nothing -> error "basedir and filepath do not match"
     Just f  -> let s = head . dropWhile (isPathSeparator . head) . splitDirectories $ f 
                in  case lookup s folderMapSwap of 
                      Nothing   -> error ("folder not found" ++ show s ++ " in " ++ fp)
-                     Just rtcf -> RTCFile bd rtcf (takeFileName fp)
+                     Just rtcf -> RTCMidi bd rtcf (takeFileName fp)
 
-toPath :: RTCFile -> FilePath
+toPath :: RTCMidi -> FilePath
 toPath rtcf = case lookup (folder rtcf) folderMap of
   Just f  -> baseDir rtcf </> f </> fileName rtcf
   Nothing -> error ("folder not found" ++ show rtcf)
@@ -86,7 +87,16 @@ folderMapSwap = map swap folderMap
 --------------------------------------------------------------------------------
 -- Matching Filenames
 --------------------------------------------------------------------------------
-                        
+
+noMatchDist :: Int
+noMatchDist = 5
+
+match :: [RTC] -> RTCMidi -> (RTCMidi, RTC)
+match = undefined
+
+preProcRTCFile :: RTCMidi -> String
+preProcRTCFile = dropExtension . fileName 
+
 editDistance :: Eq a => [a] -> [a] -> Double
 editDistance xs ys = fromIntegral (table ! (m,n))
     where

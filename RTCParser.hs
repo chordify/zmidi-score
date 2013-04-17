@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE FlexibleContexts        #-}
-module RTCParser (parseRTCFile, parseRTC, RTC (..), RTCFolder (..)) where
+module RTCParser (readRTC, parseRTC, RTC (..), RTCFolder (..)) where
 
 import Text.ParserCombinators.UU.Core           ( (<$>), (<$), (<*>), (*>), (<*)
                                                 , (<|>), P )
@@ -13,8 +13,8 @@ import Data.Text                                ( pack, split, Text )
 import qualified Data.Text as T                 ( lines, null, filter )
 import Data.ListLike.Text.Text                  ( )
 
-parseRTCFile :: FilePath -> IO ()
-parseRTCFile f = readFile f >>= print . filter midiExist . parseRTC
+readRTC :: FilePath -> IO ()
+readRTC f = readFile f >>= print . filter midiExist . parseRTC
 
 --------------------------------------------------------------------------------
 -- Some datatypes for representing the RagTimeCompendium
