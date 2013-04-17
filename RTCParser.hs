@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE FlexibleContexts        #-}
-module RTCParser (parseRTCFile, parseRTC, RTC (..)) where
+module RTCParser (parseRTCFile, parseRTC, RTC (..), RTCFolder (..)) where
 
 import Text.ParserCombinators.UU.Core           ( (<$>), (<$), (<*>), (*>), (<*)
                                                 , (<|>), P )
@@ -12,7 +12,6 @@ import Data.List                                ( intercalate )
 import Data.Text                                ( pack, split, Text )
 import qualified Data.Text as T                 ( lines, null, filter )
 import Data.ListLike.Text.Text                  ( )
-
 
 parseRTCFile :: FilePath -> IO ()
 parseRTCFile f = readFile f >>= print . filter midiExist . parseRTC
@@ -88,9 +87,16 @@ data RTCYear = Year   Int
 -- Y = Contemporary Ragtime
 data RTCType = RTCType Char | TNone deriving (Show, Eq, Ord)
 
-data RTCFolder = Cowles | Crausaz | Edwards | Intartaglia | MacDonald
+data RTCFolder = -- Most important folders?
+                 Cowles | Crausaz | Edwards | Intartaglia | MacDonald
                | PittPayne | Reublin | Trachtman | Watanabe | Wilson 
-                 deriving (Show, Eq, Ord)
+                 -- Other folders
+               | Treemonisha | TrachtmanRolls | Summers | Smythe | Schwartz
+               | Roache | Ranalli | Pianocorder | PianocorderCheck
+               | Perry | OldWeb | ODell | MiscSZ | MiscMR | Mathew
+               | MiscFL | MiscAE | MiscUnks | AddedUniques | AddedHimpsl 
+               | AddedOther | Mezjuev | Keller | Hiawatha | ElectriClef
+               | Decker | CookieJar | BokerTov  deriving (Show, Eq, Ord)
  
 instance Show RTC where
   show (RTC i md tit subtit comp lyr yr pub tp src stat fol folDet fold aux l)
@@ -101,6 +107,7 @@ instance Show RTC where
                        , show l]
   
   showList rtc s = s ++ (intercalate "\n" . map show $ rtc)
+
 
 --------------------------------------------------------------------------------
 -- Parsing the Compendium
