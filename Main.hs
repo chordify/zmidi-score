@@ -11,6 +11,7 @@ import Data.IntMap.Lazy   ( keys )
 -- other libraries
 import System.Console.ParseArgs
 import RTCParser          ( parseRTCFile )
+import MatchFile          ( readRTCFile )
 
 data RagArgs = Mode| MidiDir | RTC | MidiFile deriving (Eq, Ord, Show)
 
@@ -48,12 +49,15 @@ main = do args <- parseArgsIO ArgsComplete myArgs
             ("stat", Left f ) -> doScore f
             ("stat", Right d) -> mapDirInDir (mapDir showMidiStats) d
             ("rtc" , Right d) -> do case getArg args RTC of
-                                      Just c  -> parseRTCFile c
+                                      Just c  -> mainRTC c d
                                       Nothing -> usageError args 
                                                  "no compendium specified"
             (m     , _      ) -> usageError args ("invalid mode: " ++ m )
             
-            
+mainRTC :: FilePath -> FilePath -> IO()
+mainRTC comp dir = mapDirInDir (mapDir (\f -> readRTCFile dir f >>= print)) dir
+
+
 -- | Checks for either a directory or file argument, returns them in an Either
 -- or throws an error otherwise
 fileOrDir :: Args RagArgs -> Either FilePath FilePath

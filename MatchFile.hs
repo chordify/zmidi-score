@@ -8,13 +8,35 @@ import Data.List         ( stripPrefix )
 import RTCParser
 
 
-import System.FilePath   ( (</>), splitDirectories, takeFileName )
+import System.FilePath   ( (</>), splitDirectories, takeFileName, isPathSeparator )
 
 data RTCFile = RTCFile { baseDir  :: FilePath
                        , folder   :: RTCFolder 
                        , fileName :: String
                        } deriving (Show, Eq)
-               
+  
+readRTCFile :: FilePath -> FilePath -> IO (RTCFile)
+readRTCFile bd fp = return $ fromPath bd fp
+  
+fromPath :: FilePath -> FilePath -> RTCFile
+fromPath bd fp = 
+  case stripPrefix (bd </> "") fp of
+    Nothing -> error "basedir and filepath do not match"
+    Just f  -> let s = head . dropWhile (isPathSeparator . head) . splitDirectories $ f 
+               in  case lookup s folderMapSwap of 
+                     Nothing   -> error ("folder not found" ++ show s ++ " in " ++ fp)
+                     Just rtcf -> RTCFile bd rtcf (takeFileName fp)
+
+toPath :: RTCFile -> FilePath
+toPath rtcf = case lookup (folder rtcf) folderMap of
+  Just f  -> baseDir rtcf </> f </> fileName rtcf
+  Nothing -> error ("folder not found" ++ show rtcf)
+  
+--------------------------------------------------------------------------------
+-- Mapping from RTC Folders to sub directories
+--------------------------------------------------------------------------------
+                        
+  
 folderMap :: [(RTCFolder, String)]              
 folderMap =
   [(Cowles           , "Cowles"                                           )
@@ -50,23 +72,16 @@ folderMap =
   ,(Perry            , "Perry, incl ex Perry"                             )
   ,(OldWeb           , "Old-Web & PRT"                                    )
   ,(ODell            , "O'Dell"                                           )
+  ,(Summers          , "Summers"                                          )
+  ,(Smythe           , "Smythe"                                           )
+  ,(Roache           , "Roache"                                           )
+  ,(Ranalli          , "Ranalli"                                          )
+  ,(Schwartz         , "Schwartz"                                         )
+  ,(OldWeb           , "Old Web & PRT"                                    )
   ]
  
 folderMapSwap :: [(String, RTCFolder)]
 folderMapSwap = map swap folderMap
-
-fromPath :: FilePath -> FilePath -> RTCFile
-fromPath bd fp = case stripPrefix bd fp of
-                  Nothing -> error "basedir and filepath do not match"
-                  Just f  -> let s = head . splitDirectories $ f in
-                             case lookup s folderMapSwap of 
-                              Nothing   -> error ("folder not found" ++ show s)
-                              Just rtcf -> RTCFile bd rtcf (takeFileName fp)
-
-toPath :: RTCFile -> FilePath
-toPath rtcf = case lookup (folder rtcf) folderMap of
-  Just f  -> baseDir rtcf </> f </> fileName rtcf
-  Nothing -> error ("folder not found" ++ show rtcf)
 
 --------------------------------------------------------------------------------
 -- Matching Filenames
