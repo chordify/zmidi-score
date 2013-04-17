@@ -1,11 +1,13 @@
 {-# OPTIONS_GHC -Wall                #-}
-module MatchFile where
+module MatchFile (readRTCMidis, readRTCMidiPath, match, groupRTCMidis, printMatch ) where
 
 import Data.Array
 import Data.Tuple        ( swap )
-import Data.List         ( stripPrefix, sortBy )
+import Data.List         ( stripPrefix, sortBy, groupBy, intercalate )
 import Data.Text         ( unpack, pack, strip, breakOn  )
 import Data.Ord          ( comparing )
+import Data.Char         ( toLower )
+import Data.Function     ( on )
 
 import RTCParser
 import MidiCommonIO      ( mapDir, mapDirInDir )
@@ -13,6 +15,7 @@ import MidiCommonIO      ( mapDir, mapDirInDir )
 import System.FilePath   ( (</>), splitDirectories, takeFileName
                          , isPathSeparator, dropExtension )
 
+-- | Representing a Midi file path
 data RTCMidi = RTCMidi { baseDir  :: FilePath
                        , folder   :: RTCFolder 
                        , fileName :: String
@@ -24,7 +27,8 @@ readRTCMidis d =   mapDirInDir (mapDir (readRTCMidiPath d)) d
   
 readRTCMidiPath :: FilePath -> FilePath -> IO (RTCMidi)
 readRTCMidiPath bd fp = return $ fromPath bd fp
-  
+
+-- Path conversions
 fromPath :: FilePath -> FilePath -> RTCMidi
 fromPath bd fp = 
   case stripPrefix (bd </> "") fp of
@@ -44,18 +48,35 @@ toPath rtcf = case lookup (folder rtcf) folderMap of
 -- Matching Filenames
 --------------------------------------------------------------------------------
 
-noMatchDist :: Int
-noMatchDist = 5
+printMatch :: ((RTC,RTCMidi), Int) -> String
+printMatch ((r,m),s) = intercalate "\t" 
+  [show (rtcid r), show (title r), show (folders r), show (toPath m), show (s)]
 
-match :: [RTCMidi] -> RTC -> (RTC, RTCMidi)
-match ms rtc = case  head . sortBy (comparing snd) . map (matchFN rtc) $ ms of 
-  (r, 0) -> r
-  (r, s) -> error $ show (r, s)
+
+groupRTCMidis :: [RTCMidi] -> [(RTCFolder, [RTCMidi])]
+groupRTCMidis m = let grp = groupBy ((==) `on` folder) m
+                      ixs = map (folder . head) grp
+                   in zip ixs grp
+
+getSubSet :: [RTCFolder] -> [(RTCFolder, [RTCMidi])] -> [RTCMidi]
+getSubSet fs = concat . map snd . filter ((flip elem) fs . fst) 
+                   
+-- | matches 'RTCMidi's to an 'RTC' meta data entry
+match :: [RTCMidi] ->  [(RTCFolder, [RTCMidi])] -> RTC -> ((RTC, RTCMidi), Int)
+match ms grp r = 
+
+  let doMatch :: [RTCMidi] -> RTC -> ((RTC, RTCMidi), Int)
+      doMatch subs r = head . sortBy (comparing snd) . map (matchFN r) $ subs 
+
+  in case folders r of
+      [] -> doMatch ms r
+      m  -> doMatch (getSubSet m grp) r
   
-
+-- | Matches a filename
 matchFN :: RTC -> RTCMidi -> ((RTC, RTCMidi), Int)
-matchFN rtc mid = ((rtc, mid), editDistance (==) (preProcRTC rtc) (preProcRTCMidi mid))
+matchFN rtc mid = ((rtc, mid), editDistance caseInsEQ (preProcRTC rtc) (preProcRTCMidi mid))
 
+-- preprocessing
 preProcRTCMidi :: RTCMidi -> String
 preProcRTCMidi = unpack . strip . fst . breakOn (pack " - ") . pack . fileName 
 
@@ -77,7 +98,10 @@ editDistance eq xs ys = fromIntegral (table ! (m,n))
     dist (i,0) = i
     dist (i,j) = minimum [table ! (i-1,j) + 1, table ! (i,j-1) + 1,
         if (x ! i) `eq` (y ! j) then table ! (i-1,j-1) else 1 + table ! (i-1,j-1)]
-        
+
+-- case insensitive matching
+caseInsEQ :: Char -> Char -> Bool
+caseInsEQ a b = toLower a == toLower b
   
 --------------------------------------------------------------------------------
 -- Mapping from RTC Folders to sub directories

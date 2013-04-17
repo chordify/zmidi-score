@@ -21,7 +21,7 @@ readRTC f = readFile f >>= return . filter midiExist . parseRTC
 --------------------------------------------------------------------------------
 
 -- | Represents a RagTime Compendium entry
-data RTC = RTC { id         :: RTCID
+data RTC = RTC { rtcid      :: RTCID
                , midiExist  :: Bool
                , title      :: Text
                , subtitle   :: Text

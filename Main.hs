@@ -12,7 +12,7 @@ import Data.IntMap.Lazy   ( keys )
 import System.Console.ParseArgs
 import Control.Monad      ( void )
 import RTCParser          ( readRTC )
-import MatchFile          ( readRTCMidiPath, readRTCMidis, match )
+import MatchFile          ( readRTCMidiPath, readRTCMidis, match, groupRTCMidis, printMatch )
 
 data RagArgs = Mode| MidiDir | RTC | MidiFile deriving (Eq, Ord, Show)
 
@@ -58,9 +58,10 @@ main = do args <- parseArgsIO ArgsComplete myArgs
 mainRTC :: FilePath -> FilePath -> IO ()
 mainRTC comp dir = do c <- readRTC comp
                       m <- readRTCMidis dir
-                      mapM_ (print . match m) c
+                      mapM_ (putStrLn . printMatch . match m (groupRTCMidis m)) c
  -- void . mapDirInDir (mapDir' (\f -> readRTCMidiPath dir f >>= print)) $ dir
 
+ 
 
 -- | Checks for either a directory or file argument, returns them in an Either
 -- or throws an error otherwise
