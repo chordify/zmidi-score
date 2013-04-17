@@ -30,11 +30,11 @@ import System.FilePath    ( (</>) )
 --------------------------------------------------------------------------------
 
 -- | Applies a function to every directory inside a specific directory
-mapDirInDir :: (FilePath -> IO a) -> FilePath ->  IO ()
+mapDirInDir :: (FilePath -> IO a) -> FilePath ->  IO [a]
 mapDirInDir f fp = do fs  <- getDirectoryContents fp 
                               >>= return . filter (\x -> x /= "." && x /= "..") 
                       cfp <- canonicalizePath fp
-                      filterM doesDirectoryExist (fmap (cfp </>) fs) >>= mapM_ f 
+                      filterM doesDirectoryExist (fmap (cfp </>) fs) >>= mapM f 
 
 -- | Applies a function to every file/dir in a directory, similar to 'mapDir',
 -- but it discards the result of the evaluation

@@ -3,7 +3,9 @@ module MatchFile where
 
 import Data.Array
 import Data.Tuple        ( swap )
-import Data.List         ( stripPrefix )
+import Data.List         ( stripPrefix, sortBy )
+import Data.Text         ( unpack )
+import Data.Ord          ( comparing )
 
 import RTCParser
 
@@ -91,13 +93,22 @@ folderMapSwap = map swap folderMap
 noMatchDist :: Int
 noMatchDist = 5
 
-match :: [RTC] -> RTCMidi -> (RTCMidi, RTC)
-match = undefined
+match :: RTC -> [RTCMidi] -> (RTCMidi, RTC)
+match rtc ms = case  head . sortBy (comparing snd) . map (matchFN rtc) $ ms of 
+  (r, 0) -> r
+  (r, s) -> error $ show (r, s)
+  
 
-preProcRTCFile :: RTCMidi -> String
-preProcRTCFile = dropExtension . fileName 
+matchFN :: RTC -> RTCMidi -> ((RTC, RTCMidi), Int)
+matchFN rtc mid = ((rtc, mid), editDistance (preProcRTC rtc) (preProcRTCMidi mid))
 
-editDistance :: Eq a => [a] -> [a] -> Double
+preProcRTCMidi :: RTCMidi -> String
+preProcRTCMidi = dropExtension . fileName 
+
+preProcRTC :: RTC -> String
+preProcRTC = unpack . title
+
+editDistance :: Eq a => [a] -> [a] -> Int
 editDistance xs ys = fromIntegral (table ! (m,n))
     where
     (m,n) = (length xs, length ys)
