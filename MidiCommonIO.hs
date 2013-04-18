@@ -12,6 +12,7 @@ module MidiCommonIO (-- * Mapping
                     , printMidiToFile
                     , logDuplicates
                     , removeTrackLabels
+                    , putErrStrLn
                     )where
                     
 import ZMidi.Core         ( printMidiHeader, printMidiTrack, MidiFile (..)
@@ -46,11 +47,8 @@ mapDir :: (FilePath -> IO a) ->  FilePath -> IO [a]
 mapDir f fp = do fs  <- getCurDirectoryContents fp
                  cin <- canonicalizePath fp
                  putErrStrLn cin
-                 mapM (f . (cin </>)) fs where
+                 mapM (f . (cin </>)) fs 
 
-  putErrStrLn :: String -> IO ()
-  putErrStrLn s = do hPutStr stderr s
-                     hPutStr stderr "\n"
 
 --------------------------------------------------------------------------------
 -- Reading & Writing
@@ -102,6 +100,11 @@ removeTrackLabels :: FilePath -> IO ()
 removeTrackLabels f = readMidiFile f >>= 
                       writeMidi (f ++ ".noLab.mid") . removeLabels
                       
+
+putErrStrLn :: String -> IO ()
+putErrStrLn s = do hPutStr stderr s
+                   hPutStr stderr "\n"
+                   
 --------------------------------------------------------------------------------
 -- Unexported directory utils
 --------------------------------------------------------------------------------

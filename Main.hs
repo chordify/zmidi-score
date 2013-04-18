@@ -13,7 +13,7 @@ import System.Console.ParseArgs
 import Control.Monad      ( void )
 import RTCParser          ( readRTC )
 import MatchFile          ( readRTCMidiPath, readRTCMidis, match, groupRTCMidis
-                          , printMatch, matchAll )
+                          , printMatch, matchAll, copyRTCMidi )
 
 data RagArgs = Mode| MidiDir | RTC | MidiFile deriving (Eq, Ord, Show)
 
@@ -59,7 +59,8 @@ main = do args <- parseArgsIO ArgsComplete myArgs
 mainRTC :: FilePath -> FilePath -> IO ()
 mainRTC comp dir = do c <- readRTC comp
                       m <- readRTCMidis dir
-                      mapM_ (putStrLn . printMatch) (matchAll m (groupRTCMidis m) c)
+                      mapM_ (copyRTCMidi "D:\\temp\\ragtimesSubSet") 
+                            (matchAll m (groupRTCMidis m) c)
  -- void . mapDirInDir (mapDir' (\f -> readRTCMidiPath dir f >>= print)) $ dir
 
  

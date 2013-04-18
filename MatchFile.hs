@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall                #-}
 module MatchFile ( readRTCMidis, readRTCMidiPath, match, groupRTCMidis
-                 , printMatch, matchAll ) where
+                 , printMatch, matchAll, copyRTCMidi ) where
 
 import Data.Array
 import Data.Tuple        ( swap )
@@ -17,12 +17,13 @@ import Control.Arrow     ( second )
 import Control.Monad.State
 
 import RTCParser
-import MidiCommonIO      ( mapDir, mapDirInDir )
+import MidiCommonIO      ( mapDir, mapDirInDir, putErrStrLn )
 import ZMidi.Core        ( readMidi )
 import ZMidiBasic        ( MidiScore (..), buildTickMap, midiFileToMidiScore )
 
-import System.FilePath   ( (</>), splitDirectories, takeFileName
-                         , isPathSeparator )
+import System.Directory  ( copyFile, createDirectoryIfMissing )
+import System.FilePath   ( (</>), (<.>), splitDirectories, takeFileName
+                         , isPathSeparator, takeDirectory, makeValid )
 
 -- | Representing a Midi file path
 data RTCMidi = RTCMidi { baseDir    :: FilePath
@@ -33,6 +34,10 @@ data RTCMidi = RTCMidi { baseDir    :: FilePath
                        , nrOfNoteLen:: Int
                        } deriving (Show, Eq)
  
+-- comparse the midi file based on statistics that might reflect the quality 
+-- of the data: a) does it has a meter, b) how many different note lengths
+-- do the files have (less is better = smaller), c) how many tracks do the files
+-- have
 compareRTCMidi :: RTCMidi -> RTCMidi -> Ordering
 compareRTCMidi a b = 
   case (hasMeter a, hasMeter b) of
@@ -42,10 +47,32 @@ compareRTCMidi a b =
                         EQ -> compare (nrOfVoices a) (nrOfVoices b)
                         c  -> c
  
+ -- | Prints a match between a compendium entry and a midifile
+printMatch :: ((RTC,RTCMidi), Int) -> String
+printMatch ((r,m),s) = intercalate "\t" 
+  [show (rtcid r), show (title r), show (folders r), show (toPath m), show (s)]
+ 
+--------------------------------------------------------------------------------
+-- IO stuff
+--------------------------------------------------------------------------------
+
+-- copies a matched midi file if the edit distance is smaller than 2
+copyRTCMidi :: FilePath -> ((RTC, RTCMidi), Int) -> IO ()
+copyRTCMidi newBase m@((rtc, from), d) 
+  | d > 2     = putStrLn ("ignored\t" ++ printMatch m)
+  | otherwise = do let to = toPath $ from { baseDir  = newBase
+                                          , fileName = makeValid ((unpack . title $ rtc) <.> ".mid")}
+                   putErrStrLn ("From: " ++ (toPath from) )
+                   putErrStrLn ("To  : " ++ to )
+                   createDirectoryIfMissing True . takeDirectory $ to
+                   copyFile (toPath from) to
+                   putStrLn ("created\t" ++ printMatch m) 
+
 readRTCMidis :: FilePath -> IO [RTCMidi]
 readRTCMidis d =   mapDirInDir (mapDir (readRTCMidiPath d)) d 
                >>= return . catMaybes . concat
 
+-- reads a 'RTCMidi' given a base directory and a path to the file
 readRTCMidiPath :: FilePath -> FilePath -> IO (Maybe RTCMidi)
 readRTCMidiPath bd fp = -- Path conversions
   case stripPrefix (bd </> "") fp of
@@ -75,11 +102,6 @@ toPath rtcf = case lookup (folder rtcf) folderMap of
 --------------------------------------------------------------------------------
 -- Matching Filenames
 --------------------------------------------------------------------------------
-
--- | Prints a match between a compendium entry and a midifile
-printMatch :: ((RTC,RTCMidi), Int) -> String
-printMatch ((r,m),s) = intercalate "\t" 
-  [show (rtcid r), show (title r), show (folders r), show (toPath m), show (s)]
 
 -- | groups the files based on 
 groupRTCMidis :: [RTCMidi] -> [(RTCFolder, [RTCMidi])]
