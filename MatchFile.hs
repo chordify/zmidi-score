@@ -5,7 +5,7 @@ module MatchFile ( readRTCMidis, readRTCMidiPath, match, groupRTCMidis
 import Data.Array
 import Data.Tuple        ( swap )
 import Data.List         ( stripPrefix, sortBy, groupBy, intercalate, delete )
-import Data.Text         ( unpack, pack, breakOn )
+import Data.Text         ( unpack, pack, strip, breakOn )
 import qualified Data.Text as T ( filter)
 import Data.Ord          ( comparing )
 import Data.Char         ( toLower )
@@ -17,11 +17,11 @@ import Control.Arrow     ( second )
 import Control.Monad.State
 
 import RTCParser
-import MidiCommonIO      ( mapDir, mapDirInDir, putErrStrLn )
+import MidiCommonIO      ( mapDir, mapDirInDir )
 import ZMidi.Core        ( readMidi )
 import ZMidiBasic        ( MidiScore (..), buildTickMap, midiFileToMidiScore )
 
-import System.Directory  ( copyFile, createDirectoryIfMissing )
+import System.Directory  ( copyFile, createDirectoryIfMissing, doesFileExist )
 import System.FilePath   ( (</>), (<.>), splitDirectories, takeFileName
                          , isPathSeparator, takeDirectory, makeValid )
 
@@ -61,12 +61,13 @@ copyRTCMidi :: FilePath -> ((RTC, RTCMidi), Int) -> IO ()
 copyRTCMidi newBase m@((rtc, from), d) 
   | d > 2     = putStrLn ("ignored\t" ++ printMatch m)
   | otherwise = do let to = toPath $ from { baseDir  = newBase
-                                          , fileName = makeValid ((unpack . title $ rtc) <.> ".mid")}
-                   putErrStrLn ("From: " ++ (toPath from) )
-                   putErrStrLn ("To  : " ++ to )
+                                          , fileName = makeValid ((unpack . strip . title $ rtc) <.> ".mid")}
+                       fr = toPath from
                    createDirectoryIfMissing True . takeDirectory $ to
-                   copyFile (toPath from) to
-                   putStrLn ("created\t" ++ printMatch m) 
+                   e <- doesFileExist fr
+                   if e then do copyFile fr to
+                                putStrLn ("created\t" ++ printMatch m ++ "\t"++ to) 
+                        else putStrLn ("N.B. File does not exist: " ++ fr)
 
 readRTCMidis :: FilePath -> IO [RTCMidi]
 readRTCMidis d =   mapDirInDir (mapDir (readRTCMidiPath d)) d 
@@ -216,7 +217,7 @@ folderMap =
   ,(Pianocorder      , "Pianocorder, PG Music, PianoDisc & Live (need to check Pianocorder titles)" )
   ,(PianocorderCheck , "Pianocorder to check"                             )
   ,(Perry            , "Perry, incl ex Perry"                             )
-  ,(OldWeb           , "Old-Web & PRT"                                    )
+  ,(OldWeb           , "Old Web & PRT"                                    )
   ,(ODell            , "O'Dell"                                           )
   ,(Summers          , "Summers"                                          )
   ,(Smythe           , "Smythe"                                           )

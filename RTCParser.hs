@@ -9,7 +9,7 @@ import Text.ParserCombinators.UU.Utils          ( pInteger, lexeme, pUpper )
 import HarmTrace.Base.Parsing                   ( pString, parseDataSafe, parseDataWithErrors )
 import Data.Maybe                               ( catMaybes ) 
 import Data.List                                ( intercalate )
-import Data.Text                                ( pack, split, Text )
+import Data.Text                                ( pack, split, Text, strip )
 import qualified Data.Text as T                 ( lines, null, filter )
 import Data.ListLike.Text.Text                  ( )
 
@@ -124,7 +124,7 @@ doLine t = case split (=='\t') . T.filter (/= '\"') $ t of
       -> let (fldrs, (aux : [ln])) = splitAt 10 rest
          in RTC (parseField pRTCID NoID i)          -- id         :: Int
              (not . T.null $ md)                    -- midiExist  :: Bool
-             tit                                    -- title      :: Text
+             (strip tit)                            -- title      :: Text
              subtit                                 -- subtitle   :: Text
              comp                                   -- composer   :: Text
              lyr                                    -- lyricist   :: Text
