@@ -5,7 +5,8 @@ module MatchFile ( readRTCMidis, readRTCMidiPath, match, groupRTCMidis
 import Data.Array
 import Data.Tuple        ( swap )
 import Data.List         ( stripPrefix, sortBy, groupBy, intercalate, delete )
-import Data.Text         ( unpack, pack, strip, breakOn  )
+import Data.Text         ( unpack, pack, strip, breakOn )
+import qualified Data.Text as T ( filter)
 import Data.Ord          ( comparing )
 import Data.Char         ( toLower )
 import Data.Function     ( on )
@@ -62,14 +63,11 @@ groupRTCMidis m = let grp = groupBy ((==) `on` folder) m
                       ixs = map (folder . head) grp
                    in zip ixs grp
 
+-- | Returns a subset of the compendium based on pre-annotated folders
 getSubSet :: [RTCFolder] -> [(RTCFolder, [RTCMidi])] -> [RTCMidi]
 getSubSet fs = concat . map snd . filter ((flip elem) fs . fst) 
 
 type MidiSt = ([RTCMidi],[(RTCFolder, [RTCMidi])])
-
--- | Deletes an 'RTCMidi' from the 'MidiSt' 
-deleteMidi :: RTCMidi -> MidiSt -> MidiSt
-deleteMidi rtc (l, tab) = (delete rtc l, map (second (delete rtc)) tab)
 
 matchAll :: [RTCMidi] -> [(RTCFolder, [RTCMidi])] -> [RTC] -> [((RTC,RTCMidi),Int)]
 matchAll ms grp rs = evalState (mapM match rs) (ms, grp)
@@ -81,33 +79,30 @@ match r = do (ms, grp) <- get
                        [] -> doMatch ms r -- match with the complete corpus
                        m  -> doMatch (getSubSet m grp) r -- or a subdir
              modify (deleteMidi (snd . fst $ m))        -- delete the match from the corpus
-             return m
+             return m where
 
--- | returns a match      
-doMatch :: [RTCMidi] -> RTC -> ((RTC, RTCMidi), Int)
-doMatch subs r = head . sortBy (comparing snd) . map (matchFN r) $ subs 
-   
--- | matches 'RTCMidi's to an 'RTC' meta data entry
--- match :: [RTCMidi] -> [(RTCFolder, [RTCMidi])] -> RTC -> ((RTC, RTCMidi), Int)
--- match ms grp r = 
-
-  -- let doMatch :: [RTCMidi] -> RTC -> ((RTC, RTCMidi), Int)
-      -- doMatch subs r = head . sortBy (comparing snd) . map (matchFN r) $ subs 
-
-  -- in case folders r of
-      -- [] -> doMatch ms r
-      -- m  -> doMatch (getSubSet m grp) r
+  -- | Deletes an 'RTCMidi' from the 'MidiSt' 
+  deleteMidi :: RTCMidi -> MidiSt -> MidiSt
+  deleteMidi rtc (l, tab) = (delete rtc l, map (second (delete rtc)) tab)
+               
+  -- | returns a match      
+  doMatch :: [RTCMidi] -> RTC -> ((RTC, RTCMidi), Int)
+  doMatch subs r = head . sortBy (comparing snd) . map (matchFN r) $ subs 
   
 -- | Matches a filename
 matchFN :: RTC -> RTCMidi -> ((RTC, RTCMidi), Int)
-matchFN rtc mid = ((rtc, mid), editDistance caseInsEQ (preProcRTC rtc) (preProcRTCMidi mid))
+matchFN rtc mid = ( (rtc, mid)
+                  , editDistance caseInsEQ (preProcRTC rtc) (preProcRTCMidi mid))
+  where -- preprocessing
+    preProcRTCMidi :: RTCMidi -> String
+    preProcRTCMidi = unpack . T.filter wanted . fst . breakOn (pack " - ") 
+                   . pack   . fileName 
 
--- preprocessing
-preProcRTCMidi :: RTCMidi -> String
-preProcRTCMidi = unpack . strip . fst . breakOn (pack " - ") . pack . fileName 
-
-preProcRTC :: RTC -> String
-preProcRTC = unpack . strip . title
+    preProcRTC :: RTC -> String
+    preProcRTC = unpack . T.filter wanted . title
+    
+    wanted :: Char -> Bool
+    wanted c = not (c `elem` ",.\'\"-_ \t?!()[]" )
 
 editDistance :: Eq a => (a -> a-> Bool) -> [a] -> [a] -> Int
 editDistance eq xs ys = fromIntegral (table ! (m,n))
