@@ -1,13 +1,16 @@
 {-# OPTIONS_GHC -Wall                #-}
-module MatchFile (readRTCMidis, readRTCMidiPath, match, groupRTCMidis, printMatch ) where
+module MatchFile ( readRTCMidis, readRTCMidiPath, match, groupRTCMidis
+                 , printMatch, matchAll ) where
 
 import Data.Array
 import Data.Tuple        ( swap )
-import Data.List         ( stripPrefix, sortBy, groupBy, intercalate )
+import Data.List         ( stripPrefix, sortBy, groupBy, intercalate, delete )
 import Data.Text         ( unpack, pack, strip, breakOn  )
 import Data.Ord          ( comparing )
 import Data.Char         ( toLower )
 import Data.Function     ( on )
+import Control.Arrow     ( second )
+import Control.Monad.State
 
 import RTCParser
 import MidiCommonIO      ( mapDir, mapDirInDir )
@@ -32,7 +35,7 @@ readRTCMidiPath bd fp = return $ fromPath bd fp
 fromPath :: FilePath -> FilePath -> RTCMidi
 fromPath bd fp = 
   case stripPrefix (bd </> "") fp of
-    Nothing -> error "basedir and filepath do not match"
+    Nothing -> error ("basedir and filepath do not match " ++ bd ++" /=  " ++ fp)
     Just f  -> let s = head . dropWhile (isPathSeparator . head) . splitDirectories $ f 
                in  case lookup s folderMapSwap of 
                      Nothing   -> error ("folder not found" ++ show s ++ " in " ++ fp)
@@ -48,11 +51,12 @@ toPath rtcf = case lookup (folder rtcf) folderMap of
 -- Matching Filenames
 --------------------------------------------------------------------------------
 
+-- | Prints a match between a compendium entry and a midifile
 printMatch :: ((RTC,RTCMidi), Int) -> String
 printMatch ((r,m),s) = intercalate "\t" 
   [show (rtcid r), show (title r), show (folders r), show (toPath m), show (s)]
 
-
+-- | groups the files based on 
 groupRTCMidis :: [RTCMidi] -> [(RTCFolder, [RTCMidi])]
 groupRTCMidis m = let grp = groupBy ((==) `on` folder) m
                       ixs = map (folder . head) grp
@@ -60,17 +64,39 @@ groupRTCMidis m = let grp = groupBy ((==) `on` folder) m
 
 getSubSet :: [RTCFolder] -> [(RTCFolder, [RTCMidi])] -> [RTCMidi]
 getSubSet fs = concat . map snd . filter ((flip elem) fs . fst) 
-                   
+
+type MidiSt = ([RTCMidi],[(RTCFolder, [RTCMidi])])
+
+-- | Deletes an 'RTCMidi' from the 'MidiSt' 
+deleteMidi :: RTCMidi -> MidiSt -> MidiSt
+deleteMidi rtc (l, tab) = (delete rtc l, map (second (delete rtc)) tab)
+
+matchAll :: [RTCMidi] -> [(RTCFolder, [RTCMidi])] -> [RTC] -> [((RTC,RTCMidi),Int)]
+matchAll ms grp rs = evalState (mapM match rs) (ms, grp)
+
 -- | matches 'RTCMidi's to an 'RTC' meta data entry
-match :: [RTCMidi] ->  [(RTCFolder, [RTCMidi])] -> RTC -> ((RTC, RTCMidi), Int)
-match ms grp r = 
+match ::  RTC -> State MidiSt ((RTC, RTCMidi), Int)
+match r = do (ms, grp) <- get 
+             let m = case folders r of
+                       [] -> doMatch ms r -- match with the complete corpus
+                       m  -> doMatch (getSubSet m grp) r -- or a subdir
+             modify (deleteMidi (snd . fst $ m))        -- delete the match from the corpus
+             return m
 
-  let doMatch :: [RTCMidi] -> RTC -> ((RTC, RTCMidi), Int)
-      doMatch subs r = head . sortBy (comparing snd) . map (matchFN r) $ subs 
+-- | returns a match      
+doMatch :: [RTCMidi] -> RTC -> ((RTC, RTCMidi), Int)
+doMatch subs r = head . sortBy (comparing snd) . map (matchFN r) $ subs 
+   
+-- | matches 'RTCMidi's to an 'RTC' meta data entry
+-- match :: [RTCMidi] -> [(RTCFolder, [RTCMidi])] -> RTC -> ((RTC, RTCMidi), Int)
+-- match ms grp r = 
 
-  in case folders r of
-      [] -> doMatch ms r
-      m  -> doMatch (getSubSet m grp) r
+  -- let doMatch :: [RTCMidi] -> RTC -> ((RTC, RTCMidi), Int)
+      -- doMatch subs r = head . sortBy (comparing snd) . map (matchFN r) $ subs 
+
+  -- in case folders r of
+      -- [] -> doMatch ms r
+      -- m  -> doMatch (getSubSet m grp) r
   
 -- | Matches a filename
 matchFN :: RTC -> RTCMidi -> ((RTC, RTCMidi), Int)
