@@ -5,7 +5,7 @@ module MatchFile ( readRTCMidis, readRTCMidiPath, match, groupRTCMidis
 import Data.Array
 import Data.Tuple        ( swap )
 import Data.List         ( stripPrefix, sortBy, groupBy, intercalate, delete )
-import Data.Text         ( unpack, pack, strip, breakOn )
+import Data.Text         ( unpack, pack, breakOn )
 import qualified Data.Text as T ( filter)
 import Data.Ord          ( comparing )
 import Data.Char         ( toLower )
@@ -22,7 +22,7 @@ import ZMidi.Core        ( readMidi )
 import ZMidiBasic        ( MidiScore (..), buildTickMap, midiFileToMidiScore )
 
 import System.FilePath   ( (</>), splitDirectories, takeFileName
-                         , isPathSeparator, dropExtension )
+                         , isPathSeparator )
 
 -- | Representing a Midi file path
 data RTCMidi = RTCMidi { baseDir    :: FilePath
@@ -33,16 +33,18 @@ data RTCMidi = RTCMidi { baseDir    :: FilePath
                        , nrOfNoteLen:: Int
                        } deriving (Show, Eq)
  
--- compareRTCMidi :: RTCMidi -> RTCMidi -> Ordering
--- coppareRTCMidi a b = do ma < r
-                        -- case (
+compareRTCMidi :: RTCMidi -> RTCMidi -> Ordering
+compareRTCMidi a b = 
+  case (hasMeter a, hasMeter b) of
+    (True , False) -> LT
+    (False, True ) -> GT
+    _              -> case compare (nrOfNoteLen a) (nrOfNoteLen b) of
+                        EQ -> compare (nrOfVoices a) (nrOfVoices b)
+                        c  -> c
  
 readRTCMidis :: FilePath -> IO [RTCMidi]
 readRTCMidis d =   mapDirInDir (mapDir (readRTCMidiPath d)) d 
                >>= return . catMaybes . concat
-  
--- readRTCMidiPath :: FilePath -> FilePath -> IO (RTCMidi)
--- readRTCMidiPath bd fp = return $ fromPath bd fp
 
 readRTCMidiPath :: FilePath -> FilePath -> IO (Maybe RTCMidi)
 readRTCMidiPath bd fp = -- Path conversions
@@ -51,17 +53,19 @@ readRTCMidiPath bd fp = -- Path conversions
     Just f  -> let s = head . dropWhile (isPathSeparator . head) . splitDirectories $ f 
                in  case lookup s folderMapSwap of 
                      Nothing   -> error ("folder not found" ++ show s ++ " in " ++ fp)
-                     Just rtcf -> do m <- readMidi fp
+                     Just rtcf -> do m <- readMidi fp 
                                      case m of
-                                       Left  _ -> return Nothing
-                                       Right x -> do let s  = midiFileToMidiScore x
-                                                         vs = getVoices s
-                                                         k  = null . getTimeSig $ s
-                                                         l  = length vs
-                                                         p  = size . buildTickMap $ vs
+                                       Left  _ -> return Nothing -- ignore erroneous files
+                                       Right x -> do let sc = midiFileToMidiScore x
+                                                         vs = getVoices sc
+                                                         k  = null . getTimeSig $ sc   -- does it contain a time signature
+                                                         l  = length vs                -- how many tracks
+                                                         p  = size . buildTickMap $ vs -- how many different durations
                                                          r  = RTCMidi bd rtcf (takeFileName fp)
                                                                       k  l  p
                                                      k `seq` l `seq` p `seq` r `seq` (return . Just $ r)  
+
+-- | returns the filepath of the RTCMidi
 toPath :: RTCMidi -> FilePath
 toPath rtcf = case lookup (folder rtcf) folderMap of
   Just f  -> baseDir rtcf </> f </> fileName rtcf
@@ -96,9 +100,9 @@ matchAll ms grp rs = evalState (mapM match rs) (ms, grp)
 match ::  RTC -> State MidiSt ((RTC, RTCMidi), Int)
 match r = do (ms, grp) <- get 
              let m = case folders r of
-                       [] -> doMatch ms r -- match with the complete corpus
-                       m  -> doMatch (getSubSet m grp) r -- or a subdir
-             modify (deleteMidi (snd . fst $ m))        -- delete the match from the corpus
+                       [] -> doMatch ms -- match with the complete corpus
+                       f  -> doMatch (getSubSet f grp) -- or a subdir
+             modify (deleteMidi (snd . fst $ m))       -- delete the match from the corpus
              return m where
 
   -- | Deletes an 'RTCMidi' from the 'MidiSt' 
@@ -106,8 +110,16 @@ match r = do (ms, grp) <- get
   deleteMidi rtc (l, tab) = (delete rtc l, map (second (delete rtc)) tab)
                
   -- | returns a match      
-  doMatch :: [RTCMidi] -> RTC -> ((RTC, RTCMidi), Int)
-  doMatch subs r = head . sortBy (comparing snd) . map (matchFN r) $ subs 
+  doMatch :: [RTCMidi] -> ((RTC, RTCMidi), Int)
+  doMatch subs = -- create a ranked list based on the edit distance
+                 let ranks =  sortBy (comparing snd) . map (matchFN r) $ subs 
+                 in case takeWhile ((== 0) . snd) $ ranks of 
+                 -- if there are no results with a zero distance return the best
+                    []  -> head ranks  
+                 -- else resort the top of the list with a zero distance based 
+                 -- on midi file statistics and pick the top file
+                    top -> head . sortBy (compareRTCMidi `on` (snd . fst)) $ top
+
   
 -- | Matches a filename
 matchFN :: RTC -> RTCMidi -> ((RTC, RTCMidi), Int)
