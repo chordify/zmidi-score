@@ -9,39 +9,59 @@ import Data.Text         ( unpack, pack, strip, breakOn )
 import qualified Data.Text as T ( filter)
 import Data.Ord          ( comparing )
 import Data.Char         ( toLower )
+import Data.Maybe        ( catMaybes )
 import Data.Function     ( on )
+import Data.IntMap.Lazy  ( size )
+
 import Control.Arrow     ( second )
 import Control.Monad.State
 
 import RTCParser
 import MidiCommonIO      ( mapDir, mapDirInDir )
+import ZMidi.Core        ( readMidi )
+import ZMidiBasic        ( MidiScore (..), buildTickMap, midiFileToMidiScore )
 
 import System.FilePath   ( (</>), splitDirectories, takeFileName
                          , isPathSeparator, dropExtension )
 
 -- | Representing a Midi file path
-data RTCMidi = RTCMidi { baseDir  :: FilePath
-                       , folder   :: RTCFolder 
-                       , fileName :: String
+data RTCMidi = RTCMidi { baseDir    :: FilePath
+                       , folder     :: RTCFolder 
+                       , fileName   :: String
+                       , hasMeter   :: Bool
+                       , nrOfVoices :: Int
+                       , nrOfNoteLen:: Int
                        } deriving (Show, Eq)
+ 
+-- compareRTCMidi :: RTCMidi -> RTCMidi -> Ordering
+-- coppareRTCMidi a b = do ma < r
+                        -- case (
  
 readRTCMidis :: FilePath -> IO [RTCMidi]
 readRTCMidis d =   mapDirInDir (mapDir (readRTCMidiPath d)) d 
-               >>= return . concat
+               >>= return . catMaybes . concat
   
-readRTCMidiPath :: FilePath -> FilePath -> IO (RTCMidi)
-readRTCMidiPath bd fp = return $ fromPath bd fp
+-- readRTCMidiPath :: FilePath -> FilePath -> IO (RTCMidi)
+-- readRTCMidiPath bd fp = return $ fromPath bd fp
 
--- Path conversions
-fromPath :: FilePath -> FilePath -> RTCMidi
-fromPath bd fp = 
+readRTCMidiPath :: FilePath -> FilePath -> IO (Maybe RTCMidi)
+readRTCMidiPath bd fp = -- Path conversions
   case stripPrefix (bd </> "") fp of
     Nothing -> error ("basedir and filepath do not match " ++ bd ++" /=  " ++ fp)
     Just f  -> let s = head . dropWhile (isPathSeparator . head) . splitDirectories $ f 
                in  case lookup s folderMapSwap of 
                      Nothing   -> error ("folder not found" ++ show s ++ " in " ++ fp)
-                     Just rtcf -> RTCMidi bd rtcf (takeFileName fp)
-
+                     Just rtcf -> do m <- readMidi fp
+                                     case m of
+                                       Left  _ -> return Nothing
+                                       Right x -> do let s  = midiFileToMidiScore x
+                                                         vs = getVoices s
+                                                         k  = null . getTimeSig $ s
+                                                         l  = length vs
+                                                         p  = size . buildTickMap $ vs
+                                                         r  = RTCMidi bd rtcf (takeFileName fp)
+                                                                      k  l  p
+                                                     k `seq` l `seq` p `seq` r `seq` (return . Just $ r)  
 toPath :: RTCMidi -> FilePath
 toPath rtcf = case lookup (folder rtcf) folderMap of
   Just f  -> baseDir rtcf </> f </> fileName rtcf
