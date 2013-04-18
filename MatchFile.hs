@@ -1,10 +1,11 @@
 {-# OPTIONS_GHC -Wall                #-}
 module MatchFile ( readRTCMidis, readRTCMidiPath, match, groupRTCMidis
-                 , printMatch, matchAll, copyRTCMidi ) where
+                 , printMatch, matchAll, copyRTCMidi, getRTCMeta ) where
 
 import Data.Array
 import Data.Tuple        ( swap )
-import Data.List         ( stripPrefix, sortBy, groupBy, intercalate, delete )
+import Data.List         ( stripPrefix, sortBy, groupBy, intercalate
+                         , delete, find )
 import Data.Text         ( unpack, pack, strip, breakOn )
 import qualified Data.Text as T ( filter)
 import Data.Ord          ( comparing )
@@ -23,8 +24,26 @@ import ZMidiBasic        ( MidiScore (..), buildTickMap, midiFileToMidiScore )
 
 import System.Directory  ( copyFile, createDirectoryIfMissing, doesFileExist )
 import System.FilePath   ( (</>), (<.>), splitDirectories, takeFileName
-                         , isPathSeparator, takeDirectory, makeValid )
+                         , isPathSeparator, takeDirectory, makeValid
+                         , dropExtension )
 
+ 
+--------------------------------------------------------------------------------
+-- When a matched subset has been created, Meta info can be retrieved with
+-- getRTCMeta
+--------------------------------------------------------------------------------
+                           
+getRTCMeta :: [RTC] -> FilePath -> RTC
+getRTCMeta rs f = 
+  case find ((dropExtension (takeFileName f) ==) 
+            . makeValid . unpack . title) rs of
+    Just rtc -> rtc
+    Nothing  -> error ("No RTC meta data found for file: " ++ f )
+ 
+--------------------------------------------------------------------------------
+-- A Datatype for matching midifiles to the ragtime compendium
+--------------------------------------------------------------------------------
+                         
 -- | Representing a Midi file path
 data RTCMidi = RTCMidi { baseDir    :: FilePath
                        , folder     :: RTCFolder 
@@ -178,7 +197,7 @@ editDistance eq xs ys = fromIntegral (table ! (m,n))
 -- case insensitive matching
 caseInsEQ :: Char -> Char -> Bool
 caseInsEQ a b = toLower a == toLower b
-  
+
 --------------------------------------------------------------------------------
 -- Mapping from RTC Folders to sub directories
 --------------------------------------------------------------------------------

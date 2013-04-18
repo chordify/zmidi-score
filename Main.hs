@@ -11,11 +11,12 @@ import Data.IntMap.Lazy   ( keys )
 -- other libraries
 import System.Console.ParseArgs
 import Control.Monad      ( void )
-import RTCParser          ( readRTC )
-import MatchFile          ( readRTCMidiPath, readRTCMidis, match, groupRTCMidis
-                          , printMatch, matchAll, copyRTCMidi )
+import RTCParser          ( readRTC, RTC (..) )
+import MatchFile          ( readRTCMidiPath -- , readRTCMidis, match
+                          -- , printMatch, matchAll, copyRTCMidi, groupRTCMidis
+                          , getRTCMeta )
 
-data RagArgs = Mode| MidiDir | RTC | MidiFile deriving (Eq, Ord, Show)
+data RagArgs = Mode| MidiDir | RTCFile | MidiFile deriving (Eq, Ord, Show)
 
 myArgs :: [Arg RagArgs]
 myArgs = [ 
@@ -31,7 +32,7 @@ myArgs = [
                  argData  = argDataOptional "filepath" ArgtypeString,
                  argDesc  = "Base directory containing the MIDI files"
                }
-         , Arg { argIndex = RTC,
+         , Arg { argIndex = RTCFile,
                  argAbbr  = Just 'c',
                  argName  = Just "rtc",
                  argData  = argDataOptional "filpath" ArgtypeString,
@@ -50,20 +51,26 @@ main = do args <- parseArgsIO ArgsComplete myArgs
           case (getRequiredArg args Mode, fileOrDir args) of
             ("stat", Left f ) -> doScore f
             ("stat", Right d) -> void . mapDirInDir (mapDir' showMidiStats) $ d
-            ("rtc" , Right d) -> do case getArg args RTC of
+            ("rtc" , Right d) -> do case getArg args RTCFile of
                                       Just c  -> mainRTC c d
                                       Nothing -> usageError args 
                                                  "no compendium specified"
             (m     , _      ) -> usageError args ("invalid mode: " ++ m )
             
 mainRTC :: FilePath -> FilePath -> IO ()
-mainRTC comp dir = do c <- readRTC comp
-                      m <- readRTCMidis dir
-                      mapM_ (copyRTCMidi "D:\\temp\\ragtimesSubSet") 
-                            (matchAll m (groupRTCMidis m) c)
- -- void . mapDirInDir (mapDir' (\f -> readRTCMidiPath dir f >>= print)) $ dir
+mainRTC comp d = 
+  do c <- readRTC comp
+     void . mapDirInDir (mapDir' (print . rtcid . getRTCMeta c)) $ d 
 
- 
+
+{-
+createSubCorpus :: FilePath -> FilePath -> IO ()
+createSubCorpus comp dir = do c <- readRTC comp
+                              m <- readRTCMidis dir
+                              mapM_ (copyRTCMidi "D:\\temp\\ragtimesSubSet") 
+                                    (matchAll m (groupRTCMidis m) c)
+
+-}
 
 -- | Checks for either a directory or file argument, returns them in an Either
 -- or throws an error otherwise
