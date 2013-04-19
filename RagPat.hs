@@ -7,22 +7,23 @@ import MidiCommonIO       ( mapDirInDir, mapDir, readMidiScore )
 import System.Environment ( getArgs )
 import Data.List          ( intercalate )
 import Evaluation
-import SepHand            ( findMelody )
+import MelFind            ( findMelody )
 
 
 -- | do stuff with a 'MidiScore' ...
 test :: FilePath -> IO ()
 test f = do mf <- readMidiScore f 
-            print . scoreToPatterns $ mf
+            putStrLn . showPats . scoreToPatterns $ mf
 
-
-scoreToPatterns :: MidiScore -> Pattern
-scoreToPatterns ms = toPat [0, minLen .. ] . map onset . findMelody 
+showPats :: [Pattern] -> String
+showPats = intercalate "\n" . map show
+            
+scoreToPatterns :: MidiScore -> [Pattern]
+scoreToPatterns ms = groupEvery beatLen . toPat [0, minLen .. ] . map onset . findMelody 
                    . quantise FourtyEighth $ ms where
 
-  minLen = ticksPerBeat ms `div` (toGridUnit FourtyEighth)
-
-  convert a b = zipWith 
+  minLen  = ticksPerBeat ms `div` beatLen
+  beatLen = toGridUnit FourtyEighth
   
   toPat :: [Time] -> [Time] -> [Onset]
   toPat [] []  = []
@@ -31,14 +32,12 @@ scoreToPatterns ms = toPat [0, minLen .. ] . map onset . findMelody
                       | g <  d = if d -  g < minLen 
                                  then error "unquantised interval encountered"         
                                  else O : toPat gs (d:ds)
-  
-  -- toPat :: [Time] -> Pattern
-  -- toPat [] = []
-  -- toPat t  | i = 0      = O
-           -- | i < minLen = error "unquantised interval encountered"
-           -- |            where i = t - minLen 
-             
-  
+
+groupEvery :: Int -> Pattern -> [Pattern]
+groupEvery x p | glen == x =  g : groupEvery x r
+               | otherwise = [g ++ replicate (x - glen) X]
+  where (g,r) = splitAt x p 
+        glen  = length g
 
 --------------------------------------------------------------------------------
 -- Matching rhythmic patterns
@@ -51,9 +50,9 @@ data Onset = X -- | don't care symbol, ignored in all evaluation
              
 instance Show Onset where
   show o = case o of
-            X -> "_"
-            O -> "O"
-            I -> "I"
+            X -> "*"
+            O -> "_"
+            I -> "x"
   showList l s = s ++ (intercalate " " . map show $ l)
 
 instance Matchable Onset where
