@@ -12,9 +12,10 @@ import Data.IntMap.Lazy   ( keys )
 import System.Console.ParseArgs
 import Control.Monad      ( void )
 import RTCParser          ( readRTC, RTC (..) )
-import MatchFile          ( readRTCMidiPath -- , readRTCMidis, match
+import MatchFile          ( getRTCMeta
+                          -- , readRTCMidiPath, readRTCMidis, match
                           -- , printMatch, matchAll, copyRTCMidi, groupRTCMidis
-                          , getRTCMeta )
+                           )
 
 data RagArgs = Mode| MidiDir | RTCFile | MidiFile deriving (Eq, Ord, Show)
 
@@ -47,15 +48,15 @@ myArgs = [
          ] 
 
 main :: IO ()
-main = do args <- parseArgsIO ArgsComplete myArgs
-          case (getRequiredArg args Mode, fileOrDir args) of
+main = do arg <- parseArgsIO ArgsComplete myArgs
+          case (getRequiredArg arg Mode, fileOrDir arg) of
             ("stat", Left f ) -> doScore f
             ("stat", Right d) -> void . mapDirInDir (mapDir' showMidiStats) $ d
-            ("rtc" , Right d) -> do case getArg args RTCFile of
+            ("rtc" , Right d) -> do case getArg arg RTCFile of
                                       Just c  -> mainRTC c d
-                                      Nothing -> usageError args 
+                                      Nothing -> usageError arg 
                                                  "no compendium specified"
-            (m     , _      ) -> usageError args ("invalid mode: " ++ m )
+            (m     , _      ) -> usageError arg ("invalid mode: " ++ m )
             
 mainRTC :: FilePath -> FilePath -> IO ()
 mainRTC comp d = 
@@ -75,11 +76,11 @@ createSubCorpus comp dir = do c <- readRTC comp
 -- | Checks for either a directory or file argument, returns them in an Either
 -- or throws an error otherwise
 fileOrDir :: Args RagArgs -> Either FilePath FilePath
-fileOrDir args = case (getArg args MidiFile, getArg args MidiDir) of
-   (Just _, Just _) -> usageError args "found both a directory and file"
+fileOrDir arg = case (getArg arg MidiFile, getArg arg MidiDir) of
+   (Just _, Just _) -> usageError arg "found both a directory and file"
    (Just f, _     ) -> Left f
    (_     , Just d) -> Right d
-   (_     , _     ) -> usageError args "No directory or file specified"
+   (_     , _     ) -> usageError arg "No directory or file specified"
           
 
 -- | do stuff with a 'MidiScore' ...

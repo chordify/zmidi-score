@@ -1,6 +1,9 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE FlexibleContexts        #-}
-module RTCParser (readRTC, parseRTC, RTC (..), RTCFolder (..)) where
+module RTCParser ( readRTC
+                 , parseRTC
+                 , RTC (..)
+                 , RTCFolder (..)) where
 
 import Text.ParserCombinators.UU.Core           ( (<$>), (<$), (<*>), (*>), (<*)
                                                 , (<|>), P )

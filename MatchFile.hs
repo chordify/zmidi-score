@@ -1,6 +1,18 @@
 {-# OPTIONS_GHC -Wall                #-}
-module MatchFile ( readRTCMidis, readRTCMidiPath, match, groupRTCMidis
-                 , printMatch, matchAll, copyRTCMidi, getRTCMeta ) where
+module MatchFile ( -- | * Retrieving Meta data (after creating a matched corpus)
+                   getRTCMeta 
+                   -- | * Creating a matched corpus
+                   -- | ** Reading
+                 , readRTCMidis
+                 , readRTCMidiPath
+                   -- | ** Printing & Copying
+                 , printMatch
+                 , copyRTCMidi
+                   -- | ** Matching
+                 , match
+                 , matchAll
+                 , groupRTCMidis
+                 ) where
 
 import Data.Array
 import Data.Tuple        ( swap )
