@@ -22,8 +22,8 @@ library
                        
   ghc-options:         -Wall -O2 
   
-executable sephand
-  main-is:             SepHand.hs
+executable melfind
+  main-is:             MelFindMain.hs
   -- other-modules:       
   build-depends:       base ==4.6.*, zmidi-core ==0.6.*, mtl ==2.1.*, 
                        containers ==0.5.*, directory ==1.2.*, filepath ==1.3.*
