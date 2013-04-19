@@ -6,21 +6,15 @@ import MidiCommonIO       ( mapDirInDir, mapDir, readMidiScore )
 
 import System.Environment ( getArgs )
 import Data.List          ( intercalate )
+import Evaluation
 
-main :: IO ()
-main = do arg <- getArgs
-          case arg of
-            ["-d", d] -> print d -- mapDirInDir (mapDir showMidiStats) d
-            ["-f", f] -> doScore f
-            _         -> putStrLn "usage:  -f <filename> OR -d <directory>"
-
-
+{-
 -- | do stuff with a 'MidiScore' ...
 doScore :: FilePath -> IO ()
 doScore f = do mf <- readMidiScore f 
                putStrLn . showMidiScore $ mf
                putStrLn . showMidiScore . quantise FourtyEighth $ mf
-               
+-}
 
 data Onset = X -- | don't care symbol, ignored in all evaluation
            | O -- | No onset
@@ -34,10 +28,17 @@ instance Show Onset where
             I -> "I"
   showList l s = s ++ (intercalate " " . map show $ l)
 
+instance Matchable Onset where
+  -- eqi :: Onset -> Onset -> EqIgnore
+  eqi I I = Equal
+  eqi O O = Equal
+  eqi X _ = Ignore
+  eqi _ X = Ignore
+  eqi _ _ = NotEq  
+  
 type Pattern = [Onset]
 
-match :: Onset -> Onset -> Bool
-match X 
+
 
 untied1 = [ I, I, O, I,  X, X, X, X,  X, X, X, X,  X, X, X, X ]
 untied2 = [ X, X, X, X,  I, I, O, I,  X, X, X, X,  X, X, X, X ]
