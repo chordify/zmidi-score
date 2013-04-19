@@ -33,6 +33,8 @@ scoreToPatterns ms = groupEvery beatLen . toPat [0, minLen .. ] . map onset . fi
                                  then error "unquantised interval encountered"         
                                  else O : toPat gs (d:ds)
 
+-- | Groups a list of patterns in fixed size lists, if the last list is not 
+-- of the same length, the remainder is filled with 'X's
 groupEvery :: Int -> Pattern -> [Pattern]
 groupEvery x p | glen == x =  g : groupEvery x r
                | otherwise = [g ++ replicate (x - glen) X]

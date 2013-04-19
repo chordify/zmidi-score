@@ -25,10 +25,17 @@ main = do arg <- getArgs
                          . midiScoreToMidiFile . quantise ThirtySecond
             ["-l", d] -> logDuplicates d
             ["-n", f] -> removeTrackLabels f
-            ["--test", f] -> melodySkyline f
-            _  -> putStrLn ("usage:  -f <filename> OR -d <directory> " ++ 
-                            "OR -s <directory> OR -q <filename>" )
+            ["-m", f] -> melodySkyline f -- o
+            _  -> putStrLn ("usage: -f <filename>  do melody finding\n"++
+                            "   OR  -r <filename>  reverse track order\n"++
+                            "   OR  -q <filename>  quantise midi track\n"++
+                            "   OR  -n <filename>  remove track labels\n"++
+                            "   OR  -d <directory> evaluate melody finding\n" ++ 
+                            "   OR  -s <directory> show some statistics\n" 
+                            )
 
+-- preserveQuantMelOnly :: FilePath
+                            
 -- For checking the removal of chords in the melody track
 melodySkyline :: FilePath -> IO ()
 melodySkyline f = do mf <- readMidiScore f                             
