@@ -18,6 +18,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   -- * Quantisation
                   , quantise
                   , ShortestNote (..)
+                  , toGridUnit
                   , buildTickMap
                   , getMinDur
                   , gcIOId
@@ -283,6 +284,8 @@ snap g t | m == 0  = t               -- score event is on the grid
          | otherwise = error "Negative time stamp found"
              where (d,m) = t `divMod` g
 
+-- | The Inter Onset Interval that is the greates common divider. It can be
+--used to estimate wheter a track is quantised or not.
 gcIOId :: TickMap -> Time
 gcIOId tm = case keys $ tm of
   [] -> 0

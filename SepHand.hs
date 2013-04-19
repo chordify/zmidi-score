@@ -1,4 +1,4 @@
-module Main (main) where
+module SepHand (main, findMelody) where
 
 import ZMidi.Core         ( writeMidi, MidiFile (..) )
 import ZMidiBasic
@@ -11,6 +11,8 @@ import Data.Function      ( on )
 import Data.Ord           ( comparing )
 import Control.Arrow      ( (***) )
 import System.Environment ( getArgs )
+
+-- TODO split in Sephand and sephand main
 
 main :: IO ()
 main = do arg <- getArgs
@@ -94,7 +96,12 @@ hasTwoDupTracks ms = case getVoices ms of
 -- Melody Finding
 --------------------------------------------------------------------------------
 
--- | Returns the melody 'Voice' 
+-- | Merges all 'Voices' and returns the melody using the skyline algorithm
+-- with a lowerlimet at the middle C. [more..?]
+findMelody :: MidiScore -> Voice
+findMelody = head. getVoices . sepHand (skyLineLowLim (Pitch (0,0))) . mergeTracks 
+
+-- | Returns the melody 'Voice', if there the 'MidiScore' has exactly 2 voices
 getMelody :: MidiScore -> Voice 
 getMelody ms = case getVoices ms of
   [r,_l] -> r

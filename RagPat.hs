@@ -7,14 +7,42 @@ import MidiCommonIO       ( mapDirInDir, mapDir, readMidiScore )
 import System.Environment ( getArgs )
 import Data.List          ( intercalate )
 import Evaluation
+import SepHand            ( findMelody )
 
-{-
+
 -- | do stuff with a 'MidiScore' ...
-doScore :: FilePath -> IO ()
-doScore f = do mf <- readMidiScore f 
-               putStrLn . showMidiScore $ mf
-               putStrLn . showMidiScore . quantise FourtyEighth $ mf
--}
+test :: FilePath -> IO ()
+test f = do mf <- readMidiScore f 
+            print . scoreToPatterns $ mf
+
+
+scoreToPatterns :: MidiScore -> Pattern
+scoreToPatterns ms = toPat [0, minLen .. ] . map onset . findMelody 
+                   . quantise FourtyEighth $ ms where
+
+  minLen = ticksPerBeat ms `div` (toGridUnit FourtyEighth)
+
+  convert a b = zipWith 
+  
+  toPat :: [Time] -> [Time] -> [Onset]
+  toPat [] []  = []
+  toPat _  []  = []
+  toPat (g:gs) (d:ds) | g == d = I : toPat gs ds
+                      | g <  d = if d -  g < minLen 
+                                 then error "unquantised interval encountered"         
+                                 else O : toPat gs (d:ds)
+  
+  -- toPat :: [Time] -> Pattern
+  -- toPat [] = []
+  -- toPat t  | i = 0      = O
+           -- | i < minLen = error "unquantised interval encountered"
+           -- |            where i = t - minLen 
+             
+  
+
+--------------------------------------------------------------------------------
+-- Matching rhythmic patterns
+--------------------------------------------------------------------------------
 
 data Onset = X -- | don't care symbol, ignored in all evaluation
            | O -- | No onset
@@ -46,8 +74,9 @@ untied3 = [ X, X, X, X,  X, X, X, X,  I, I, O, I,  X, X, X, X ]
 untied4 = [ X, X, X, X,  X, X, X, X,  X, X, X, X,  I, I, O, I ]
 
 tied1   = [ I, O, I, I,  O, I, I, O,  X, X, X, X,  X, X, X, X ]
-tied2   = [ X, X, X, X,  I, O, I, I,  O, I, I, O,  X, X, X, X ]
-tied3   = [ X, X, X, X,  X, X, X, X,  I, O, I, I,  O, I, I, O ]
+tied2   = [ X, X, X, X,  X, X, X, X,  I, O, I, I,  O, I, I, O ]
+tiedStr = [ X, X, X, X,  I, O, I, I,  O, I, I, O,  X, X, X, X ]
+
 
 
 
