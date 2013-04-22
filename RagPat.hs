@@ -5,7 +5,7 @@ import ZMidiBasic
 import MidiCommonIO       ( mapDirInDir, mapDir, readMidiScore )
 
 import System.Environment ( getArgs )
-import Data.List          ( intercalate )
+import Data.List          ( intercalate, genericLength )
 import Evaluation
 import MelFind            ( findMelodyQuant )
 
@@ -14,19 +14,20 @@ import MelFind            ( findMelodyQuant )
 
 -- | do stuff with a 'MidiScore' ...
 test :: FilePath -> IO ()
-test f = do mf <- readMidiScore f 
-            putStrLn . showPats . scoreToPatterns FourtyEighth $ mf
+test f = do p <- readMidiScore f >>= return . scoreToPatterns FourtyEighth
+            putStrLn . showPats $ p
+            print . matchBeatDiv straightGrid $ p
 
 showPats :: [Pattern] -> String
 showPats = intercalate "\n" . map show
 
--- |
+-- | Takes a midiscore, quantises it, finds the melody, and turns it into a 
+-- 'Pattern' list, where every 'Pattern' represents a beat
 scoreToPatterns :: ShortestNote -> MidiScore -> [Pattern]
-scoreToPatterns q ms = groupEvery beatLen . toPat [0, minLen .. ] . map onset
-                     . findMelodyQuant q $ ms where
+scoreToPatterns q ms = groupEvery (toGridUnit q) . toPat [0, minLen .. ] 
+                     . map onset . findMelodyQuant q $ ms where
 
   minLen  = getMinGridSize q ms
-  beatLen = toGridUnit q
   
   toPat :: [Time] -> [Time] -> [Onset]
   toPat [] []  = []
@@ -49,6 +50,22 @@ groupEvery x p | glen == x =  g : groupEvery x r
                | otherwise = [g ++ replicate (x - glen) X]
   where (g,r) = splitAt x p 
         glen  = length g
+
+--------------------------------------------------------------------------------
+-- Matching beat subdivisions
+--------------------------------------------------------------------------------
+
+matchBeatDiv :: Pattern -> [Pattern] -> Double
+matchBeatDiv p ps = let rs = filter (not . isNaN) . map (recall p) $ ps
+                    in  sum rs / genericLength rs
+
+
+
+
+straightGrid, swingGrid, evenDistGrid :: Pattern
+straightGrid = [ X, O, O, I, O, O, X, O, O, I, O, O ]
+swingGrid    = [ X, O, I, O, I, O, X, O, I, O, I, O ]
+evenDistGrid = [ I, I, I, I, I, I, I, I, I, I, I, I ]
 
 --------------------------------------------------------------------------------
 -- Matching rhythmic patterns

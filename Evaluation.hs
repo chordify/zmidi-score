@@ -105,10 +105,12 @@ class Matchable a where
   eqi       :: a   -> a   -> EqIgnore
   match     :: [a] -> [a] -> (Int, Int)
   matchRest :: [a] -> [a] -> ((Int, Int), ([a],[a]))
+  recall    :: [a] -> [a] -> Double
         -- Minimal complete definition:
         --      eqi
   matchRest a b = matchEqIRest eqi a b
-  match     a b = fst $ matchEqIRest eqi a b
+  match     a b = matchEqI     eqi a b
+  recall    a b = recallEqI    eqi a b
   
 -- | Given a particular 'EqIgnore' equality function, returns the Hit and Miss 
 -- counts, respectively, i.e. the sum of all 'Equal's and 'NotEq's, when
@@ -136,6 +138,11 @@ equal  :: EqIgnore -> Bool
 equal  Equal  = True
 equal  _      = False
 
+-- Calculates the recall of matching elements in two lists using 'matchEqI'
+-- N.B. this function can return a 'NaN' when only 'Ignore's are compared.
+recallEqI :: (a -> a -> EqIgnore) -> [a] -> [a] -> Double
+recallEqI eqi a b = let (hit, mis) = matchEqI eqi a b 
+                    in  fromIntegral hit / fromIntegral (hit + mis)
 
 -- Todo: better to use Int?
 -- Todo: better name?
@@ -143,7 +150,6 @@ equal  _      = False
 countEqual :: EqIgnore -> Double -> Double
 countEqual Equal x = succ x -- count the number of matching frames
 countEqual _     x = x
-
 
 --------------------------------------------------------------------------------
 -- Chord and key equality functions
