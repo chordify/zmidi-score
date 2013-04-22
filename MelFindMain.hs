@@ -25,8 +25,8 @@ main = do arg <- getArgs
                          . midiScoreToMidiFile . quantise ThirtySecond
             ["-l", d] -> logDuplicates d
             ["-n", f] -> removeTrackLabels f
-            ["-x", f] -> melodySkyline f -- o
-            ["-m", f] -> filterMelMidiFile FourtyEighth f -- o
+            ["-x", f] -> melodySkyline f 
+            ["-m", f] -> filterMelMidiFile FourtyEighth f 
             _  -> putStrLn ("usage: -f <filename>  do melody finding\n"++
                             "   OR  -r <filename>  reverse track order\n"++
                             "   OR  -q <filename>  quantise midi track\n"++
@@ -59,11 +59,10 @@ evalHandSep f = do putStr (show f ++ "\t")
                    return r
 
                    
--- | Takes a 'MidiFile' merges the tracks separates the hands again and 
--- saves the result to a file
-filterMelMidiFile :: FilePath -> IO ()
-filterMelMidiFile f = readMidiScore f >>=  writeMidi (f ++ ".melody.mid") 
-                        . midiScoreToMidiFile . filterMelody 
+-- | 
+filterMelMidiFile :: ShortestNote -> FilePath -> IO ()
+filterMelMidiFile q f = readMidiScore f >>=  writeMidi (f ++ ".melody.mid") 
+                      . midiScoreToMidiFile . filterMelodyQuant q
                    
                    
 -- | Takes a 'MidiFile' merges the tracks separates the hands again and 

@@ -12,10 +12,10 @@ import Control.Arrow      ( (***) )
 -- Melody Finding
 --------------------------------------------------------------------------------
 
--- | Applies 'findMelody' to a 'MidiScore' but returns the score instead
+-- | Applies 'findMelodyQuant' to a 'MidiScore' but returns the score instead
 -- of just the 'Voice'.
-filterMelody :: ShortestNote -> MidiScore -> MidiScore
-filterMelody q ms = ms {getVoices = [findMelodyQuant q ms]}
+filterMelodyQuant :: ShortestNote -> MidiScore -> MidiScore
+filterMelodyQuant q ms = ms {getVoices = [findMelodyQuant q ms]}
 
 -- | Merges all 'Voices' and returns the melody using the skyline algorithm
 -- with a lowerlimet at the middle C. The melody is quantised by
