@@ -9,21 +9,24 @@ import Data.List          ( intercalate )
 import Evaluation
 import MelFind            ( findMelodyQuant )
 
+-- import Debug.Trace
+-- traceShow' a = traceShow a a 
 
 -- | do stuff with a 'MidiScore' ...
 test :: FilePath -> IO ()
 test f = do mf <- readMidiScore f 
-            putStrLn . showPats . scoreToPatterns $ mf
+            putStrLn . showPats . scoreToPatterns FourtyEighth $ mf
 
 showPats :: [Pattern] -> String
 showPats = intercalate "\n" . map show
-            
-scoreToPatterns :: MidiScore -> [Pattern]
-scoreToPatterns ms = groupEvery beatLen . toPat [0, minLen .. ] . map onset 
-                   . findMelodyQuant $ ms where
 
-  minLen  = ticksPerBeat ms `div` beatLen
-  beatLen = toGridUnit FourtyEighth
+-- |
+scoreToPatterns :: ShortestNote -> MidiScore -> [Pattern]
+scoreToPatterns q ms = groupEvery beatLen . toPat [0, minLen .. ] . map onset
+                     . findMelodyQuant q $ ms where
+
+  minLen  = getMinGridSize q ms
+  beatLen = toGridUnit q
   
   toPat :: [Time] -> [Time] -> [Onset]
   toPat [] []  = []
@@ -32,7 +35,13 @@ scoreToPatterns ms = groupEvery beatLen . toPat [0, minLen .. ] . map onset
                       | g <  d = if d - g < minLen 
                                  then error "unquantised interval encountered"         
                                  else O : toPat gs (d:ds)
+                                 
 
+getMinGridSize :: ShortestNote -> MidiScore -> Time
+getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
+                        (d,0) -> d
+                        (d,m) -> error "getMinGridSize: invalid quantisation"
+                                 
 -- | Groups a list of patterns in fixed size lists, if the last list is not 
 -- of the same length, the remainder is filled with 'X's
 groupEvery :: Int -> Pattern -> [Pattern]

@@ -96,7 +96,9 @@ showMidiStats fp = do mf <- readMidi fp
                           do let m  = quantise ThirtySecond . midiFileToMidiScore $ mid
                                  tm = buildTickMap . getVoices $ m
                                  d  = gcIOId tm
-                             putStrLn (fp ++ '\t' : show (getTimeSig m) 
+                              putStr   "file\tkeys\tnr of voices\tgc IOI divider"
+                              putStrLn "ticks Per Beat\tnr Of Notes\tnote lengths"
+                              putStrLn (fp ++ '\t' : show (getTimeSig m) 
                                 ++ '\t' : show (getKey m)
                                 ++ '\t' : (show . length . getVoices $ m) 
                                 ++ '\t' : show d 

@@ -26,7 +26,7 @@ main = do arg <- getArgs
             ["-l", d] -> logDuplicates d
             ["-n", f] -> removeTrackLabels f
             ["-x", f] -> melodySkyline f -- o
-            ["-m", f] -> filterMelMidiFile f -- o
+            ["-m", f] -> filterMelMidiFile FourtyEighth f -- o
             _  -> putStrLn ("usage: -f <filename>  do melody finding\n"++
                             "   OR  -r <filename>  reverse track order\n"++
                             "   OR  -q <filename>  quantise midi track\n"++

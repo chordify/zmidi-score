@@ -14,16 +14,16 @@ import Control.Arrow      ( (***) )
 
 -- | Applies 'findMelody' to a 'MidiScore' but returns the score instead
 -- of just the 'Voice'.
-filterMelody :: MidiScore -> MidiScore
-filterMelody ms = ms {getVoices = [findMelodyQuant ms]}
+filterMelody :: ShortestNote -> MidiScore -> MidiScore
+filterMelody q ms = ms {getVoices = [findMelodyQuant q ms]}
 
 -- | Merges all 'Voices' and returns the melody using the skyline algorithm
 -- with a lowerlimet at the middle C. The melody is quantised by
 -- 'FourtyEighth' and the onverlapping notes are cut off. [more..?]
-findMelodyQuant :: MidiScore -> Voice
-findMelodyQuant = removeOverlap . head . getVoices 
-                                . sepHand (skyLineLowLim (Pitch (0,0))) 
-                                . quantise FourtyEighth . mergeTracks 
+findMelodyQuant :: ShortestNote ->  MidiScore -> Voice
+findMelodyQuant q = removeOverlap . head . getVoices 
+                                  . sepHand (skyLineLowLim (Pitch (0,0))) 
+                                  . quantise q . mergeTracks 
 
 -- | Returns the melody 'Voice', if there the 'MidiScore' has exactly 2 voices
 getMelody :: MidiScore -> Voice 
