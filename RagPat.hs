@@ -16,7 +16,7 @@ import MelFind            ( findMelodyQuant )
 test :: FilePath -> IO ()
 test f = do p <- readMidiScore f >>= return . scoreToPatterns FourtyEighth
             putStrLn . showPats $ p
-            print . matchBeatDiv straightGrid $ p
+            print . countMatch $ p
 
 showPats :: [Pattern] -> String
 showPats = intercalate "\n" . map show
@@ -59,6 +59,16 @@ matchBeatDiv :: Pattern -> [Pattern] -> Double
 matchBeatDiv p ps = let rs = filter (not . isNaN) . map (recall p) $ ps
                     in  sum rs / genericLength rs
 
+countMatch :: [Pattern] -> [Int]
+countMatch = foldr step [ 0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0  ] where
+
+  step :: Pattern -> [Int] -> [Int]
+  step x cs = zipWith doPattern x cs
+
+  doPattern :: Onset -> Int -> Int
+  doPattern  I c = succ c
+  doPattern  _ c = c
+               
 
 
 
