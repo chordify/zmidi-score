@@ -7,7 +7,7 @@ import MidiCommonIO       ( mapDirInDir, mapDir, readMidiScore )
 import System.Environment ( getArgs )
 import Data.List          ( intercalate )
 import Evaluation
-import MelFind            ( findMelody )
+import MelFind            ( findMelodyQuant )
 
 
 -- | do stuff with a 'MidiScore' ...
@@ -19,8 +19,8 @@ showPats :: [Pattern] -> String
 showPats = intercalate "\n" . map show
             
 scoreToPatterns :: MidiScore -> [Pattern]
-scoreToPatterns ms = groupEvery beatLen . toPat [0, minLen .. ] . map onset . findMelody 
-                   . quantise FourtyEighth $ ms where
+scoreToPatterns ms = groupEvery beatLen . toPat [0, minLen .. ] . map onset 
+                   . findMelodyQuant $ ms where
 
   minLen  = ticksPerBeat ms `div` beatLen
   beatLen = toGridUnit FourtyEighth
@@ -29,7 +29,7 @@ scoreToPatterns ms = groupEvery beatLen . toPat [0, minLen .. ] . map onset . fi
   toPat [] []  = []
   toPat _  []  = []
   toPat (g:gs) (d:ds) | g == d = I : toPat gs ds
-                      | g <  d = if d -  g < minLen 
+                      | g <  d = if d - g < minLen 
                                  then error "unquantised interval encountered"         
                                  else O : toPat gs (d:ds)
 

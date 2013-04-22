@@ -17,6 +17,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , midiScoreToMidiFile
                   -- * Quantisation
                   , quantise
+                  , removeOverlap
                   , ShortestNote (..)
                   , toGridUnit
                   , buildTickMap
@@ -258,14 +259,34 @@ type GridUnit = Time
 quantise :: ShortestNote -> MidiScore -> MidiScore
 quantise sn (MidiScore k ts dv mf tp _md vs) =  MidiScore k ts dv mf tp md' vs' where
   
-  vs' = map (map (snapEvent (dv `div` toGridUnit sn))) vs -- snap all events to a grid
-  md' = getMinDur . buildTickMap $ vs'-- the minimum duration might have changed
+  -- snap all events to a grid, and remove possible overlaps 
+  vs' = map (map (snapEvent (dv `div` toGridUnit sn))) vs 
+  -- the minimum duration might have changed
+  md' = getMinDur . buildTickMap $ vs'
           
   snapEvent :: GridUnit -> Timed ScoreEvent -> Timed ScoreEvent
   snapEvent g (Timed ons dat) = case dat of
     (NoteEvent c p v d) -> Timed (snap g ons) (NoteEvent c p v (snap g d))
     _                   -> Timed (snap g ons) dat
-
+    
+-- | Allthought 'quantise' also quantises the duration of 'NoteEvents', it can
+-- happen that melody notes do still overlap. This function removes the overlap
+-- N.B. This function is designed only for monophonic melodies, it does not 
+-- work on a polyphonic score.
+removeOverlap :: Voice -> Voice
+removeOverlap = foldr step [] where
+  
+  step :: Timed ScoreEvent -> [Timed ScoreEvent] -> [Timed ScoreEvent]
+  step t [] = [t]
+  step t n  = updateDur : n where
+    
+    updateDur :: Timed ScoreEvent
+    updateDur = case getEvent t of
+      (NoteEvent c p v d) -> let nxt = onset . head $ n
+                                 d'  = if onset t + d > nxt 
+                                       then nxt - onset t else d
+                             in  t {getEvent = NoteEvent c p v d'}
+      _                   -> t
     
 toGridUnit :: ShortestNote -> GridUnit
 toGridUnit Eighth       = 2

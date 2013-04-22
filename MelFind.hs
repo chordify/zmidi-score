@@ -2,8 +2,7 @@ module MelFind where -- ( findMelody ) where
 
 import ZMidiBasic
 
-import Data.List          ( intercalate, sortBy, groupBy, genericLength
-                          , intersectBy )
+import Data.List          ( sortBy, groupBy )
 import Data.Function      ( on )
 import Data.Ord           ( comparing )
 import Control.Arrow      ( (***) )
@@ -13,10 +12,18 @@ import Control.Arrow      ( (***) )
 -- Melody Finding
 --------------------------------------------------------------------------------
 
+-- | Applies 'findMelody' to a 'MidiScore' but returns the score instead
+-- of just the 'Voice'.
+filterMelody :: MidiScore -> MidiScore
+filterMelody ms = ms {getVoices = [findMelodyQuant ms]}
+
 -- | Merges all 'Voices' and returns the melody using the skyline algorithm
--- with a lowerlimet at the middle C. [more..?]
-findMelody :: MidiScore -> Voice
-findMelody = head. getVoices . sepHand (skyLineLowLim (Pitch (0,0))) . mergeTracks 
+-- with a lowerlimet at the middle C. The melody is quantised by
+-- 'FourtyEighth' and the onverlapping notes are cut off. [more..?]
+findMelodyQuant :: MidiScore -> Voice
+findMelodyQuant = removeOverlap . head . getVoices 
+                                . sepHand (skyLineLowLim (Pitch (0,0))) 
+                                . quantise FourtyEighth . mergeTracks 
 
 -- | Returns the melody 'Voice', if there the 'MidiScore' has exactly 2 voices
 getMelody :: MidiScore -> Voice 
