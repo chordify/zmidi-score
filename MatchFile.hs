@@ -32,8 +32,11 @@ import Control.Monad.State
 import RTCParser
 import MidiCommonIO      ( mapDir, mapDirInDir )
 import ZMidi.Core        ( readMidi )
-import ZMidiBasic        ( MidiScore (..), buildTickMap, midiFileToMidiScore )
+import ZMidiBasic        ( MidiScore (..), buildTickMap, midiFileToMidiScore
+                         , hasTimeSigs )
 
+import RagPat            ( getPercTripGridOnsets, hasValidTimeSig, hasValidGridSize)
+                         
 import System.Directory  ( copyFile, createDirectoryIfMissing, doesFileExist )
 import System.FilePath   ( (</>), (<.>), splitDirectories, takeFileName
                          , isPathSeparator, takeDirectory, makeValid
@@ -57,12 +60,11 @@ getRTCMeta rs f =
 --------------------------------------------------------------------------------
                          
 -- | Representing a Midi file path
-data RTCMidi = RTCMidi { baseDir    :: FilePath
-                       , folder     :: RTCFolder 
-                       , fileName   :: String
-                       , hasMeter   :: Bool
-                       , nrOfVoices :: Int
-                       , nrOfNoteLen:: Int
+data RTCMidi = RTCMidi { baseDir      :: FilePath
+                       , folder       :: RTCFolder 
+                       , fileName     :: String
+                       , nrOfVoices   :: Int
+                       , tripletPerc  :: Double
                        } deriving (Show, Eq)
  
 -- comparse the midi file based on statistics that might reflect the quality 
@@ -70,14 +72,20 @@ data RTCMidi = RTCMidi { baseDir    :: FilePath
 -- do the files have (less is better = smaller), c) how many tracks do the files
 -- have
 compareRTCMidi :: RTCMidi -> RTCMidi -> Ordering
-compareRTCMidi a b = 
-  case (hasMeter a, hasMeter b) of
+compareRTCMidi a b =  case compare (tripletPerc a) (tripletPerc b) of
+                        EQ  -> compare (nrOfVoices a) (nrOfVoices b) 
+                        x   -> x
+                      
+{-
+case (hasValidGridSize a, hasValidGridSize b) of
     (True , False) -> LT
     (False, True ) -> GT
-    _              -> case compare (nrOfNoteLen a) (nrOfNoteLen b) of
-                        EQ -> compare (nrOfVoices a) (nrOfVoices b)
-                        c  -> c
- 
+    _              -> case (hasValidTimeSig a, hasValidTimeSig b) of
+                       (True , False) -> LT
+                       (False, True ) -> GT
+                       _              -> compare (getPercTripGridOnsets a)
+                                                 (getPercTripGridOnsets b)
+-} 
  -- | Prints a match between a compendium entry and a midifile
 printMatch :: ((RTC,RTCMidi), Int) -> String
 printMatch ((r,m),s) = intercalate "\t" 
@@ -116,13 +124,18 @@ readRTCMidiPath bd fp = -- Path conversions
                                      case m of
                                        Left  _ -> return Nothing -- ignore erroneous files
                                        Right x -> do let sc = midiFileToMidiScore x
-                                                         vs = getVoices sc
-                                                         k  = null . getTimeSig $ sc   -- does it contain a time signature
-                                                         l  = length vs                -- how many tracks
-                                                         p  = size . buildTickMap $ vs -- how many different durations
-                                                         r  = RTCMidi bd rtcf (takeFileName fp)
-                                                                      k  l  p
-                                                     k `seq` l `seq` p `seq` r `seq` (return . Just $ r)  
+                                                         -- is the nr or ticks per beat dividable by 12
+                                                     case hasValidGridSize sc of 
+                                                       False -> return Nothing
+                                                                -- does it has a 2/4 4/4 2/2 meter
+                                                       True  -> case hasValidTimeSig sc of
+                                                                  False -> return Nothing
+                                                                  True  -> do let p = getPercTripGridOnsets sc
+                                                                              case p >=0.01 of
+                                                                                True  -> return Nothing
+                                                                                False ->  do let n = length . getVoices $ sc  
+                                                                                                 r = RTCMidi bd rtcf (takeFileName fp) n p
+                                                                                             n `seq` r `seq` (return . Just $ r)
 
 -- | returns the filepath of the RTCMidi
 toPath :: RTCMidi -> FilePath

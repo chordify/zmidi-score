@@ -24,7 +24,7 @@ printSubDiv f = do ms <- readMidiScore f
                    let p = segByTimeSig FourtyEighth ms
                        r = rankSubDiv p
                        t = percTripGridOnsets p
-                   when ( hasValidGridSize FourtyEighth ms ) 
+                   when ( hasValidGridSize ms ) 
                         ( putStrLn . intercalate "\t" $ 
                           [f, show t, show (t <= 0.01)
                             , show . snd . head $ r, show r] )
@@ -82,12 +82,15 @@ getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
 -- Important tests for valid midi files
 --------------------------------------------------------------------------------
 
-hasValidGridSize :: ShortestNote -> MidiScore -> Bool
-hasValidGridSize q ms = (ticksPerBeat ms `mod` toGridUnit q) == 0
+hasValidGridSize :: MidiScore -> Bool
+hasValidGridSize ms = (ticksPerBeat ms `mod` toGridUnit FourtyEighth) == 0
 
 -- | has the 'MididScore' a 'Straight' 'SubDiv'ision
 isStraight :: MidiScore -> Bool
-isStraight = (<= 0.01) . percTripGridOnsets . segByTimeSig FourtyEighth
+isStraight = (<= 0.01) . getPercTripGridOnsets 
+
+getPercTripGridOnsets :: MidiScore -> Double
+getPercTripGridOnsets = percTripGridOnsets . segByTimeSig FourtyEighth
 
 -- | has the 'MidiScore' a meter we can use for analysis
 hasValidTimeSig :: MidiScore -> Bool

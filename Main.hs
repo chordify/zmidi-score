@@ -13,10 +13,8 @@ import System.Console.ParseArgs
 import Control.Monad      ( void )
 import RTCParser          ( readRTC, RTC (..) )
 import MatchFile          ( getRTCMeta
-                          -- , readRTCMidiPath, readRTCMidis, match
-                          -- , printMatch, matchAll, copyRTCMidi, groupRTCMidis
-                           )
-import RagPat              ( printFileSubDiv, printSubDiv, hasValidTimeSig )
+                          , readRTCMidis, matchAll, copyRTCMidi, groupRTCMidis )
+import RagPat             ( printFileSubDiv, printSubDiv, hasValidTimeSig )
 
 data RagArgs = Mode| MidiDir | RTCFile | MidiFile deriving (Eq, Ord, Show)
 
@@ -25,7 +23,7 @@ myArgs = [
           Arg { argIndex = Mode,
                  argAbbr  = Just 'm',
                  argName  = Just "mode",
-                 argData  = argDataRequired "rtc|stat|subdiv" ArgtypeString,
+                 argData  = argDataRequired "rtc|stat|subdiv|mkrtc" ArgtypeString,
                  argDesc  = "Mode of operation"
                }
          , Arg { argIndex = MidiDir,
@@ -58,26 +56,11 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                                       void . mapDirInDir (mapDir' showMidiStats) $ d
             ("subdiv", Left f ) -> printFileSubDiv f
             ("subdiv", Right d) -> void . mapDirInDir (mapDir' printSubDiv) $ d
-            ("rtc"   , Right d) -> do case getArg arg RTCFile of
-                                        Just c  -> mainRTC c d
-                                        Nothing -> usageError arg 
-                                                   "no compendium specified"
-            (m     , _      ) -> usageError arg ("invalid mode: " ++ m )
-            
-mainRTC :: FilePath -> FilePath -> IO ()
-mainRTC comp d = 
-  do c <- readRTC comp
-     void . mapDirInDir (mapDir' (print . rtcid . getRTCMeta c)) $ d 
+            ("mkrtc" , Right d) -> getCompendium arg >>= createSubCorpus d 
+            ("rtc"   , Right d) -> getCompendium arg >>= mainRTC d
+            (m       , _      ) -> usageError arg ("invalid mode: " ++ m )
 
 
-{-
-createSubCorpus :: FilePath -> FilePath -> IO ()
-createSubCorpus comp dir = do c <- readRTC comp
-                              m <- readRTCMidis dir
-                              mapM_ (copyRTCMidi "D:\\temp\\ragtimesSubSet") 
-                                    (matchAll m (groupRTCMidis m) c)
-
--}
 
 -- | Checks for either a directory or file argument, returns them in an Either
 -- or throws an error otherwise
@@ -88,7 +71,22 @@ fileOrDir arg = case (getArg arg MidiFile, getArg arg MidiDir) of
    (_     , Just d) -> Right d
    (_     , _     ) -> usageError arg "No directory or file specified"
           
+getCompendium :: Args RagArgs -> IO [RTC]
+getCompendium arg = case getArg arg RTCFile of
+                      Just c  -> readRTC c
+                      Nothing -> usageError arg "no compendium specified"
 
+-- | stuff to do with the rtc flag                      
+mainRTC :: FilePath -> [RTC] -> IO ()
+mainRTC d c = void . mapDirInDir (mapDir' (print . rtcid . getRTCMeta c)) $ d 
+
+-- | creates a subcorpus
+createSubCorpus :: FilePath -> [RTC] -> IO ()
+createSubCorpus dir c = do m <- readRTCMidis dir
+                           mapM_ (copyRTCMidi "D:\\temp\\ragtimesSubSet") 
+                                 (matchAll m (groupRTCMidis m) c)
+
+          
 -- | do stuff with a 'MidiScore' ...
 doScore :: FilePath -> IO ()
 doScore f = readMidiScore f >>= putStrLn . showMidiScore
