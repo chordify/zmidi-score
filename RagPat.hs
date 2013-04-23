@@ -5,7 +5,9 @@ import ZMidiBasic
 import MidiCommonIO       ( mapDirInDir, mapDir, readMidiScore )
 
 import System.Environment ( getArgs )
-import Data.List          ( intercalate, genericLength )
+import Data.List          ( intercalate, genericLength, sortBy )
+import Data.Ord           ( comparing )
+import Control.Arrow      ( first )
 import Evaluation
 import MelFind            ( findMelodyQuant )
 
@@ -18,7 +20,7 @@ import Math.Statistics    ( correl )
 test :: FilePath -> IO ()
 test f = do p <- readMidiScore f >>= return . scoreToPatterns FourtyEighth
             putStrLn . showPats $ p
-            print . correlPat swingGrid $ p
+            print . rankSubDiv $ p
 
 showPats :: [Pattern] -> String
 showPats = intercalate "\n" . map show
@@ -57,13 +59,22 @@ groupEvery x p | glen == x =  g : groupEvery x r
 -- Matching beat subdivisions
 --------------------------------------------------------------------------------
 
-matchBeatDiv :: Pattern -> [Pattern] -> Double
-matchBeatDiv p ps = let rs = filter (not . isNaN) . map (recall p) $ ps
-                    in  sum rs / genericLength rs
+-- ranks different 'Subdiv'isions based on how well the correlate to the data
+rankSubDiv :: [Pattern] -> [(Double, DivLab)]
+rankSubDiv ps = reverse . sortBy (comparing fst) . map matchBeatDiv $ pats where
 
+  matchBeatDiv :: SubDiv -> (Double, DivLab)
+  matchBeatDiv s@(p, _) = let rs = filter (not . isNaN) . map (recall p) $ ps
+                          in  first (const $ sum rs / genericLength rs) s
+
+-- calculates the correlation between a template 'Pattern' and a list of data
+-- 'Patterns'. The pattern is summarised by 'countMatch's
 correlPat :: Pattern -> [Pattern] -> Double
 correlPat p s = correl (toDouble p) (countMatch s)
-                    
+               
+-- | Given a template 'Pattern' counts the number of onsets in each position and
+-- normalises this list by dividing all number by the highest count, yielding
+-- a list of 'Doubles' between 0 and 1.               
 countMatch :: [Pattern] -> [Double]
 countMatch = normalise . foldr step [ 0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0  ] where
 
@@ -78,7 +89,14 @@ countMatch = normalise . foldr step [ 0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0  ] w
   normalise i = let m = fromIntegral . maximum $ i 
                 in  map (\x -> fromIntegral x / m) i
 
+-- | Labels for the different subdivisions
+data DivLab = Straight | Swing | Evenly deriving (Show, Eq)
+type SubDiv = (Pattern, DivLab)
 
+-- all patterns
+pats :: [SubDiv]
+pats =  [(straightGrid, Straight), (swingGrid, Swing), (evenDistGrid, Evenly)]
+                
 straightGrid, swingGrid, evenDistGrid :: Pattern
 straightGrid = [ I, O, O, I, O, O, I, O, O, I, O, O ]
 swingGrid    = [ I, O, I, O, I, O, I, O, I, O, I, O ]
@@ -88,7 +106,7 @@ toDouble :: Pattern -> [Double]
 toDouble = map convert where
   
   convert :: Onset -> Double
-  convert I = 1.0
+  convert I = 0.8
   convert _ = 0.0
 
 --------------------------------------------------------------------------------
