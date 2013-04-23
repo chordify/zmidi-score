@@ -6,7 +6,7 @@ import MidiCommonIO       ( readMidiScore )
 
 import Data.List          ( intercalate, genericLength, sortBy )
 import Data.Ord           ( comparing )
-import Control.Arrow      ( first )
+import Control.Arrow      ( first, second )
 import Control.Monad      ( when )
 import Evaluation
 import MelFind            ( findMelodyQuant )
@@ -21,10 +21,13 @@ import Math.Statistics    ( correl )
 
 printSubDiv :: FilePath -> IO ()
 printSubDiv f = do ms <- readMidiScore f 
-                   let r = rankSubDiv . segByTimeSig FourtyEighth $ ms
+                   let p = segByTimeSig FourtyEighth ms
+                       r = rankSubDiv p
+                       t = percTripGridOnsets p
                    when ( hasValidGridSize FourtyEighth ms ) 
-                        ( putStrLn . intercalate "\t" $
-                                            [f, show . snd . head $ r, show r] )
+                        ( putStrLn . intercalate "\t" $ 
+                          [f, show t, show (t <= 0.01)
+                            , show . snd . head $ r, show r] )
 
 -- | do stuff with a 'MidiScore' ...
 printFileSubDiv :: FilePath -> IO ()
@@ -32,6 +35,7 @@ printFileSubDiv f = do p <- readMidiScore f
                          >>= return . segByTimeSig FourtyEighth
                        putStrLn . showPats $ p
                        print . rankSubDiv $ p
+                       print . percTripGridOnsets $ p
 
 showPats :: [Pattern] -> String
 showPats = intercalate "\n" . map show
@@ -83,8 +87,7 @@ hasValidGridSize q ms = (ticksPerBeat ms `mod` toGridUnit q) == 0
 
 -- | has the 'MididScore' a 'Straight' 'SubDiv'ision
 isStraight :: MidiScore -> Bool
-isStraight = (Straight ==) . snd . head 
-                           . rankSubDiv . segByTimeSig FourtyEighth
+isStraight = (<= 0.01) . percTripGridOnsets . segByTimeSig FourtyEighth
 
 -- | has the 'MidiScore' a meter we can use for analysis
 hasValidTimeSig :: MidiScore -> Bool
@@ -140,6 +143,7 @@ pats :: [SubDiv]
 pats =  [(straightGrid, Straight), (swingGrid, Swing), (evenDistGrid, Evenly)]
                 
 straightGrid, swingGrid, evenDistGrid :: Pattern
+--               0  1  2  3  4  5  6  7  8  9 10 11 
 straightGrid = [ I, O, O, I, O, O, I, O, O, I, O, O ]
 swingGrid    = [ I, O, I, O, I, O, I, O, I, O, I, O ]
 evenDistGrid = [ I, I, I, I, I, I, I, I, I, I, I, I ]
@@ -149,7 +153,29 @@ toDouble = map convert where
   
   convert :: Onset -> Double
   convert I = 0.8
-  convert _ = 0.0
+  convert _ = 0.0  
+  
+percTripGridOnsets :: [Pattern] -> Double
+percTripGridOnsets ps = 
+  let (trip,rest) = foldr step (0,0) ps
+
+      step :: Pattern -> (Int, Int) -> (Int, Int)
+      step p r = r `seq` foldr doPat r . zipWith (,) [0..11] $ p where 
+        
+        -- increase the first when off the straight grid
+        doPat :: (Int, Onset) -> (Int, Int) -> (Int, Int)
+        doPat (1 , I) x = first  succ x
+        doPat (2 , I) x = first  succ x
+        doPat (4 , I) x = first  succ x
+        doPat (5 , I) x = first  succ x
+        doPat (7 , I) x = first  succ x
+        doPat (8 , I) x = first  succ x
+        doPat (10, I) x = first  succ x
+        doPat (11, I) x = first  succ x
+        doPat _       x = second succ x
+        
+  in fromIntegral trip / fromIntegral (trip + rest)
+
 
 --------------------------------------------------------------------------------
 -- Matching rhythmic patterns
