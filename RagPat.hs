@@ -21,7 +21,7 @@ import Math.Statistics    ( correl )
 
 printSubDiv :: FilePath -> IO ()
 printSubDiv f = do ms <- readMidiScore f 
-                   let r = rankSubDiv . scoreToPatterns FourtyEighth $ ms
+                   let r = rankSubDiv . segByTimeSig FourtyEighth $ ms
                    when ( hasValidGridSize FourtyEighth ms ) 
                         ( putStrLn . intercalate "\t" $
                                             [f, show . snd . head $ r, show r] )
@@ -29,7 +29,7 @@ printSubDiv f = do ms <- readMidiScore f
 -- | do stuff with a 'MidiScore' ...
 printFileSubDiv :: FilePath -> IO ()
 printFileSubDiv f = do p <- readMidiScore f 
-                         >>= return . scoreToPatterns FourtyEighth
+                         >>= return . segByTimeSig FourtyEighth
                        putStrLn . showPats $ p
                        print . rankSubDiv $ p
 
@@ -40,20 +40,23 @@ showPats = intercalate "\n" . map show
 -- Converting to patterns
 --------------------------------------------------------------------------------
 
+segByTimeSig :: ShortestNote -> MidiScore -> [Pattern]
+segByTimeSig q ms = scoreToPatterns (getMinGridSize q ms) (toGridUnit q) 
+                  . findMelodyQuant q $ ms
+
+-- test = scoreToPatterns . findMelodyQuant q $ ms
+
 -- | Takes a midiscore, quantises it, finds the melody, and turns it into a 
 -- 'Pattern' list, where every 'Pattern' represents a beat
-scoreToPatterns :: ShortestNote -> MidiScore -> [Pattern]
-scoreToPatterns q ms = groupEvery (toGridUnit q) . toPat [0, minLen .. ] 
-                     . map onset . findMelodyQuant q $ ms where
-
-  minLen  = getMinGridSize q ms
+scoreToPatterns :: Time -> Int -> Voice -> [Pattern]
+scoreToPatterns ml gu = groupEvery gu . toPat [0, ml .. ] . map onset  where
   
   toPat :: [Time] -> [Time] -> [Onset]
   toPat [] []  = []
-  toPat [] _   = []
-  toPat _  []  = error "no more grid?" -- impossible?
+  toPat [] _   = error "no more grid?" -- impossible?
+  toPat _  []  = []
   toPat (g:gs) (d:ds) | g == d = I : toPat gs ds
-                      | g <  d = if d - g < minLen 
+                      | g <  d = if d - g < ml
                                  then error "unquantised interval encountered"
                                  else O : toPat gs (d:ds)
                                  
@@ -78,10 +81,12 @@ getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
 hasValidGridSize :: ShortestNote -> MidiScore -> Bool
 hasValidGridSize q ms = (ticksPerBeat ms `mod` toGridUnit q) == 0
 
+-- | has the 'MididScore' a 'Straight' 'SubDiv'ision
 isStraight :: MidiScore -> Bool
 isStraight = (Straight ==) . snd . head 
-                           . rankSubDiv . scoreToPatterns FourtyEighth
+                           . rankSubDiv . segByTimeSig FourtyEighth
 
+-- | has the 'MidiScore' a meter we can use for analysis
 hasValidTimeSig :: MidiScore -> Bool
 hasValidTimeSig = or . map isValid . getTimeSig where
 

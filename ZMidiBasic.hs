@@ -55,7 +55,7 @@ import Data.Int            ( Int8 )
 import Data.Char           ( toLower )
 import Data.Maybe          ( catMaybes, mapMaybe, isJust )
 import Data.Ord            ( comparing )
-import Data.List           ( partition, intersperse, sortBy, sort
+import Data.List           ( partition, intersperse, sortBy, sort, nub
                            , genericLength, find )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( insertWith, IntMap, findMin, keys, delete )
@@ -347,7 +347,7 @@ buildTickMap = foldr oneVoice M.empty where
 -- | Transforms a 'MidiFile' into a 'MidiScore'
 midiFileToMidiScore :: MidiFile -> MidiScore
 midiFileToMidiScore mf = MidiScore (select isKeyChange keyChange NoKey meta) 
-                                   (select isTimeSig   tsChange  NoTimeSig meta) 
+                                   (nub $ select isTimeSig tsChange NoTimeSig meta) 
                                    (getDivision . mf_header $ mf)
                                    (hdr_format  . mf_header $ mf)
                                    (select isTempoChange tempChange 500000 meta)
@@ -367,6 +367,9 @@ midiFileToMidiScore mf = MidiScore (select isKeyChange keyChange NoKey meta)
   select f c def ses = case filter f ses of
     [] -> [Timed 0 def]
     t  -> map (fmap c) t
+    
+  -- tsEq Timed TimeSig -> Timed TimeSig -> Bool
+  -- tsEq 
     
   -- Returns the time division of the MidiScore, which is the length of a
   -- quarter note
