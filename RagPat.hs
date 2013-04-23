@@ -82,6 +82,15 @@ isStraight :: MidiScore -> Bool
 isStraight = (Straight ==) . snd . head 
                            . rankSubDiv . scoreToPatterns FourtyEighth
 
+hasValidTimeSig :: MidiScore -> Bool
+hasValidTimeSig = or . map isValid . getTimeSig where
+
+  isValid :: Timed TimeSig -> Bool
+  isValid ts = case getEvent ts of
+    (TimeSig 4 4 _ _) -> True
+    (TimeSig 2 4 _ _) -> True
+    (TimeSig 2 2 _ _) -> True
+    _                 -> False
 
 --------------------------------------------------------------------------------
 -- Matching beat subdivisions

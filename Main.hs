@@ -16,7 +16,7 @@ import MatchFile          ( getRTCMeta
                           -- , readRTCMidiPath, readRTCMidis, match
                           -- , printMatch, matchAll, copyRTCMidi, groupRTCMidis
                            )
-import RagPat              ( printFileSubDiv, printSubDiv )
+import RagPat              ( printFileSubDiv, printSubDiv, hasValidTimeSig )
 
 data RagArgs = Mode| MidiDir | RTCFile | MidiFile deriving (Eq, Ord, Show)
 
@@ -52,7 +52,10 @@ main :: IO ()
 main = do arg <- parseArgsIO ArgsComplete myArgs
           case (getRequiredArg arg Mode, fileOrDir arg) of
             ("stat"  , Left f ) -> doScore f
-            ("stat"  , Right d) -> void . mapDirInDir (mapDir' showMidiStats) $ d
+            ("stat"  , Right d) -> do putStr   "file\ttime signature\tis valid time sig\t"
+                                      putStr   "keys\tnr of voices\tgc IOI divider\t"
+                                      putStrLn "ticks Per Beat\tnr Of Notes\tnote lengths"
+                                      void . mapDirInDir (mapDir' showMidiStats) $ d
             ("subdiv", Left f ) -> printFileSubDiv f
             ("subdiv", Right d) -> void . mapDirInDir (mapDir' printSubDiv) $ d
             ("rtc"   , Right d) -> do case getArg arg RTCFile of
@@ -96,12 +99,11 @@ showMidiStats fp = do mf <- readMidi fp
                       case mf of
                         Left  err -> putStrLn (fp ++ '\t' : show err)
                         Right mid -> 
-                          do let m  = quantise ThirtySecond . midiFileToMidiScore $ mid
+                          do let m  = quantise FourtyEighth . midiFileToMidiScore $ mid
                                  tm = buildTickMap . getVoices $ m
                                  d  = gcIOId tm
-                             putStr   "file\tkeys\tnr of voices\tgc IOI divider"
-                             putStrLn "ticks Per Beat\tnr Of Notes\tnote lengths"
                              putStrLn (fp ++ '\t' : show (getTimeSig m) 
+                                ++ '\t' : (show . hasValidTimeSig $ m)
                                 ++ '\t' : show (getKey m)
                                 ++ '\t' : (show . length . getVoices $ m) 
                                 ++ '\t' : show d 

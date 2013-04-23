@@ -608,8 +608,9 @@ toPitch = Pitch . midiNrToPitch where
 invalidMidiNumberError :: Show a => a -> b
 invalidMidiNumberError w = error ("invalid MIDI note number" ++ show w)
 
+-- | Returns True if the 'MidiScore' has time signatures other than 'NoTimeSig'
 hasTimeSigs :: MidiScore -> Bool
-hasTimeSigs = null . filter (not . (== NoTimeSig) . getEvent) . getTimeSig
+hasTimeSigs = not . null . filter (not . (== NoTimeSig) . getEvent) . getTimeSig
 
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities
