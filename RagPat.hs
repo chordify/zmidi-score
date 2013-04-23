@@ -1,13 +1,13 @@
-module Main where
+module RagPat where
 
-import ZMidi.Core         ( readMidi )
+-- import ZMidi.Core         ( readMidi )
 import ZMidiBasic
-import MidiCommonIO       ( mapDirInDir, mapDir, readMidiScore )
+import MidiCommonIO       ( readMidiScore )
 
-import System.Environment ( getArgs )
 import Data.List          ( intercalate, genericLength, sortBy )
 import Data.Ord           ( comparing )
 import Control.Arrow      ( first )
+import Control.Monad      ( when )
 import Evaluation
 import MelFind            ( findMelodyQuant )
 
@@ -16,11 +16,22 @@ import Math.Statistics    ( correl )
 -- import Debug.Trace
 -- traceShow' a = traceShow a a 
 
+-- doCollection :: FilePath -> IO ()
+-- doCollection dir = mapDirInDir 
+
+printSubDiv :: FilePath -> IO ()
+printSubDiv f = do ms <- readMidiScore f 
+                   let r = rankSubDiv . scoreToPatterns FourtyEighth $ ms
+                   when ( hasValidGridSize FourtyEighth ms ) 
+                        ( putStrLn . intercalate "\t" $
+                                            [f, show . snd . head $ r, show r] )
+
 -- | do stuff with a 'MidiScore' ...
-test :: FilePath -> IO ()
-test f = do p <- readMidiScore f >>= return . scoreToPatterns FourtyEighth
-            putStrLn . showPats $ p
-            print . rankSubDiv $ p
+printFileSubDiv :: FilePath -> IO ()
+printFileSubDiv f = do p <- readMidiScore f 
+                         >>= return . scoreToPatterns FourtyEighth
+                       putStrLn . showPats $ p
+                       print . rankSubDiv $ p
 
 showPats :: [Pattern] -> String
 showPats = intercalate "\n" . map show
@@ -35,17 +46,12 @@ scoreToPatterns q ms = groupEvery (toGridUnit q) . toPat [0, minLen .. ]
   
   toPat :: [Time] -> [Time] -> [Onset]
   toPat [] []  = []
-  toPat _  []  = []
+  toPat [] _   = []
+  toPat _  []  = error "no more grid?" -- impossible?
   toPat (g:gs) (d:ds) | g == d = I : toPat gs ds
                       | g <  d = if d - g < minLen 
                                  then error "unquantised interval encountered"         
                                  else O : toPat gs (d:ds)
-                                 
-
-getMinGridSize :: ShortestNote -> MidiScore -> Time
-getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
-                        (d,0) -> d
-                        (d,m) -> error "getMinGridSize: invalid quantisation"
                                  
 -- | Groups a list of patterns in fixed size lists, if the last list is not 
 -- of the same length, the remainder is filled with 'X's
@@ -54,6 +60,24 @@ groupEvery x p | glen == x =  g : groupEvery x r
                | otherwise = [g ++ replicate (x - glen) X]
   where (g,r) = splitAt x p 
         glen  = length g
+                                 
+
+getMinGridSize :: ShortestNote -> MidiScore -> Time
+getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
+                        (d,0) -> d
+                        _     -> error "getMinGridSize: invalid quantisation"
+     
+--------------------------------------------------------------------------------
+-- Important tests for valid midi files
+--------------------------------------------------------------------------------
+
+hasValidGridSize :: ShortestNote -> MidiScore -> Bool
+hasValidGridSize q ms = (ticksPerBeat ms `mod` toGridUnit q) == 0
+
+isStraight :: MidiScore -> Bool
+isStraight = (Straight ==) . snd . head 
+                           . rankSubDiv . scoreToPatterns FourtyEighth
+
 
 --------------------------------------------------------------------------------
 -- Matching beat subdivisions
@@ -135,7 +159,7 @@ instance Matchable Onset where
   
 type Pattern = [Onset]
 
-
+untied1, untied2, untied3, untied4, tied1, tied2, tiedStr :: Pattern
 
 untied1 = [ I, I, O, I,  X, X, X, X,  X, X, X, X,  X, X, X, X ]
 untied2 = [ X, X, X, X,  I, I, O, I,  X, X, X, X,  X, X, X, X ]
@@ -145,14 +169,6 @@ untied4 = [ X, X, X, X,  X, X, X, X,  X, X, X, X,  I, I, O, I ]
 tied1   = [ I, O, I, I,  O, I, I, O,  X, X, X, X,  X, X, X, X ]
 tied2   = [ X, X, X, X,  X, X, X, X,  I, O, I, I,  O, I, I, O ]
 tiedStr = [ X, X, X, X,  I, O, I, I,  O, I, I, O,  X, X, X, X ]
-
-
-
-
--- oeq :: Onset -> Onset 
-             
--- type Bar    = [Bool] -- This should be a fixed length list
--- type Rhythm = [Bar]
 
 
 

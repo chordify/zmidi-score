@@ -16,6 +16,7 @@ import MatchFile          ( getRTCMeta
                           -- , readRTCMidiPath, readRTCMidis, match
                           -- , printMatch, matchAll, copyRTCMidi, groupRTCMidis
                            )
+import RagPat              ( printFileSubDiv, printSubDiv )
 
 data RagArgs = Mode| MidiDir | RTCFile | MidiFile deriving (Eq, Ord, Show)
 
@@ -24,7 +25,7 @@ myArgs = [
           Arg { argIndex = Mode,
                  argAbbr  = Just 'm',
                  argName  = Just "mode",
-                 argData  = argDataRequired "<rtc|stat>" ArgtypeString,
+                 argData  = argDataRequired "rtc|stat|subdiv" ArgtypeString,
                  argDesc  = "Mode of operation"
                }
          , Arg { argIndex = MidiDir,
@@ -50,12 +51,14 @@ myArgs = [
 main :: IO ()
 main = do arg <- parseArgsIO ArgsComplete myArgs
           case (getRequiredArg arg Mode, fileOrDir arg) of
-            ("stat", Left f ) -> doScore f
-            ("stat", Right d) -> void . mapDirInDir (mapDir' showMidiStats) $ d
-            ("rtc" , Right d) -> do case getArg arg RTCFile of
-                                      Just c  -> mainRTC c d
-                                      Nothing -> usageError arg 
-                                                 "no compendium specified"
+            ("stat"  , Left f ) -> doScore f
+            ("stat"  , Right d) -> void . mapDirInDir (mapDir' showMidiStats) $ d
+            ("subdiv", Left f ) -> printFileSubDiv f
+            ("subdiv", Right d) -> void . mapDirInDir (mapDir' printSubDiv) $ d
+            ("rtc"   , Right d) -> do case getArg arg RTCFile of
+                                        Just c  -> mainRTC c d
+                                        Nothing -> usageError arg 
+                                                   "no compendium specified"
             (m     , _      ) -> usageError arg ("invalid mode: " ++ m )
             
 mainRTC :: FilePath -> FilePath -> IO ()
