@@ -9,6 +9,8 @@ import Data.List          ( intercalate, genericLength )
 import Evaluation
 import MelFind            ( findMelodyQuant )
 
+import Math.Statistics    ( correl )
+
 -- import Debug.Trace
 -- traceShow' a = traceShow a a 
 
@@ -16,7 +18,7 @@ import MelFind            ( findMelodyQuant )
 test :: FilePath -> IO ()
 test f = do p <- readMidiScore f >>= return . scoreToPatterns FourtyEighth
             putStrLn . showPats $ p
-            print . countMatch $ p
+            print . correlPat swingGrid $ p
 
 showPats :: [Pattern] -> String
 showPats = intercalate "\n" . map show
@@ -59,8 +61,11 @@ matchBeatDiv :: Pattern -> [Pattern] -> Double
 matchBeatDiv p ps = let rs = filter (not . isNaN) . map (recall p) $ ps
                     in  sum rs / genericLength rs
 
-countMatch :: [Pattern] -> [Int]
-countMatch = foldr step [ 0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0  ] where
+correlPat :: Pattern -> [Pattern] -> Double
+correlPat p s = correl (toDouble p) (countMatch s)
+                    
+countMatch :: [Pattern] -> [Double]
+countMatch = normalise . foldr step [ 0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0  ] where
 
   step :: Pattern -> [Int] -> [Int]
   step x cs = zipWith doPattern x cs
@@ -69,13 +74,22 @@ countMatch = foldr step [ 0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0  ] where
   doPattern  I c = succ c
   doPattern  _ c = c
                
-
+  normalise :: [Int] -> [Double]
+  normalise i = let m = fromIntegral . maximum $ i 
+                in  map (\x -> fromIntegral x / m) i
 
 
 straightGrid, swingGrid, evenDistGrid :: Pattern
-straightGrid = [ X, O, O, I, O, O, X, O, O, I, O, O ]
-swingGrid    = [ X, O, I, O, I, O, X, O, I, O, I, O ]
+straightGrid = [ I, O, O, I, O, O, I, O, O, I, O, O ]
+swingGrid    = [ I, O, I, O, I, O, I, O, I, O, I, O ]
 evenDistGrid = [ I, I, I, I, I, I, I, I, I, I, I, I ]
+
+toDouble :: Pattern -> [Double]
+toDouble = map convert where
+  
+  convert :: Onset -> Double
+  convert I = 1.0
+  convert _ = 0.0
 
 --------------------------------------------------------------------------------
 -- Matching rhythmic patterns
