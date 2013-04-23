@@ -30,6 +30,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , toPitch
                   , getPitch
                   , pitchClass
+                  , hasTimeSigs
                   -- * MidiFile Utilities
                   , hasNotes 
                   , isNoteOnEvent
@@ -257,17 +258,35 @@ type GridUnit = Time
 
 -- | Quantises a 'MidiScore' snapping all events to a 1/32 grid
 quantise :: ShortestNote -> MidiScore -> MidiScore
-quantise sn (MidiScore k ts dv mf tp _md vs) =  MidiScore k ts dv mf tp md' vs' where
+quantise sn (MidiScore k ts dv mf tp _md vs) =  MidiScore k ts' dv mf tp md' vs' where
   
+  gu = dv `div` toGridUnit sn
   -- snap all events to a grid, and remove possible overlaps 
-  vs' = map (map (snapEvent (dv `div` toGridUnit sn))) vs 
+  vs' = map (map snapEvent ) vs 
   -- the minimum duration might have changed
   md' = getMinDur . buildTickMap $ vs'
-          
-  snapEvent :: GridUnit -> Timed ScoreEvent -> Timed ScoreEvent
-  snapEvent g (Timed ons dat) = case dat of
-    (NoteEvent c p v d) -> Timed (snap g ons) (NoteEvent c p v (snap g d))
-    _                   -> Timed (snap g ons) dat
+  -- also align the time signatures to a grid
+  ts' = map snapTS ts
+  
+  snapTS :: Timed TimeSig -> Timed TimeSig
+  snapTS t = t {onset = snap gu $ onset t}
+  
+  snapEvent :: Timed ScoreEvent -> Timed ScoreEvent
+  snapEvent (Timed ons dat) = case dat of
+    (NoteEvent c p v d) -> Timed (snap gu ons) (NoteEvent c p v (snap gu d))
+    _                   -> Timed (snap gu ons) dat
+    
+  -- snaps a 'Time' to a grid
+  snap :: GridUnit -> Time -> Time
+  snap g t | m == 0  = t               -- score event is on the grid
+           | m >  0  = if (g - m) >= m -- score event is off the grid
+                       -- and closer to the past grid point
+                       then    d  * g  -- snap backwards
+                       -- or closer to the next grid point
+                       else (1+d) * g  -- snap forwards
+           | otherwise = error "Negative time stamp found"
+               where (d,m) = t `divMod` g
+
     
 -- | Allthought 'quantise' also quantises the duration of 'NoteEvents', it can
 -- happen that melody notes do still overlap. This function removes the overlap
@@ -294,16 +313,6 @@ toGridUnit Sixteenth    = 4
 toGridUnit ThirtySecond = 8
 toGridUnit FourtyEighth = 12
 toGridUnit SixtyFourth  = 16
-    
-snap :: GridUnit -> Time -> Time
-snap g t | m == 0  = t               -- score event is on the grid
-         | m >  0  = if (g - m) >= m -- score event is off the grid
-                     -- and closer to the past grid point
-                     then    d  * g  -- snap backwards
-                     -- or closer to the next grid point
-                     else (1+d) * g  -- snap forwards
-         | otherwise = error "Negative time stamp found"
-             where (d,m) = t `divMod` g
 
 -- | The Inter Onset Interval that is the greates common divider. It can be
 --used to estimate wheter a track is quantised or not.
@@ -598,6 +607,9 @@ toPitch = Pitch . midiNrToPitch where
 
 invalidMidiNumberError :: Show a => a -> b
 invalidMidiNumberError w = error ("invalid MIDI note number" ++ show w)
+
+hasTimeSigs :: MidiScore -> Bool
+hasTimeSigs = null . filter (not . (== NoTimeSig) . getEvent) . getTimeSig
 
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities

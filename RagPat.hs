@@ -36,6 +36,10 @@ printFileSubDiv f = do p <- readMidiScore f
 showPats :: [Pattern] -> String
 showPats = intercalate "\n" . map show
 
+--------------------------------------------------------------------------------
+-- Converting to patterns
+--------------------------------------------------------------------------------
+
 -- | Takes a midiscore, quantises it, finds the melody, and turns it into a 
 -- 'Pattern' list, where every 'Pattern' represents a beat
 scoreToPatterns :: ShortestNote -> MidiScore -> [Pattern]
@@ -50,7 +54,7 @@ scoreToPatterns q ms = groupEvery (toGridUnit q) . toPat [0, minLen .. ]
   toPat _  []  = error "no more grid?" -- impossible?
   toPat (g:gs) (d:ds) | g == d = I : toPat gs ds
                       | g <  d = if d - g < minLen 
-                                 then error "unquantised interval encountered"         
+                                 then error "unquantised interval encountered"
                                  else O : toPat gs (d:ds)
                                  
 -- | Groups a list of patterns in fixed size lists, if the last list is not 
