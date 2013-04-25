@@ -18,12 +18,19 @@ import Math.Statistics    ( correl )
 
 -- | do stuff with a 'MidiScore' ...
 printFilePatMat :: FilePath -> IO ()
-printFilePatMat f = do ms <-readMidiScore f 
-                       let ts = getEvent . head . getTimeSig $ ms
-                       putStrLn . showPats . reGroup ts 
-                                           . segByTimeSig FourtyEighth  $ ms
-                       print ts
-
+printFilePatMat f =  
+  do ms <-readMidiScore f 
+     let ts = getEvent . head . getTimeSig $ ms
+         ps = reGroup ts . segByTimeSig FourtyEighth $ ms
+     putStrLn . showPats $ ps
+     print ts
+     putStrLn ("untied1: " ++ (show $ matchPat (upScalePat untied1 ts) ps))
+     putStrLn ("untied2: " ++ (show $ matchPat (upScalePat untied2 ts) ps))
+     putStrLn ("untied3: " ++ (show $ matchPat (upScalePat untied3 ts) ps))
+     putStrLn ("untied4: " ++ (show $ matchPat (upScalePat untied4 ts) ps))
+     putStrLn ("tied1  : " ++ (show $ matchPat (upScalePat tied1   ts) ps))
+     putStrLn ("tied2  : " ++ (show $ matchPat (upScalePat tied2   ts) ps))
+     putStrLn ("tiedStr: " ++ (show $ matchPat (upScalePat tiedStr ts) ps))
 
 --------------------------------------------------------------------------------
 -- Analysing subdivisions
@@ -208,8 +215,12 @@ percTripGridOnsets ps =
 -- Matching rhythmic patterns
 --------------------------------------------------------------------------------
 
-matchAll :: Pattern -> [Pattern] -> (Int, Int)
-matchAll = undefined
+matchPat :: Pattern -> [Pattern] -> (Int, Int)
+matchPat p ps = foldr step (0,0) ps where
+  
+  step :: Pattern -> (Int,Int) -> (Int, Int)
+  step x r | perfect p x = first  succ r
+           | otherwise   = second succ r
 
 data Onset = X -- | don't care symbol, ignored in all evaluation
            | O -- | No onset
@@ -233,6 +244,10 @@ instance Matchable Onset where
   
 type Pattern = [Onset]
 
+-- untied, tied :: [Pattern]
+-- untied = [untied1, untied2, untied3, untied4]
+-- tied   = [tied1, tied2]
+
 untied1, untied2, untied3, untied4, tied1, tied2, tiedStr :: Pattern
 
 untied1 = [ I, I, O, I,  X, X, X, X,  X, X, X, X,  X, X, X, X ]
@@ -240,9 +255,9 @@ untied2 = [ X, X, X, X,  I, I, O, I,  X, X, X, X,  X, X, X, X ]
 untied3 = [ X, X, X, X,  X, X, X, X,  I, I, O, I,  X, X, X, X ]
 untied4 = [ X, X, X, X,  X, X, X, X,  X, X, X, X,  I, I, O, I ]
 
-tied1   = [ I, O, I, I,  O, I, I, O,  X, X, X, X,  X, X, X, X ]
-tied2   = [ X, X, X, X,  X, X, X, X,  I, O, I, I,  O, I, I, O ]
-tiedStr = [ X, X, X, X,  I, O, I, I,  O, I, I, O,  X, X, X, X ]
+tied1   = [ X, X, I, I,  O, I, I, X,  X, X, X, X,  X, X, X, X ]
+tied2   = [ X, X, X, X,  X, X, X, X,  X, X, I, I,  O, I, X, X ]
+tiedStr = [ X, X, X, X,  X, X, I, I,  O, I, X, X,  X, X, X, X ]
 
 upScalePat :: Pattern -> TimeSig -> Pattern
 upScalePat p ts = case ts of 
