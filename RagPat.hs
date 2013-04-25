@@ -16,8 +16,18 @@ import Math.Statistics    ( correl )
 -- import Debug.Trace
 -- traceShow' a = traceShow a a 
 
--- doCollection :: FilePath -> IO ()
--- doCollection dir = mapDirInDir 
+-- | do stuff with a 'MidiScore' ...
+printFilePatMat :: FilePath -> IO ()
+printFilePatMat f = do ms <-readMidiScore f 
+                       let ts = getEvent . head . getTimeSig $ ms
+                       putStrLn . showPats . reGroup ts 
+                                           . segByTimeSig FourtyEighth  $ ms
+                       print ts
+
+
+--------------------------------------------------------------------------------
+-- Analysing subdivisions
+--------------------------------------------------------------------------------
 
 printSubDiv :: FilePath -> IO ()
 printSubDiv f = do ms <- readMidiScore f 
@@ -48,7 +58,17 @@ segByTimeSig :: ShortestNote -> MidiScore -> [Pattern]
 segByTimeSig q ms = scoreToPatterns (getMinGridSize q ms) (toGridUnit q) 
                   . findMelodyQuant q $ ms
 
--- test = scoreToPatterns . findMelodyQuant q $ ms
+reGroup :: TimeSig -> [Pattern] -> [Pattern]
+reGroup ts p = case ts of
+  (TimeSig 2 2 _ _ ) -> takeConcat 4 p -- is this right???
+  (TimeSig 2 4 _ _ ) -> takeConcat 4 p
+  (TimeSig 4 4 _ _ ) -> takeConcat 8 p
+  _                  -> error "reGroup: invalid time signature"
+  
+takeConcat :: Int -> [[a]] -> [[a]]
+takeConcat _ [] = []
+takeConcat i l  = let (top, rest) = splitAt i l 
+                  in concat top : takeConcat i rest
 
 -- | Takes a midiscore, quantises it, finds the melody, and turns it into a 
 -- 'Pattern' list, where every 'Pattern' represents a beat
@@ -94,14 +114,18 @@ getPercTripGridOnsets = percTripGridOnsets . segByTimeSig FourtyEighth
 
 -- | has the 'MidiScore' a meter we can use for analysis
 hasValidTimeSig :: MidiScore -> Bool
-hasValidTimeSig = or . map isValid . getTimeSig where
+-- hasValidTimeSig = or . map isValid . getTimeSig where
+hasValidTimeSig ms = case getTimeSig ms of
+  [ts] -> isValid ts  -- there should be one valid time signature
+  _    -> False
 
-  isValid :: Timed TimeSig -> Bool
-  isValid ts = case getEvent ts of
-    (TimeSig 4 4 _ _) -> True
-    (TimeSig 2 4 _ _) -> True
-    (TimeSig 2 2 _ _) -> True
-    _                 -> False
+
+isValid :: Timed TimeSig -> Bool
+isValid ts = case getEvent ts of
+  (TimeSig 4 4 _ _) -> True
+  (TimeSig 2 4 _ _) -> True
+  (TimeSig 2 2 _ _) -> True
+  _                 -> False
 
 --------------------------------------------------------------------------------
 -- Matching beat subdivisions
@@ -217,6 +241,17 @@ tied1   = [ I, O, I, I,  O, I, I, O,  X, X, X, X,  X, X, X, X ]
 tied2   = [ X, X, X, X,  X, X, X, X,  I, O, I, I,  O, I, I, O ]
 tiedStr = [ X, X, X, X,  I, O, I, I,  O, I, I, O,  X, X, X, X ]
 
-
+upScalePat :: Pattern -> TimeSig -> Pattern
+upScalePat p ts = case ts of 
+  (TimeSig 2 2 _ _ ) -> scale 2 p
+  (TimeSig 2 4 _ _ ) -> scale 2 p
+  (TimeSig 4 4 _ _ ) -> scale 5 p
+  _                  -> error "upScalePat: invalid time signature"
+  
+  
+scale :: Int -> Pattern -> Pattern
+scale fact []     = []
+scale fact (X:tl) = X : replicate fact X ++ scale fact tl
+scale fact (h:tl) = h : replicate fact O ++ scale fact tl
 
 
