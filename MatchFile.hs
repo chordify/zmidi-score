@@ -100,7 +100,7 @@ copyRTCMidi :: FilePath -> ((RTC, RTCMidi), Int) -> IO ()
 copyRTCMidi newBase m@((rtc, from), d) 
   -- Here we select if a match between a compendium entry and a midifile
   -- is good enough: it should have a low edit distance
-  | d > 2     = putStrLn ("ignored\t" ++ printMatch m)
+  | d > 1     = putStrLn ("ignored\t" ++ printMatch m)
   | otherwise = do let to = toPath $ from { baseDir  = newBase
                                           , fileName = makeValid ((unpack . strip . title $ rtc) <.> ".mid")}
                        fr = toPath from
@@ -175,7 +175,7 @@ match r = do (ms, grp) <- get
                                [] -> doMatch ms      -- if it's not empty
                                s  -> doMatch s
              -- delete the match from the corpus when it is a good match
-             when (snd m <= 2) (modify (deleteMidi (snd . fst $ m)))
+             when (snd m <= 1) (modify (deleteMidi (snd . fst $ m)))
              return m where
 
   -- | Deletes an 'RTCMidi' from the 'MidiSt', this ensures we cannot match
@@ -198,7 +198,7 @@ match r = do (ms, grp) <- get
 -- | Matches a filename
 matchFN :: RTC -> RTCMidi -> ((RTC, RTCMidi), Int)
 matchFN rtc mid = ( (rtc, mid)
-                  , editDistance caseInsEQ (preProcRTC rtc) (preProcRTCMidi mid))
+                  , eqToDist (preProcRTC rtc) (preProcRTCMidi mid))
   where -- preprocessing
     preProcRTCMidi :: RTCMidi -> String
     preProcRTCMidi = unpack . T.filter wanted . fst . breakOn (pack " - ") 
@@ -208,24 +208,36 @@ matchFN rtc mid = ( (rtc, mid)
     preProcRTC = unpack . T.filter wanted . title
     
     wanted :: Char -> Bool
-    wanted c = not (c `elem` ",.\'\"-_ \t?!()[]" )
+    wanted c = not (c `elem` ",.\'\"-_ \t?!()[]`{}&~" )
 
-editDistance :: Eq a => (a -> a-> Bool) -> [a] -> [a] -> Int
-editDistance eq xs ys = fromIntegral (table ! (m,n))
-    where
-    (m,n) = (length xs, length ys)
-    x     = array (1,m) (zip [1..] xs)
-    y     = array (1,n) (zip [1..] ys)
+-- editDistance :: Eq a => (a -> a-> Bool) -> [a] -> [a] -> Int
+-- editDistance eq xs ys = fromIntegral (table ! (m,n))
+    -- where
+    -- (m,n) = (length xs, length ys)
+    -- x     = array (1,m) (zip [1..] xs)
+    -- y     = array (1,n) (zip [1..] ys)
  
-    table :: Array (Int,Int) Int
-    table = array bnds [(ij, dist ij) | ij <- range bnds]
-    bnds  = ((0,0),(m,n))
+    -- table :: Array (Int,Int) Int
+    -- table = array bnds [(ij, dist ij) | ij <- range bnds]
+    -- bnds  = ((0,0),(m,n))
  
-    dist (0,j) = j
-    dist (i,0) = i
-    dist (i,j) = minimum [table ! (i-1,j) + 1, table ! (i,j-1) + 1,
-        if (x ! i) `eq` (y ! j) then table ! (i-1,j-1) else 1 + table ! (i-1,j-1)]
+    -- dist (0,j) = j
+    -- dist (i,0) = i
+    -- dist (i,j) = minimum [table ! (i-1,j) + 1, table ! (i,j-1) + 1,
+        -- if (x ! i) `eq` (y ! j) then table ! (i-1,j-1) else 1 + table ! (i-1,j-1)]
 
+eqToDist :: String -> String -> Int
+eqToDist a b | caseInsStrMatch a b = 0
+             | otherwise           = 100
+               
+        
+caseInsStrMatch :: String -> String -> Bool
+caseInsStrMatch [] []         = True
+caseInsStrMatch [] _          = False
+caseInsStrMatch _  []         = False
+caseInsStrMatch (x:xs) (y:ys) = x == y && caseInsStrMatch xs ys
+
+        
 -- case insensitive matching
 caseInsEQ :: Char -> Char -> Bool
 caseInsEQ a b = toLower a == toLower b
