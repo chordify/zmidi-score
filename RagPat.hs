@@ -208,6 +208,9 @@ percTripGridOnsets ps =
 -- Matching rhythmic patterns
 --------------------------------------------------------------------------------
 
+matchAll :: Pattern -> [Pattern] -> (Int, Int)
+matchAll = undefined
+
 data Onset = X -- | don't care symbol, ignored in all evaluation
            | O -- | No onset
            | I -- | Onset

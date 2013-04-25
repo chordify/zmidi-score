@@ -106,11 +106,13 @@ class Matchable a where
   match     :: [a] -> [a] -> (Int, Int)
   matchRest :: [a] -> [a] -> ((Int, Int), ([a],[a]))
   recall    :: [a] -> [a] -> Double
+  perfect   :: [a] -> [a] -> Bool
         -- Minimal complete definition:
         --      eqi
   matchRest a b = matchEqIRest eqi a b
   match     a b = matchEqI     eqi a b
   recall    a b = recallEqI    eqi a b
+  perfect   a b = perfectEqI   eqi a b
   
 -- | Given a particular 'EqIgnore' equality function, returns the Hit and Miss 
 -- counts, respectively, i.e. the sum of all 'Equal's and 'NotEq's, when
@@ -128,6 +130,13 @@ matchEqIRest eqi (x:xs) (y:ys) = case eqi x y of
      NotEq  -> first (second (+1)) (matchEqIRest eqi xs ys)
      Ignore ->                     (matchEqIRest eqi xs ys)
 
+-- returns True if the two lists are a perfect match
+perfectEqI :: (a -> a -> EqIgnore) ->  [a] -> [a] -> Bool
+perfectEqI eqi a b = case matchEqIRest eqi a b of
+                      -- no mismatches, and equal in length (no rest)
+                      ((_,0),([],[])) -> True
+                      _               -> False
+     
 -- | Returns 'True' if the 'EqIgnore' is 'Ignore'.
 ignore :: EqIgnore -> Bool
 ignore Ignore = True
