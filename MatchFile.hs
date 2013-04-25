@@ -98,6 +98,8 @@ printMatch ((r,m),s) = intercalate "\t"
 -- copies a matched midi file if the edit distance is smaller than 2
 copyRTCMidi :: FilePath -> ((RTC, RTCMidi), Int) -> IO ()
 copyRTCMidi newBase m@((rtc, from), d) 
+  -- Here we select if a match between a compendium entry and a midifile
+  -- is good enough: it should have a low edit distance
   | d > 2     = putStrLn ("ignored\t" ++ printMatch m)
   | otherwise = do let to = toPath $ from { baseDir  = newBase
                                           , fileName = makeValid ((unpack . strip . title $ rtc) <.> ".mid")}
@@ -131,6 +133,7 @@ readRTCMidiPath bd fp = -- Path conversions
                                                        True  -> case hasValidTimeSig sc of
                                                                   False -> return Nothing
                                                                   True  -> do let p = getPercTripGridOnsets sc
+                                                                              -- is it quantizable enough, and not in swing?
                                                                               case p >=0.01 of
                                                                                 True  -> return Nothing
                                                                                 False ->  do let n = length . getVoices $ sc  
@@ -167,12 +170,16 @@ matchAll ms grp rs = evalState (mapM match rs) (ms, grp)
 match ::  RTC -> State MidiSt ((RTC, RTCMidi), Int)
 match r = do (ms, grp) <- get 
              let m = case folders r of
-                       [] -> doMatch ms -- match with the complete corpus
-                       f  -> doMatch (getSubSet f grp) -- or a subdir
-             modify (deleteMidi (snd . fst $ m))       -- delete the match from the corpus
+                       [] -> doMatch ms -- match against the complete corpus
+                       f  -> case getSubSet f grp of -- or against a subdir
+                               [] -> doMatch ms      -- if it's not empty
+                               s  -> doMatch s
+             -- delete the match from the corpus when it is a good match
+             when (snd m <= 2) (modify (deleteMidi (snd . fst $ m)))
              return m where
 
-  -- | Deletes an 'RTCMidi' from the 'MidiSt' 
+  -- | Deletes an 'RTCMidi' from the 'MidiSt', this ensures we cannot match
+  -- the same 'RTCMidi' twice.
   deleteMidi :: RTCMidi -> MidiSt -> MidiSt
   deleteMidi rtc (l, tab) = (delete rtc l, map (second (delete rtc)) tab)
                
