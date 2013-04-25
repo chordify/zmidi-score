@@ -3,7 +3,10 @@
 module RTCParser ( readRTC
                  , parseRTC
                  , RTC (..)
-                 , RTCFolder (..)) where
+                 , preciseYear
+                 , isPrecise
+                 , RTCFolder (..)
+                 , getRTCMeta ) where
 
 import Text.ParserCombinators.UU.Core           ( (<$>), (<$), (<*>), (*>), (<*)
                                                 , (<|>), P )
@@ -11,13 +14,26 @@ import Text.ParserCombinators.UU.BasicInstances ( Parser, pSym, Str, LineColPos 
 import Text.ParserCombinators.UU.Utils          ( pInteger, lexeme, pUpper )
 import HarmTrace.Base.Parsing                   ( pString, parseDataSafe, parseDataWithErrors )
 import Data.Maybe                               ( catMaybes ) 
-import Data.List                                ( intercalate )
-import Data.Text                                ( pack, split, Text, strip )
+import Data.List                                ( intercalate, find )
+import Data.Text                                ( pack, split, Text, strip, unpack )
 import qualified Data.Text as T                 ( lines, null, filter )
 import Data.ListLike.Text.Text                  ( )
+import System.FilePath                          ( dropExtension, takeFileName, makeValid)
 
 readRTC :: FilePath -> IO [RTC]
 readRTC f = readFile f >>= return . filter midiExist . parseRTC
+
+--------------------------------------------------------------------------------
+-- When a matched subset has been created, Meta info can be retrieved with
+-- getRTCMeta
+--------------------------------------------------------------------------------
+                           
+getRTCMeta :: [RTC] -> FilePath -> RTC
+getRTCMeta rs f = 
+  case find ((dropExtension (takeFileName f) ==) 
+            . makeValid . unpack . title) rs of
+    Just rtc -> rtc
+    Nothing  -> error ("No RTC meta data found for file: " ++ f )
 
 --------------------------------------------------------------------------------
 -- Some datatypes for representing the RagTimeCompendium
@@ -74,6 +90,14 @@ data RTCYear = Year   Int
              | IOYear Int Int
              | YNone
              | OtherYear Text deriving (Show, Eq, Ord)
+
+preciseYear :: RTCYear -> String
+preciseYear (Year y) = show y
+preciseYear _        = "n/a"
+
+isPrecise :: RTCYear -> Bool
+isPrecise (Year _ ) = True
+isPrecise _         = False
 
 -- | Type - unfortunately somewhat a grey area, but there are hundreds of 
 -- corrections in this version.	

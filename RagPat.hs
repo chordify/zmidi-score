@@ -3,6 +3,7 @@ module RagPat where
 -- import ZMidi.Core         ( readMidi )
 import ZMidiBasic
 import MidiCommonIO       ( readMidiScore )
+import RTCParser          ( RTC (..), getRTCMeta, preciseYear, isPrecise )
 
 import Data.List          ( intercalate, genericLength, sortBy )
 import Data.Ord           ( comparing )
@@ -16,21 +17,35 @@ import Math.Statistics    ( correl )
 -- import Debug.Trace
 -- traceShow' a = traceShow a a 
 
--- | do stuff with a 'MidiScore' ...
+printPatCount :: [RTC] -> FilePath -> IO ()
+printPatCount rtc f = 
+  do ms <- readMidiScore f 
+     let ts = getEvent . head . getTimeSig $ ms
+         ps = reGroup ts . segByTimeSig FourtyEighth $ ms
+         mt = getRTCMeta rtc f
+         yr = year mt
+     when (isPrecise yr) ( putStrLn . intercalate "\t"  
+              $ ( show (rtcid mt) : f 
+                : show ts : preciseYear yr
+                : map (show . fst . matchPat ps . upScalePat ts) 
+                  [ untied1, untied2, untied3, untied4, tied1, tied2, tiedStr ]
+                ))
+
+-- | Match the patterns to one file
 printFilePatMat :: FilePath -> IO ()
 printFilePatMat f =  
   do ms <-readMidiScore f 
      let ts = getEvent . head . getTimeSig $ ms
          ps = reGroup ts . segByTimeSig FourtyEighth $ ms
      putStrLn . showPats $ ps
-     print ts
-     putStrLn ("untied1: " ++ (show $ matchPat (upScalePat untied1 ts) ps))
-     putStrLn ("untied2: " ++ (show $ matchPat (upScalePat untied2 ts) ps))
-     putStrLn ("untied3: " ++ (show $ matchPat (upScalePat untied3 ts) ps))
-     putStrLn ("untied4: " ++ (show $ matchPat (upScalePat untied4 ts) ps))
-     putStrLn ("tied1  : " ++ (show $ matchPat (upScalePat tied1   ts) ps))
-     putStrLn ("tied2  : " ++ (show $ matchPat (upScalePat tied2   ts) ps))
-     putStrLn ("tiedStr: " ++ (show $ matchPat (upScalePat tiedStr ts) ps))
+     putStrLn ("Time Signtaure: " ++ show ts)
+     putStrLn ("untied1: " ++ (show . matchPat ps . upScalePat ts $ untied1))
+     putStrLn ("untied2: " ++ (show . matchPat ps . upScalePat ts $ untied2))
+     putStrLn ("untied3: " ++ (show . matchPat ps . upScalePat ts $ untied3))
+     putStrLn ("untied4: " ++ (show . matchPat ps . upScalePat ts $ untied4))
+     putStrLn ("tied1  : " ++ (show . matchPat ps . upScalePat ts $ tied1  ))
+     putStrLn ("tied2  : " ++ (show . matchPat ps . upScalePat ts $ tied2  ))
+     putStrLn ("tiedStr: " ++ (show . matchPat ps . upScalePat ts $ tiedStr))
 
 --------------------------------------------------------------------------------
 -- Analysing subdivisions
@@ -215,8 +230,8 @@ percTripGridOnsets ps =
 -- Matching rhythmic patterns
 --------------------------------------------------------------------------------
 
-matchPat :: Pattern -> [Pattern] -> (Int, Int)
-matchPat p ps = foldr step (0,0) ps where
+matchPat :: [Pattern] -> Pattern -> (Int, Int)
+matchPat ps p = foldr step (0,0) ps where
   
   step :: Pattern -> (Int,Int) -> (Int, Int)
   step x r | perfect p x = first  succ r
@@ -259,8 +274,8 @@ tied1   = [ X, X, I, I,  O, I, I, X,  X, X, X, X,  X, X, X, X ]
 tied2   = [ X, X, X, X,  X, X, X, X,  X, X, I, I,  O, I, X, X ]
 tiedStr = [ X, X, X, X,  X, X, I, I,  O, I, X, X,  X, X, X, X ]
 
-upScalePat :: Pattern -> TimeSig -> Pattern
-upScalePat p ts = case ts of 
+upScalePat :: TimeSig -> Pattern -> Pattern
+upScalePat ts p = case ts of 
   (TimeSig 2 2 _ _ ) -> scale 2 p
   (TimeSig 2 4 _ _ ) -> scale 2 p
   (TimeSig 4 4 _ _ ) -> scale 5 p

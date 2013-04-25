@@ -14,7 +14,8 @@ import Control.Monad      ( void )
 import RTCParser          ( readRTC, RTC (..) )
 import MatchFile          ( getRTCMeta
                           , readRTCMidis, matchAll, copyRTCMidi, groupRTCMidis )
-import RagPat             ( printFileSubDiv, printSubDiv, hasValidTimeSig )
+import RagPat             ( printFileSubDiv, printSubDiv, hasValidTimeSig
+                          , printFilePatMat, printPatCount )
 
 data RagArgs = Mode| MidiDir | RTCFile | MidiFile deriving (Eq, Ord, Show)
 
@@ -57,7 +58,8 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             ("subdiv", Left f ) -> printFileSubDiv f
             ("subdiv", Right d) -> void . mapDirInDir (mapDir' printSubDiv) $ d
             ("mkrtc" , Right d) -> getCompendium arg >>= createSubCorpus d 
-            ("rtc"   , Right d) -> getCompendium arg >>= mainRTC d
+            ("rtc"   , Right d) -> getCompendium arg >>= ragPatDir d
+            ("rtc"   , Left f ) -> printFilePatMat f
             (m       , _      ) -> usageError arg ("invalid mode: " ++ m )
 
 
@@ -77,8 +79,8 @@ getCompendium arg = case getArg arg RTCFile of
                       Nothing -> usageError arg "no compendium specified"
 
 -- | stuff to do with the rtc flag                      
-mainRTC :: FilePath -> [RTC] -> IO ()
-mainRTC d c = void . mapDirInDir (mapDir' (print . rtcid . getRTCMeta c)) $ d 
+ragPatDir :: FilePath -> [RTC] -> IO ()
+ragPatDir d c = void . mapDirInDir (mapDir' (printPatCount c)) $ d 
 
 -- | creates a subcorpus
 createSubCorpus :: FilePath -> [RTC] -> IO ()

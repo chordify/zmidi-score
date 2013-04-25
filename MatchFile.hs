@@ -14,17 +14,16 @@ module MatchFile ( -- | * Retrieving Meta data (after creating a matched corpus)
                  , groupRTCMidis
                  ) where
 
-import Data.Array
+-- import Data.Array
 import Data.Tuple        ( swap )
 import Data.List         ( stripPrefix, sortBy, groupBy, intercalate
-                         , delete, find )
+                         , delete )
 import Data.Text         ( unpack, pack, strip, breakOn )
 import qualified Data.Text as T ( filter)
 import Data.Ord          ( comparing )
 import Data.Char         ( toLower )
 import Data.Maybe        ( catMaybes )
 import Data.Function     ( on )
-import Data.IntMap.Lazy  ( size )
 
 import Control.Arrow     ( second )
 import Control.Monad.State
@@ -32,28 +31,16 @@ import Control.Monad.State
 import RTCParser
 import MidiCommonIO      ( mapDir, mapDirInDir )
 import ZMidi.Core        ( readMidi )
-import ZMidiBasic        ( MidiScore (..), buildTickMap, midiFileToMidiScore
-                         , hasTimeSigs )
+import ZMidiBasic        ( MidiScore (..), midiFileToMidiScore, hasTimeSigs )
 
 import RagPat            ( getPercTripGridOnsets, hasValidTimeSig, hasValidGridSize)
                          
 import System.Directory  ( copyFile, createDirectoryIfMissing, doesFileExist )
 import System.FilePath   ( (</>), (<.>), splitDirectories, takeFileName
-                         , isPathSeparator, takeDirectory, makeValid
-                         , dropExtension )
+                         , isPathSeparator, takeDirectory, makeValid )
 
  
---------------------------------------------------------------------------------
--- When a matched subset has been created, Meta info can be retrieved with
--- getRTCMeta
---------------------------------------------------------------------------------
-                           
-getRTCMeta :: [RTC] -> FilePath -> RTC
-getRTCMeta rs f = 
-  case find ((dropExtension (takeFileName f) ==) 
-            . makeValid . unpack . title) rs of
-    Just rtc -> rtc
-    Nothing  -> error ("No RTC meta data found for file: " ++ f )
+
  
 --------------------------------------------------------------------------------
 -- A Datatype for matching midifiles to the ragtime compendium
