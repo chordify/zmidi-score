@@ -5,14 +5,14 @@ import ZMidiBasic
 import MidiCommonIO       ( readMidiScore )
 import RTCParser          ( RTC (..), getRTCMeta, preciseYear, isPrecise )
 
-import Data.List          ( intercalate, genericLength, sortBy )
-import Data.Ord           ( comparing )
+import Data.List          ( intercalate )
+-- import Data.Ord           ( comparing )
 import Control.Arrow      ( first, second )
 import Control.Monad      ( when )
 import Evaluation
 import MelFind            ( findMelodyQuant )
 
-import Math.Statistics    ( correl )
+-- import Math.Statistics    ( correl )
 
 -- import Debug.Trace
 -- traceShow' a = traceShow a a 
@@ -54,19 +54,18 @@ printFilePatMat f =
 printSubDiv :: FilePath -> IO ()
 printSubDiv f = do ms <- readMidiScore f 
                    let p = segByTimeSig FourtyEighth ms
-                       r = rankSubDiv p
+                       -- r = rankSubDiv p
                        t = percTripGridOnsets p
                    when ( hasValidGridSize ms ) 
                         ( putStrLn . intercalate "\t" $ 
-                          [f, show t, show (t <= 0.01)
-                            , show . snd . head $ r, show r] )
+                          [f, show t, show (t <= 0.01) ] )
 
 -- | do stuff with a 'MidiScore' ...
 printFileSubDiv :: FilePath -> IO ()
 printFileSubDiv f = do p <- readMidiScore f 
                          >>= return . segByTimeSig FourtyEighth
                        putStrLn . showPats $ p
-                       print . rankSubDiv $ p
+                       -- print . rankSubDiv $ p
                        print . percTripGridOnsets $ p
 
 showPats :: [Pattern] -> String
@@ -154,17 +153,17 @@ isValid ts = case getEvent ts of
 --------------------------------------------------------------------------------
 
 -- ranks different 'Subdiv'isions based on how well the correlate to the data
-rankSubDiv :: [Pattern] -> [(Double, DivLab)]
-rankSubDiv ps = reverse . sortBy (comparing fst) . map matchBeatDiv $ pats where
+-- rankSubDiv :: [Pattern] -> [(Double, DivLab)]
+-- rankSubDiv ps = reverse . sortBy (comparing fst) . map matchBeatDiv $ pats where
 
-  matchBeatDiv :: SubDiv -> (Double, DivLab)
-  matchBeatDiv s@(p, _) = let rs = filter (not . isNaN) . map (recall p) $ ps
-                          in  first (const $ sum rs / genericLength rs) s
+  -- matchBeatDiv :: SubDiv -> (Double, DivLab)
+  -- matchBeatDiv s@(p, _) = let rs = filter (not . isNaN) . map (recall p) $ ps
+                          -- in  first (const $ sum rs / genericLength rs) s
 
 -- calculates the correlation between a template 'Pattern' and a list of data
 -- 'Patterns'. The pattern is summarised by 'countMatch's
-correlPat :: Pattern -> [Pattern] -> Double
-correlPat p s = correl (toDouble p) (countMatch s)
+-- correlPat :: Pattern -> [Pattern] -> Double
+-- correlPat p s = correl (toDouble p) (countMatch s)
                
 -- | Given a template 'Pattern' counts the number of onsets in each position and
 -- normalises this list by dividing all number by the highest count, yielding
@@ -184,25 +183,25 @@ countMatch = normalise . foldr step [ 0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0  ] w
                 in  map (\x -> fromIntegral x / m) i
 
 -- | Labels for the different subdivisions
-data DivLab = Straight | Swing | Evenly deriving (Show, Eq)
-type SubDiv = (Pattern, DivLab)
+-- data DivLab = Straight | Swing | Evenly deriving (Show, Eq)
+-- type SubDiv = (Pattern, DivLab)
 
 -- all patterns
-pats :: [SubDiv]
-pats =  [(straightGrid, Straight), (swingGrid, Swing), (evenDistGrid, Evenly)]
+-- pats :: [SubDiv]
+-- pats =  [(straightGrid, Straight), (swingGrid, Swing), (evenDistGrid, Evenly)]
                 
-straightGrid, swingGrid, evenDistGrid :: Pattern
---               0  1  2  3  4  5  6  7  8  9 10 11 
-straightGrid = [ I, O, O, I, O, O, I, O, O, I, O, O ]
-swingGrid    = [ I, O, I, O, I, O, I, O, I, O, I, O ]
-evenDistGrid = [ I, I, I, I, I, I, I, I, I, I, I, I ]
+-- straightGrid, swingGrid, evenDistGrid :: Pattern
+-- --               0  1  2  3  4  5  6  7  8  9 10 11 
+-- straightGrid = [ I, O, O, I, O, O, I, O, O, I, O, O ]
+-- swingGrid    = [ I, O, I, O, I, O, I, O, I, O, I, O ]
+-- evenDistGrid = [ I, I, I, I, I, I, I, I, I, I, I, I ]
 
-toDouble :: Pattern -> [Double]
-toDouble = map convert where
+-- toDouble :: Pattern -> [Double]
+-- toDouble = map convert where
   
-  convert :: Onset -> Double
-  convert I = 0.8
-  convert _ = 0.0  
+  -- convert :: Onset -> Double
+  -- convert I = 0.8
+  -- convert _ = 0.0  
   
 percTripGridOnsets :: [Pattern] -> Double
 percTripGridOnsets ps = 

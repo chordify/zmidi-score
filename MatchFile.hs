@@ -31,7 +31,7 @@ import Control.Monad.State
 import RTCParser
 import MidiCommonIO      ( mapDir, mapDirInDir )
 import ZMidi.Core        ( readMidi )
-import ZMidiBasic        ( MidiScore (..), midiFileToMidiScore, hasTimeSigs )
+import ZMidiBasic        ( MidiScore (..), midiFileToMidiScore )
 
 import RagPat            ( getPercTripGridOnsets, hasValidTimeSig, hasValidGridSize)
                          
@@ -222,7 +222,7 @@ caseInsStrMatch :: String -> String -> Bool
 caseInsStrMatch [] []         = True
 caseInsStrMatch [] _          = False
 caseInsStrMatch _  []         = False
-caseInsStrMatch (x:xs) (y:ys) = x == y && caseInsStrMatch xs ys
+caseInsStrMatch (x:xs) (y:ys) = x `caseInsEQ` y && caseInsStrMatch xs ys
 
         
 -- case insensitive matching

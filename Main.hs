@@ -12,8 +12,7 @@ import Data.IntMap.Lazy   ( keys )
 import System.Console.ParseArgs
 import Control.Monad      ( void )
 import RTCParser          ( readRTC, RTC (..) )
-import MatchFile          ( getRTCMeta
-                          , readRTCMidis, matchAll, copyRTCMidi, groupRTCMidis )
+import MatchFile          ( readRTCMidis, matchAll, copyRTCMidi, groupRTCMidis )
 import RagPat             ( printFileSubDiv, printSubDiv, hasValidTimeSig
                           , printFilePatMat, printPatCount )
 
