@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall                #-}
 --------------------------------------------------------------------------------
 -- |
 -- Module      :  Evaluation
@@ -118,21 +119,21 @@ class Matchable a where
 -- counts, respectively, i.e. the sum of all 'Equal's and 'NotEq's, when
 -- comparing two sequences from the first two ellements on.
 matchEqI :: (a -> a -> EqIgnore) -> [a] -> [a] -> (Int, Int)
-matchEqI eqi a b = fst $ matchEqIRest eqi a b
+matchEqI eq a b = fst $ matchEqIRest eq a b
           
 -- | Similar to 'matchEqI' but then returns the resulting lists (which may be
 -- both empty if the two compared lists are equally long)
 matchEqIRest :: (a -> a -> EqIgnore) -> [a] -> [a] -> ((Int, Int), ([a],[a]))
-matchEqIRest eqi [] y          = ((0,0), ([], y))
-matchEqIRest eqi x  []         = ((0,0), (x ,[]))
-matchEqIRest eqi (x:xs) (y:ys) = case eqi x y of
-     Equal  -> first (first  (+1)) (matchEqIRest eqi xs ys)
-     NotEq  -> first (second (+1)) (matchEqIRest eqi xs ys)
-     Ignore ->                     (matchEqIRest eqi xs ys)
+matchEqIRest _  [] y          = ((0,0), ([], y))
+matchEqIRest _  x  []         = ((0,0), (x ,[]))
+matchEqIRest eq (x:xs) (y:ys) = case eq x y of
+     Equal  -> first (first  (+1)) (matchEqIRest eq xs ys)
+     NotEq  -> first (second (+1)) (matchEqIRest eq xs ys)
+     Ignore ->                     (matchEqIRest eq xs ys)
 
 -- returns True if the two lists are a perfect match
 perfectEqI :: (a -> a -> EqIgnore) ->  [a] -> [a] -> Bool
-perfectEqI eqi a b = case matchEqIRest eqi a b of
+perfectEqI eq a b = case matchEqIRest eq a b of
                       -- no mismatches, and equal in length (no rest)
                       ((_,0),([],[])) -> True
                       _               -> False
@@ -150,7 +151,7 @@ equal  _      = False
 -- Calculates the recall of matching elements in two lists using 'matchEqI'
 -- N.B. this function can return a 'NaN' when only 'Ignore's are compared.
 recallEqI :: (a -> a -> EqIgnore) -> [a] -> [a] -> Double
-recallEqI eqi a b = let (hit, mis) = matchEqI eqi a b 
+recallEqI eq a b = let (hit, mis) = matchEqI eq a b 
                     in  fromIntegral hit / fromIntegral (hit + mis)
 
 -- Todo: better to use Int?
@@ -300,8 +301,8 @@ achievScore a b = sum (zipWith eq sama samb) / len
 -- > 1 indicates that the machine annotation finds to many chord sequences.
 chordChangeRatio ::  (ChordLabel -> ChordLabel -> EqIgnore) 
                  -> [TimedData ChordLabel] -> [TimedData ChordLabel] -> Double
-chordChangeRatio eqi gt ma = (fromIntegral . countChordChanges $ gt)
-                           / (fromIntegral . countChordChanges $ ma) where
+chordChangeRatio eq gt ma = (fromIntegral . countChordChanges $ gt)
+                          / (fromIntegral . countChordChanges $ ma) where
 
   countChordChanges :: [TimedData ChordLabel] -> Int
   countChordChanges cs = execState (foldrM step [] $ dropTimed cs) 0 
@@ -310,9 +311,9 @@ chordChangeRatio eqi gt ma = (fromIntegral . countChordChanges $ gt)
   step c []      = do modify succ
                       return [c]
   step a ( b : cs ) 
-    | equal (a `eqi` b)  =    return (a : b : cs)
-    | otherwise          = do modify succ
-                              return (a : b : cs)
+    | equal (a `eq` b)  =    return (a : b : cs)
+    | otherwise         = do modify succ
+                             return (a : b : cs)
 
 -- | The 'chordChangeRatio' is optimal if it is one, but it can be larger or 
 -- smaller than 1. Therefore, calculating the average blurs the actual result.
@@ -332,10 +333,10 @@ avgDistToOne ds = (sum . map absDistToOne $ ds) / genericLength ds where
 -- function but wrapped in IO. At every evaluation the evaluation is printed
 -- to the user. The String is prefixed to this output.
 printEqStr ::Show a => (a -> a -> EqIgnore) -> String -> a -> a -> IO (EqIgnore)
-printEqStr eqf str gt test = 
-  do let eqi = gt `eqf` test
-     putStrLn . (str ++) . intercalate " " $ [show gt, showEqi eqi, show test]
-     return eqi
+printEqStr eq str gt test = 
+  do let e = gt `eq` test
+     putStrLn . (str ++) . intercalate " " $ [show gt, showEqi e, show test]
+     return e
    
 -- | Calculates the relative correct overlap, which is the recall
 -- of matching frames, and defined as the nr of matching frames (sampled at
@@ -344,10 +345,10 @@ printEqStr eqf str gt test =
 -- prints the comparison to the user.
 printRCO :: Show a => (a -> a -> EqIgnore) 
           -> [TimedData a] -> [TimedData a] -> IO (Double)
-printRCO eqi gt test = 
+printRCO eq gt test = 
   do let samgt = sampleWith displaySampleRate gt
          sam   = sampleWith displaySampleRate test
-         pEq ts a b = printEqStr eqi (printf "%.2f: " ts) a b
+         pEq ts a b = printEqStr eq (printf "%.2f: " ts) a b
          
      matches <- sequence $ zipWith3 pEq [0,displaySampleRate ..] samgt sam
-     return (foldr countEqual 0 matches / maxCompare eqi samgt)
+     return (foldr countEqual 0 matches / maxCompare eq samgt)

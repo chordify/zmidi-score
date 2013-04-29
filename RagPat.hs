@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall                #-}
 module RagPat where
 
 -- import ZMidi.Core         ( readMidi )
