@@ -39,12 +39,17 @@ printFilePatMat f =
          ps = reGroup ts . segByTimeSig FourtyEighth $ ms
      putStrLn . showPats $ ps
      putStrLn ("Time Signtaure: " ++ show ts)
+     
+     print (upScalePat ts untied1)
+     print (upScalePat ts untied2)
      putStrLn ("untied1: " ++ (show . matchPat ps . upScalePat ts $ untied1))
      putStrLn ("untied2: " ++ (show . matchPat ps . upScalePat ts $ untied2))
-     -- putStrLn ("untied3: " ++ (show . matchPat ps . upScalePat ts $ untied3))
-     -- putStrLn ("untied4: " ++ (show . matchPat ps . upScalePat ts $ untied4))
+     
+     print (upScalePat ts tied1)
+     print (upScalePat ts tied2)
      putStrLn ("tied1  : " ++ (show . matchPat ps . upScalePat ts $ tied1  ))
      putStrLn ("tied2  : " ++ (show . matchPat ps . upScalePat ts $ tied2  ))
+     
      -- putStrLn ("tiedStr: " ++ (show . matchPat ps . upScalePat ts $ tiedStr))
 
 --------------------------------------------------------------------------------
@@ -151,57 +156,6 @@ isValid ts = case getEvent ts of
 --------------------------------------------------------------------------------
 -- Matching beat subdivisions
 --------------------------------------------------------------------------------
-
--- ranks different 'Subdiv'isions based on how well the correlate to the data
--- rankSubDiv :: [Pattern] -> [(Double, DivLab)]
--- rankSubDiv ps = reverse . sortBy (comparing fst) . map matchBeatDiv $ pats where
-
-  -- matchBeatDiv :: SubDiv -> (Double, DivLab)
-  -- matchBeatDiv s@(p, _) = let rs = filter (not . isNaN) . map (recall p) $ ps
-                          -- in  first (const $ sum rs / genericLength rs) s
-
--- calculates the correlation between a template 'Pattern' and a list of data
--- 'Patterns'. The pattern is summarised by 'countMatch's
--- correlPat :: Pattern -> [Pattern] -> Double
--- correlPat p s = correl (toDouble p) (countMatch s)
-               
--- | Given a template 'Pattern' counts the number of onsets in each position and
--- normalises this list by dividing all number by the highest count, yielding
--- a list of 'Doubles' between 0 and 1.               
-countMatch :: [Pattern] -> [Double]
-countMatch = normalise . foldr step [ 0, 0, 0,  0, 0, 0,  0, 0, 0,  0, 0, 0  ] where
-
-  step :: Pattern -> [Int] -> [Int]
-  step x cs = zipWith doPattern x cs
-
-  doPattern :: Onset -> Int -> Int
-  doPattern  I c = succ c
-  doPattern  _ c = c
-               
-  normalise :: [Int] -> [Double]
-  normalise i = let m = fromIntegral . maximum $ i 
-                in  map (\x -> fromIntegral x / m) i
-
--- | Labels for the different subdivisions
--- data DivLab = Straight | Swing | Evenly deriving (Show, Eq)
--- type SubDiv = (Pattern, DivLab)
-
--- all patterns
--- pats :: [SubDiv]
--- pats =  [(straightGrid, Straight), (swingGrid, Swing), (evenDistGrid, Evenly)]
-                
--- straightGrid, swingGrid, evenDistGrid :: Pattern
--- --               0  1  2  3  4  5  6  7  8  9 10 11 
--- straightGrid = [ I, O, O, I, O, O, I, O, O, I, O, O ]
--- swingGrid    = [ I, O, I, O, I, O, I, O, I, O, I, O ]
--- evenDistGrid = [ I, I, I, I, I, I, I, I, I, I, I, I ]
-
--- toDouble :: Pattern -> [Double]
--- toDouble = map convert where
-  
-  -- convert :: Onset -> Double
-  -- convert I = 0.8
-  -- convert _ = 0.0  
   
 percTripGridOnsets :: [Pattern] -> Double
 percTripGridOnsets ps = 
@@ -229,12 +183,16 @@ percTripGridOnsets ps =
 -- Matching rhythmic patterns
 --------------------------------------------------------------------------------
 
+matchRatio :: (Int, Int) -> Double
+matchRatio (mch,mis) = fromIntegral mch / fromIntegral (mch + mis)
+
+-- | Calculates the matches and mismatches, respectively
 matchPat :: [Pattern] -> Pattern -> (Int, Int)
 matchPat ps p = foldr step (0,0) ps where
   
   step :: Pattern -> (Int,Int) -> (Int, Int)
-  step x r | perfect p x = first  succ r
-           | otherwise   = second succ r
+  step x r | perfect p x = first  succ r -- if perfect increase the first,
+           | otherwise   = second succ r -- if mismatch the second
 
 data Onset = X -- | don't care symbol, ignored in all evaluation
            | O -- | No onset
