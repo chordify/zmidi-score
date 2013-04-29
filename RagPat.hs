@@ -28,7 +28,7 @@ printPatCount rtc f =
               $ ( show (rtcid mt) : f 
                 : show ts : preciseYear yr
                 : map (show . fst . matchPat ps . upScalePat ts) 
-                  [ untied1, untied2, untied3, untied4, tied1, tied2, tiedStr ]
+                  [ untied1, untied2, tied1, tied2 ]
                 ))
 
 -- | Match the patterns to one file
@@ -41,11 +41,11 @@ printFilePatMat f =
      putStrLn ("Time Signtaure: " ++ show ts)
      putStrLn ("untied1: " ++ (show . matchPat ps . upScalePat ts $ untied1))
      putStrLn ("untied2: " ++ (show . matchPat ps . upScalePat ts $ untied2))
-     putStrLn ("untied3: " ++ (show . matchPat ps . upScalePat ts $ untied3))
-     putStrLn ("untied4: " ++ (show . matchPat ps . upScalePat ts $ untied4))
+     -- putStrLn ("untied3: " ++ (show . matchPat ps . upScalePat ts $ untied3))
+     -- putStrLn ("untied4: " ++ (show . matchPat ps . upScalePat ts $ untied4))
      putStrLn ("tied1  : " ++ (show . matchPat ps . upScalePat ts $ tied1  ))
      putStrLn ("tied2  : " ++ (show . matchPat ps . upScalePat ts $ tied2  ))
-     putStrLn ("tiedStr: " ++ (show . matchPat ps . upScalePat ts $ tiedStr))
+     -- putStrLn ("tiedStr: " ++ (show . matchPat ps . upScalePat ts $ tiedStr))
 
 --------------------------------------------------------------------------------
 -- Analysing subdivisions
@@ -259,20 +259,16 @@ instance Matchable Onset where
   
 type Pattern = [Onset]
 
--- untied, tied :: [Pattern]
--- untied = [untied1, untied2, untied3, untied4]
--- tied   = [tied1, tied2]
-
-untied1, untied2, untied3, untied4, tied1, tied2, tiedStr :: Pattern
+untied1, untied2, tied1, tied2 :: Pattern
 
 untied1 = [ I, I, O, I,  X, X, X, X,  X, X, X, X,  X, X, X, X ]
 untied2 = [ X, X, X, X,  I, I, O, I,  X, X, X, X,  X, X, X, X ]
-untied3 = [ X, X, X, X,  X, X, X, X,  I, I, O, I,  X, X, X, X ]
-untied4 = [ X, X, X, X,  X, X, X, X,  X, X, X, X,  I, I, O, I ]
+-- untied3 = [ X, X, X, X,  X, X, X, X,  I, I, O, I,  X, X, X, X ]
+-- untied4 = [ X, X, X, X,  X, X, X, X,  X, X, X, X,  I, I, O, I ]
 
 tied1   = [ X, X, I, I,  O, I, I, X,  X, X, X, X,  X, X, X, X ]
-tied2   = [ X, X, X, X,  X, X, X, X,  X, X, I, I,  O, I, X, X ]
-tiedStr = [ X, X, X, X,  X, X, I, I,  O, I, X, X,  X, X, X, X ]
+-- tied2   = [ X, X, X, X,  X, X, X, X,  X, X, I, I,  O, I, X, X ]
+tied2   = [ X, X, X, X,  X, X, I, I,  O, I, X, X,  X, X, X, X ]
 
 upScalePat :: TimeSig -> Pattern -> Pattern
 upScalePat ts p = case ts of 
