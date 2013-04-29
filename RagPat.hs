@@ -1,19 +1,16 @@
 {-# OPTIONS_GHC -Wall                #-}
 module RagPat where
 
--- import ZMidi.Core         ( readMidi )
 import ZMidiBasic
 import MidiCommonIO       ( readMidiScore )
 import RTCParser          ( RTC (..), getRTCMeta, preciseYear, isPrecise )
 
 import Data.List          ( intercalate )
--- import Data.Ord           ( comparing )
 import Control.Arrow      ( first, second )
 import Control.Monad      ( when )
 import Evaluation
 import MelFind            ( findMelodyQuant )
 
--- import Math.Statistics    ( correl )
 
 -- import Debug.Trace
 -- traceShow' a = traceShow a a 
@@ -87,15 +84,16 @@ segByTimeSig q ms = scoreToPatterns (getMinGridSize q ms) (toGridUnit q)
 
 reGroup :: TimeSig -> [Pattern] -> [Pattern]
 reGroup ts p = case ts of
-  (TimeSig 2 2 _ _ ) -> takeConcat 4 p -- is this right???
-  (TimeSig 2 4 _ _ ) -> takeConcat 4 p
-  (TimeSig 4 4 _ _ ) -> takeConcat 8 p
+  (TimeSig 2 2 _ _ ) -> takeConcatOverlap 4 p -- is this right???
+  (TimeSig 2 4 _ _ ) -> takeConcatOverlap 4 p
+  (TimeSig 4 4 _ _ ) -> takeConcatOverlap 8 p
   _                  -> error "reGroup: invalid time signature"
   
-takeConcat :: Int -> [[a]] -> [[a]]
-takeConcat _ [] = []
-takeConcat i l  = let (top, rest) = splitAt i l 
-                  in concat top : takeConcat i rest
+takeConcatOverlap :: Int -> [[a]] -> [[a]]
+takeConcatOverlap _ [] = []
+takeConcatOverlap i l  = let (top, rest) = splitAt i l 
+                         in concat top 
+                          : takeConcatOverlap i (drop (i `div` 2) top ++ rest)
 
 -- | Takes a midiscore, quantises it, finds the melody, and turns it into a 
 -- 'Pattern' list, where every 'Pattern' represents a beat
