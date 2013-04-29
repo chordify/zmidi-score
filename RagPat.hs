@@ -25,10 +25,27 @@ printPatCount rtc f =
      when (isPrecise yr) ( putStrLn . intercalate "\t"  
               $ ( show (rtcid mt) : f 
                 : show ts : preciseYear yr
-                : map (show . fst . matchPat ps . upScalePat ts) 
+                : map (show . matchRatio . matchPat ps . upScalePat ts) 
                   [ untied1, untied2, tied1, tied2 ]
                 ))
 
+printPatCountSPSS :: [RTC] -> FilePath -> IO ()
+printPatCountSPSS rtc f = 
+  do ms <- readMidiScore f 
+     let ts = getEvent . head . getTimeSig $ ms
+         ps = reGroup ts . segByTimeSig FourtyEighth $ ms
+         mt = getRTCMeta rtc f
+         yr = year mt
+     when (isPrecise yr) 
+          (do putStrLn . intercalate "\t"  
+                $ ( show (rtcid mt) : f : show ts : preciseYear yr : "untied"
+                : ( matchPrint (matchPat ps . upScalePat ts $ untied1)
+                               (matchPat ps . upScalePat ts $ untied2)))
+              putStrLn . intercalate "\t"  
+                $ ( show (rtcid mt) : f : show ts : preciseYear yr : "tied"
+                : ( matchPrint (matchPat ps . upScalePat ts $ tied1  )
+                               (matchPat ps . upScalePat ts $ tied2  ))))
+                
 -- | Match the patterns to one file
 printFilePatMat :: FilePath -> IO ()
 printFilePatMat f =  
@@ -182,8 +199,13 @@ percTripGridOnsets ps =
 -- Matching rhythmic patterns
 --------------------------------------------------------------------------------
 
+-- | normalises a match by dividing the matches by the total of matched bars
 matchRatio :: (Int, Int) -> Double
 matchRatio (mch,mis) = fromIntegral mch / fromIntegral (mch + mis)
+
+matchPrint :: (Int, Int) -> (Int, Int) -> [String]
+matchPrint (m1,ms1) (m2,ms2) = [ show (fromIntegral (m1 + m2) / fromIntegral (m1 + ms1) :: Double)
+                               , show m1, show m2, show (m1 + ms1) ]
 
 -- | Calculates the matches and mismatches, respectively
 matchPat :: [Pattern] -> Pattern -> (Int, Int)
@@ -219,11 +241,8 @@ untied1, untied2, tied1, tied2 :: Pattern
 
 untied1 = [ I, I, O, I,  X, X, X, X,  X, X, X, X,  X, X, X, X ]
 untied2 = [ X, X, X, X,  I, I, O, I,  X, X, X, X,  X, X, X, X ]
--- untied3 = [ X, X, X, X,  X, X, X, X,  I, I, O, I,  X, X, X, X ]
--- untied4 = [ X, X, X, X,  X, X, X, X,  X, X, X, X,  I, I, O, I ]
 
 tied1   = [ X, X, I, I,  O, I, I, X,  X, X, X, X,  X, X, X, X ]
--- tied2   = [ X, X, X, X,  X, X, X, X,  X, X, I, I,  O, I, X, X ]
 tied2   = [ X, X, X, X,  X, X, I, I,  O, I, X, X,  X, X, X, X ]
 
 upScalePat :: TimeSig -> Pattern -> Pattern

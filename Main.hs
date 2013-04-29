@@ -14,7 +14,7 @@ import Control.Monad      ( void )
 import RTCParser          ( readRTC, RTC (..) )
 import MatchFile          ( readRTCMidis, matchAll, copyRTCMidi, groupRTCMidis )
 import RagPat             ( printFileSubDiv, printSubDiv, hasValidTimeSig
-                          , printFilePatMat, printPatCount )
+                          , printFilePatMat, printPatCountSPSS )
 
 data RagArgs = Mode| MidiDir | RTCFile | MidiFile deriving (Eq, Ord, Show)
 
@@ -79,7 +79,7 @@ getCompendium arg = case getArg arg RTCFile of
 
 -- | stuff to do with the rtc flag                      
 ragPatDir :: FilePath -> [RTC] -> IO ()
-ragPatDir d c = void . mapDirInDir (mapDir' (printPatCount c)) $ d 
+ragPatDir d c = void . mapDirInDir (mapDir' (printPatCountSPSS c)) $ d 
 
 -- | creates a subcorpus
 createSubCorpus :: FilePath -> [RTC] -> IO ()
