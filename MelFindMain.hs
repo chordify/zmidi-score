@@ -60,7 +60,7 @@ melodySkyline f = do mf <- readMidiScore f
 evalHandSep :: FilePath -> IO (PrecisionRecallFMeasure)
 evalHandSep f = do putStr (show f ++ "\t")
                    m <- readMidiScore f
-                   let r = melodyRetrieval (skyLineLowLim (Pitch (0,0))) m 
+                   let r = melodyRetrieval skyLineLLDipDetect m 
                    putStrLn (show r ++ '\t' : (show . hasExpectedHandOrder $ m)
                                     ++ '\t' : (show . hasTwoDupTracks $ m)
                                     ++ '\t' : (intercalate "\t" 
@@ -71,8 +71,8 @@ quantiseAndMelFind ::  ShortestNote -> FilePath -> IO ()
 quantiseAndMelFind q  f = do m <- readMidiScore f
                              writeMidiScore (quantise q m) (f ++ ".quantise.mid")
                              putStrLn ("written: " ++ f ++ ".quantise.mid")
-                             writeMidiScore (filterMelodyQuant q m) (f ++ ".melody.mid")
-                             putStrLn ("written: " ++ f ++ ".melody.mid")
+                             writeMidiScore (filterMelodyQuant q m) (f ++ ".melody.dip.mid")
+                             putStrLn ("written: " ++ f ++ ".melody.dip.mid")
                    
 -- | 
 filterMelMidiFile :: ShortestNote -> FilePath -> IO ()
