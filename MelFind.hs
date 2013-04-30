@@ -5,7 +5,7 @@ import ZMidiBasic
 import Data.List          ( sortBy, groupBy )
 import Data.Function      ( on )
 import Data.Ord           ( comparing )
-import Control.Arrow      ( (***) )
+import Control.Arrow      ( (***), second )
 
 
 --------------------------------------------------------------------------------
@@ -64,6 +64,28 @@ pickHigh _ [ ] = error "pickHigh: empty list"
 pickHigh p l | getPitch h >= p = ([h], t)
              | otherwise       = ([ ], l) 
                  where (h:t)   = reverse . sortBy (comparing getPitch) $ l 
+
+       
+data IntClass = Up | Down | OK | Drop deriving (Eq, Show)
+
+dipDetect :: Interval -> Interval -> [Timed ScoreEvent] 
+          -> [(Timed ScoreEvent, IntClass)]
+dipDetect dwn up v = foldr mark [] . foldr classInter [] $ v where
+
+  mark :: (Timed ScoreEvent, IntClass) -> [(Timed ScoreEvent , IntClass)]
+         -> [(Timed ScoreEvent, IntClass)]
+  mark x []    = [x]
+  mark s (h:t) = case (snd s, snd h) of
+    (Down, Up) -> s : second (const Drop) h : t
+    _          -> s : h                     : t
+
+  classInter :: Timed ScoreEvent -> [(Timed ScoreEvent , IntClass)]
+           -> [(Timed ScoreEvent, IntClass)]
+  classInter a []            = [(a, OK  )]
+  classInter a l | i >= up   =  (a, Up  ) : l
+                 | i <= dwn  =  (a, Down) : l
+                 | otherwise =  (a, OK  ) : l
+    where i = getInterval (getPitch a) (getPitch . fst . head $ l)
 
 --------------------------------------------------------------------------------
 -- Utilities

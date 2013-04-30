@@ -28,6 +28,7 @@ main = do arg <- getArgs
             ["-n", f] -> removeTrackLabels f
             ["-x", f] -> melodySkyline f 
             ["-m", f] -> filterMelMidiFile FourtyEighth f 
+            ["-t", f] -> test FourtyEighth f
             
             _  -> putStrLn ("usage: -f <filename>  do melody finding\n"++
                             "   OR  -r <filename>  reverse track order\n"++
@@ -37,10 +38,15 @@ main = do arg <- getArgs
                             "   OR  -x <filename>  skyline filtering in a melody\n"++
                             "   OR  -d <directory> evaluate melody finding\n" ++ 
                             "   OR  -s <directory> show some statistics\n" ++
-                            "   OR  -b <directory> batch melodyfinding and quantisation\n" 
+                            "   OR  -b <directory> batch melodyfinding and quantisation\n" ++
+                            "   OR  -t <filename>  for testing\n" 
                             )
 
--- preserveQuantMelOnly :: FilePath
+test :: ShortestNote -> FilePath -> IO ()
+test q f = do mf <- readMidiScore f >>= return . filterMelodyQuant q 
+              print . dipDetect (-9) 9 . head . getVoices $ mf
+            
+
                             
 -- For checking the removal of chords in the melody track
 melodySkyline :: FilePath -> IO ()

@@ -8,6 +8,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , Voice 
                   , Channel
                   , Pitch (..)
+                  , Interval
                   , Velocity
                   , Timed (..)
                   , Time
@@ -29,6 +30,8 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , toMidiNr
                   , toPitch
                   , getPitch
+                  , getInterval
+                  , changePitch
                   , pitchClass
                   , hasTimeSigs
                   -- * MidiFile Utilities
@@ -103,7 +106,9 @@ data TimeSig    = TimeSig       { numerator  :: Int
 type Voice      = [Timed ScoreEvent]
 
 type Channel    = Word8
-newtype Pitch   = Pitch (Int, Int) deriving (Eq, Ord) -- (Octave, Pitch class)
+-- TODO: better changed to Pitch (Int, PitchClass)
+newtype Pitch   = Pitch    (Int, Int) deriving (Eq, Ord) -- (Octave, Pitch class)
+type    Interval= Int
 
 newtype PitchClass = PitchClass Int deriving (Eq, Ord) 
 
@@ -584,6 +589,17 @@ getPitch tse = case getEvent tse of
   (NoteEvent _c p _v _d) -> p
   se                     -> error ("unexpected ScoreEvent: " ++ show se)
 
+-- | Returns the posibly negative 'Interval' between two 'Pitch'es
+getInterval :: Pitch -> Pitch -> Interval
+getInterval (Pitch (fo, fpc)) (Pitch (to, tpc)) = 
+  let (oct', pc') = divMod (tpc - fpc) 12 in ((12 * (to - fo + oct')) + pc')
+  
+-- | Changes a 'Pitch' with a particular 'Interval'
+changePitch :: Pitch -> Interval -> Pitch
+changePitch (Pitch (oct, pc)) i = let (octi, pci) = divMod  i         12 
+                                      (oct', pc') = divMod (pc + pci) 12    
+                                  in Pitch (oct + octi + oct', pc')
+  
 -- | Transforms a 'Voice' into a list of Inter Onset Intervals (IOIs)
 toIOIs :: Voice -> [Time]
 toIOIs v = execState (foldrM step [] v) [] where
