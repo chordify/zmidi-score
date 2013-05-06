@@ -242,7 +242,7 @@ untied1, untied2, tied1, tied2 :: Pattern
 untied1 = [ I, I, O, I,  X, X, X, X,  X, X, X, X,  X, X, X, X ]
 untied2 = [ X, X, X, X,  I, I, O, I,  X, X, X, X,  X, X, X, X ]
 
-tied1   = [ X, X, I, I,  O, I, I, X,  X, X, X, X,  X, X, X, X ]
+tied1   = [ X, X, I, I,  O, I, X, X,  X, X, X, X,  X, X, X, X ]
 tied2   = [ X, X, X, X,  X, X, I, I,  O, I, X, X,  X, X, X, X ]
 
 upScalePat :: TimeSig -> Pattern -> Pattern
@@ -254,7 +254,7 @@ upScalePat ts p = case ts of
   
   
 scale :: Int -> Pattern -> Pattern
-scale fact []     = []
+scale _    []     = []
 scale fact (X:tl) = X : replicate fact X ++ scale fact tl
 scale fact (h:tl) = h : replicate fact O ++ scale fact tl
 
