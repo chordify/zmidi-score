@@ -20,7 +20,6 @@ import Data.List         ( stripPrefix, sortBy, groupBy, intercalate
                          , delete )
 import Data.Text         ( unpack, pack, strip, breakOn )
 import qualified Data.Text as T ( filter)
-import Data.Ord          ( comparing )
 import Data.Char         ( toLower )
 import Data.Maybe        ( catMaybes, isJust, fromJust )
 import Data.Function     ( on )
@@ -62,17 +61,7 @@ compareRTCMidi :: RTCMidi -> RTCMidi -> Ordering
 compareRTCMidi a b =  case compare (tripletPerc a) (tripletPerc b) of
                         EQ  -> compare (nrOfVoices a) (nrOfVoices b) 
                         x   -> x
-                      
-{-
-case (hasValidGridSize a, hasValidGridSize b) of
-    (True , False) -> LT
-    (False, True ) -> GT
-    _              -> case (hasValidTimeSig a, hasValidTimeSig b) of
-                       (True , False) -> LT
-                       (False, True ) -> GT
-                       _              -> compare (getPercTripGridOnsets a)
-                                                 (getPercTripGridOnsets b)
--} 
+
  -- | Prints a match between a compendium entry and a midifile
 printMatch :: ((RTC, Maybe RTCMidi)) -> String
 printMatch (r,m) = let l  = [show (rtcid r), show (title r), show (folders r)]
@@ -85,7 +74,7 @@ printMatch (r,m) = let l  = [show (rtcid r), show (title r), show (folders r)]
 -- IO stuff
 --------------------------------------------------------------------------------
 
--- copies a matched midi file if the edit distance is smaller than 2
+-- copies a matched midi file if it has a matching compendium entry
 copyRTCMidi :: FilePath -> (RTC,Maybe RTCMidi) -> IO ()
 copyRTCMidi newBase m@(rtc, mfrom) = case mfrom of
   Nothing   -> putStrLn ("ignored\t" ++ printMatch m)
@@ -99,20 +88,6 @@ copyRTCMidi newBase m@(rtc, mfrom) = case mfrom of
                                 putStrLn ("created\t" ++ printMatch m ++ "\t"++ to) 
                         else putStrLn ("N.B. File does not exist: " ++ fr)
 
--- -- copies a matched midi file if the edit distance is smaller than 2
--- copyRTCMidi :: FilePath -> (Maybe (RTC, RTCMidi)) -> IO ()
--- copyRTCMidi newBase m@(rtc, from)
-  -- -- Here we select if a match between a compendium entry and a midifile
-  -- -- is good enough: it should have a low edit distance
-  -- | not (isJust m) = putStrLn ("ignored\t" ++ printMatch m)
-  -- | otherwise = do let to = toPath $ from { baseDir  = newBase
-                                          -- , fileName = makeValid ((unpack . strip . title $ rtc) <.> ".mid")}
-                       -- fr = toPath from
-                   -- createDirectoryIfMissing True . takeDirectory $ to
-                   -- e <- doesFileExist fr
-                   -- if e then do copyFile fr to
-                                -- putStrLn ("created\t" ++ printMatch m ++ "\t"++ to) 
-                        -- else putStrLn ("N.B. File does not exist: " ++ fr)
 
 readRTCMidis :: FilePath -> IO [RTCMidi]
 readRTCMidis d =   mapDirInDir (mapDir (readRTCMidiPath d)) d 
@@ -165,6 +140,7 @@ groupRTCMidis m = let grp = groupBy ((==) `on` folder) m
 getSubSet :: [RTCFolder] -> [(RTCFolder, [RTCMidi])] -> [RTCMidi]
 getSubSet fs = concat . map snd . filter ((flip elem) fs . fst) 
 
+-- State to keep track of the unmatched compendium entries
 type MidiSt = ([RTCMidi],[(RTCFolder, [RTCMidi])])
 
 matchAll :: [RTCMidi] -> [(RTCFolder, [RTCMidi])] -> [RTC] -> [(RTC, Maybe RTCMidi)]
@@ -189,11 +165,9 @@ match r = do (ms, grp) <- get
                
   -- | returns a match      
   doMatch :: [RTCMidi] -> ((RTC, Maybe RTCMidi))
-  doMatch subs = -- create a ranked list based on the edit distance
-                 -- let ranks =  sortBy (comparing snd) . map (matchFN r) $ subs 
+  doMatch subs = -- filter the matches
                  case filter snd . map (matchFN r) $ subs of
-                 -- in case takeWhile ((== 0) . snd) $ ranks of 
-                 -- if there are no results with a zero distance return the best
+                 -- if there are no matches
                     []  -> (r, Nothing)
                  -- else resort the top of the list with a zero distance based 
                  -- on midi file statistics and pick the top file
@@ -215,26 +189,6 @@ matchFN rtc mid = ( (rtc, mid)
     
     wanted :: Char -> Bool
     wanted c = not (c `elem` ",.\'\"-_ \t?!()[]`{}&~" )
-
--- editDistance :: Eq a => (a -> a-> Bool) -> [a] -> [a] -> Int
--- editDistance eq xs ys = fromIntegral (table ! (m,n))
-    -- where
-    -- (m,n) = (length xs, length ys)
-    -- x     = array (1,m) (zip [1..] xs)
-    -- y     = array (1,n) (zip [1..] ys)
- 
-    -- table :: Array (Int,Int) Int
-    -- table = array bnds [(ij, dist ij) | ij <- range bnds]
-    -- bnds  = ((0,0),(m,n))
- 
-    -- dist (0,j) = j
-    -- dist (i,0) = i
-    -- dist (i,j) = minimum [table ! (i-1,j) + 1, table ! (i,j-1) + 1,
-        -- if (x ! i) `eq` (y ! j) then table ! (i-1,j-1) else 1 + table ! (i-1,j-1)]
-
-eqToDist :: String -> String -> Int
-eqToDist a b | caseInsStrMatch a b = 0
-             | otherwise           = 100
                
         
 caseInsStrMatch :: String -> String -> Bool
