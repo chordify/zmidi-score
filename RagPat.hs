@@ -28,23 +28,6 @@ printPatCount rtc f =
                 : map (show . matchRatio . matchPat ps . upScalePat ts) 
                   [ untied1, untied2, tied1, tied2 ]
                 ))
-
-printPatCountSPSS :: [RTC] -> FilePath -> IO ()
-printPatCountSPSS rtc f = 
-  do ms <- readMidiScore f 
-     let ts = getEvent . head . getTimeSig $ ms
-         ps = reGroup ts . segByTimeSig FourtyEighth $ ms
-         mt = getRTCMeta rtc f
-         yr = year mt
-     when (isPrecise yr) 
-          (do putStrLn . intercalate "\t"  
-                $ ( show (rtcid mt) : f : show ts : preciseYear yr : "untied"
-                : ( matchPrint (matchPat ps . upScalePat ts $ untied1)
-                               (matchPat ps . upScalePat ts $ untied2)))
-              putStrLn . intercalate "\t"  
-                $ ( show (rtcid mt) : f : show ts : preciseYear yr : "tied"
-                : ( matchPrint (matchPat ps . upScalePat ts $ tied1  )
-                               (matchPat ps . upScalePat ts $ tied2  ))))
                 
 -- | Match the patterns to one file
 printFilePatMat :: FilePath -> IO ()
