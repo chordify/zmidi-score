@@ -22,7 +22,7 @@ import Data.Text         ( unpack, pack, strip, breakOn )
 import qualified Data.Text as T ( filter)
 import Data.Ord          ( comparing )
 import Data.Char         ( toLower )
-import Data.Maybe        ( catMaybes )
+import Data.Maybe        ( catMaybes, isJust, fromJust )
 import Data.Function     ( on )
 
 import Control.Arrow     ( second )
@@ -74,21 +74,23 @@ case (hasValidGridSize a, hasValidGridSize b) of
                                                  (getPercTripGridOnsets b)
 -} 
  -- | Prints a match between a compendium entry and a midifile
-printMatch :: ((RTC,RTCMidi), Int) -> String
-printMatch ((r,m),s) = intercalate "\t" 
-  [show (rtcid r), show (title r), show (folders r), show (toPath m), show (s)]
+printMatch :: ((RTC, Maybe RTCMidi)) -> String
+printMatch (r,m) = let l  = [show (rtcid r), show (title r), show (folders r)]
+                       l' = case m of
+                              Just p  -> l ++ [show p]
+                              Nothing -> l
+                   in intercalate "\t" l'
  
 --------------------------------------------------------------------------------
 -- IO stuff
 --------------------------------------------------------------------------------
 
 -- copies a matched midi file if the edit distance is smaller than 2
-copyRTCMidi :: FilePath -> ((RTC, RTCMidi), Int) -> IO ()
-copyRTCMidi newBase m@((rtc, from), d) 
+copyRTCMidi :: FilePath -> (RTC,Maybe RTCMidi) -> IO ()
+copyRTCMidi newBase m@(rtc, mfrom) = case mfrom of
+  Nothing   -> putStrLn ("ignored\t" ++ printMatch m)
   -- Here we select if a match between a compendium entry and a midifile
-  -- is good enough: it should have a low edit distance
-  | d > 1     = putStrLn ("ignored\t" ++ printMatch m)
-  | otherwise = do let to = toPath $ from { baseDir  = newBase
+  Just from ->  do let to = toPath $ from { baseDir  = newBase
                                           , fileName = makeValid ((unpack . strip . title $ rtc) <.> ".mid")}
                        fr = toPath from
                    createDirectoryIfMissing True . takeDirectory $ to
@@ -96,6 +98,21 @@ copyRTCMidi newBase m@((rtc, from), d)
                    if e then do copyFile fr to
                                 putStrLn ("created\t" ++ printMatch m ++ "\t"++ to) 
                         else putStrLn ("N.B. File does not exist: " ++ fr)
+
+-- -- copies a matched midi file if the edit distance is smaller than 2
+-- copyRTCMidi :: FilePath -> (Maybe (RTC, RTCMidi)) -> IO ()
+-- copyRTCMidi newBase m@(rtc, from)
+  -- -- Here we select if a match between a compendium entry and a midifile
+  -- -- is good enough: it should have a low edit distance
+  -- | not (isJust m) = putStrLn ("ignored\t" ++ printMatch m)
+  -- | otherwise = do let to = toPath $ from { baseDir  = newBase
+                                          -- , fileName = makeValid ((unpack . strip . title $ rtc) <.> ".mid")}
+                       -- fr = toPath from
+                   -- createDirectoryIfMissing True . takeDirectory $ to
+                   -- e <- doesFileExist fr
+                   -- if e then do copyFile fr to
+                                -- putStrLn ("created\t" ++ printMatch m ++ "\t"++ to) 
+                        -- else putStrLn ("N.B. File does not exist: " ++ fr)
 
 readRTCMidis :: FilePath -> IO [RTCMidi]
 readRTCMidis d =   mapDirInDir (mapDir (readRTCMidiPath d)) d 
@@ -150,11 +167,11 @@ getSubSet fs = concat . map snd . filter ((flip elem) fs . fst)
 
 type MidiSt = ([RTCMidi],[(RTCFolder, [RTCMidi])])
 
-matchAll :: [RTCMidi] -> [(RTCFolder, [RTCMidi])] -> [RTC] -> [((RTC,RTCMidi),Int)]
+matchAll :: [RTCMidi] -> [(RTCFolder, [RTCMidi])] -> [RTC] -> [(RTC, Maybe RTCMidi)]
 matchAll ms grp rs = evalState (mapM match rs) (ms, grp)
 
 -- | matches 'RTCMidi's to an 'RTC' meta data entry
-match ::  RTC -> State MidiSt ((RTC, RTCMidi), Int)
+match ::  RTC -> State MidiSt (RTC, Maybe RTCMidi)
 match r = do (ms, grp) <- get 
              let m = case folders r of
                        [] -> doMatch ms -- match against the complete corpus
@@ -162,7 +179,7 @@ match r = do (ms, grp) <- get
                                [] -> doMatch ms      -- if it's not empty
                                s  -> doMatch s
              -- delete the match from the corpus when it is a good match
-             when (snd m <= 1) (modify (deleteMidi (snd . fst $ m)))
+             when (isJust . snd $ m) (modify (deleteMidi (fromJust . snd $ m)))
              return m where
 
   -- | Deletes an 'RTCMidi' from the 'MidiSt', this ensures we cannot match
@@ -171,21 +188,23 @@ match r = do (ms, grp) <- get
   deleteMidi rtc (l, tab) = (delete rtc l, map (second (delete rtc)) tab)
                
   -- | returns a match      
-  doMatch :: [RTCMidi] -> ((RTC, RTCMidi), Int)
+  doMatch :: [RTCMidi] -> ((RTC, Maybe RTCMidi))
   doMatch subs = -- create a ranked list based on the edit distance
-                 let ranks =  sortBy (comparing snd) . map (matchFN r) $ subs 
-                 in case takeWhile ((== 0) . snd) $ ranks of 
+                 -- let ranks =  sortBy (comparing snd) . map (matchFN r) $ subs 
+                 case filter snd . map (matchFN r) $ subs of
+                 -- in case takeWhile ((== 0) . snd) $ ranks of 
                  -- if there are no results with a zero distance return the best
-                    []  -> head ranks  
+                    []  -> (r, Nothing)
                  -- else resort the top of the list with a zero distance based 
                  -- on midi file statistics and pick the top file
-                    top -> head . sortBy (compareRTCMidi `on` (snd . fst)) $ top
+                    top -> second Just . head . sortBy (compareRTCMidi `on` snd) 
+                                       . map fst $ top
 
   
 -- | Matches a filename
-matchFN :: RTC -> RTCMidi -> ((RTC, RTCMidi), Int)
+matchFN :: RTC -> RTCMidi -> ((RTC, RTCMidi), Bool)
 matchFN rtc mid = ( (rtc, mid)
-                  , eqToDist (preProcRTC rtc) (preProcRTCMidi mid))
+                  , caseInsStrMatch (preProcRTC rtc) (preProcRTCMidi mid))
   where -- preprocessing
     preProcRTCMidi :: RTCMidi -> String
     preProcRTCMidi = unpack . T.filter wanted . fst . breakOn (pack " - ") 
