@@ -8,6 +8,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , Voice 
                   , Channel
                   , Pitch (..)
+                  , PitchClass (..)
                   , Interval
                   , Velocity
                   , Timed (..)

@@ -10,11 +10,12 @@ import Data.IntMap.Lazy   ( keys )
 
 -- other libraries
 import System.Console.ParseArgs
-import Control.Monad      ( void )
+import Control.Monad      ( void, when )
 import RTCParser          ( readRTC, RTC (..) )
 import MatchFile          ( readRTCMidis, matchAll, copyRTCMidi, groupRTCMidis )
 import RagPat             ( printFileSubDiv, printSubDiv, hasValidTimeSig
-                          , printFilePatMat, printPatCount )
+                          , printFilePatMat, printPatCount, isStraight
+                          , hasValidGridSize)
 
 data RagArgs = Mode| MidiDir | RTCFile | MidiFile deriving (Eq, Ord, Show)
 
@@ -50,9 +51,9 @@ main :: IO ()
 main = do arg <- parseArgsIO ArgsComplete myArgs
           case (getRequiredArg arg Mode, fileOrDir arg) of
             ("stat"  , Left f ) -> doScore f
-            ("stat"  , Right d) -> do putStr   "file\ttime signature\tis valid time sig\t"
-                                      putStr   "keys\tnr of voices\tgc IOI divider\t"
-                                      putStrLn "ticks Per Beat\tnr Of Notes\tnote lengths"
+            ("stat"  , Right d) -> do putStr   "file\tis Straight\t"
+                                      -- putStr   "keys\tnr of voices\tgc IOI divider\t"
+                                      -- putStrLn "ticks Per Beat\tnr Of Notes\tnote lengths"
                                       void . mapDirInDir (mapDir' showMidiStats) $ d
             ("subdiv", Left f ) -> printFileSubDiv f
             ("subdiv", Right d) -> void . mapDirInDir (mapDir' printSubDiv) $ d
@@ -101,13 +102,13 @@ showMidiStats fp = do mf <- readMidi fp
                           do let m  = quantise FourtyEighth . midiFileToMidiScore $ mid
                                  tm = buildTickMap . getVoices $ m
                                  d  = gcIOId tm
-                             putStrLn (fp ++ '\t' : show (getTimeSig m) 
-                                ++ '\t' : (show . hasValidTimeSig $ m)
-                                ++ '\t' : show (getKey m)
-                                ++ '\t' : (show . length . getVoices $ m) 
-                                ++ '\t' : show d 
-                                ++ '\t' : (show . ticksPerBeat $ m)
-                                ++ '\t' : (show . nrOfNotes $ m)
-                                ++ '\t' : (show . length . keys $ tm)
-                                ++ '\t' :  show tm)
+                             when (hasValidGridSize m) 
+                                  (putStrLn (fp ++ '\t' : (show . isStraight $ m)))
+                                -- ++ '\t' : show (getKey m)
+                                -- ++ '\t' : (show . length . getVoices $ m) 
+                                -- ++ '\t' : show d 
+                                -- ++ '\t' : (show . ticksPerBeat $ m)
+                                -- ++ '\t' : (show . nrOfNotes $ m)
+                                -- ++ '\t' : (show . length . keys $ tm)
+                                -- ++ '\t' :  show tm)
 
