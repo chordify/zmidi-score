@@ -63,10 +63,11 @@ compareRTCMidi a b =  case compare (tripletPerc a) (tripletPerc b) of
 
  -- | Prints a match between a compendium entry and a midifile
 printMatch :: (RTC, Maybe RTCMidi) -> String
-printMatch (r,m) = let l  = [show (rtcid r), show (title r), show (folders r)]
+printMatch (r,m) = let l  = [ show (rtcid r)   , show (title r)
+                            , show (folders r) , show (year  r) ]
                        l' = case m of
-                              Just p  -> l ++ [show p]
-                              Nothing -> l
+                              Just p  -> l ++ [show (nrOfVoices p), show (fileName p)]
+                              Nothing -> l ++ ["n/a\tno matching file found"]
                    in intercalate "\t" l'
 
 --------------------------------------------------------------------------------
