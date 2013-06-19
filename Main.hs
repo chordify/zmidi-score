@@ -12,7 +12,7 @@ import Data.IntMap.Lazy   ( keys )
 import System.Console.ParseArgs
 import Control.Monad      ( void, when )
 import RTCParser          ( readRTC, RTC (..) )
-import MatchFile          ( readRTCMidis, matchAll, copyRTCMidi, groupRTCMidis )
+import MatchFile          ( readRTCMidis, matchAll, copyRTCMidi )
 import RagPat             ( printFileSubDiv, printSubDiv, hasValidTimeSig
                           , printFilePatMat, printPatCount, isStraight
                           , hasValidGridSize)
@@ -50,11 +50,8 @@ myArgs = [
 main :: IO ()
 main = do arg <- parseArgsIO ArgsComplete myArgs
           case (getRequiredArg arg Mode, fileOrDir arg) of
-            ("stat"  , Left f ) -> doScore f
-            ("stat"  , Right d) -> do putStr   "file\tis Straight\t"
-                                      -- putStr   "keys\tnr of voices\tgc IOI divider\t"
-                                      -- putStrLn "ticks Per Beat\tnr Of Notes\tnote lengths"
-                                      void . mapDirInDir (mapDir' showMidiStats) $ d
+            ("stat"  , Left f ) -> showFileStats f
+            ("stat"  , Right d) -> getCompendium arg >>= showDirStats d
             ("subdiv", Left f ) -> printFileSubDiv f
             ("subdiv", Right d) -> void . mapDirInDir (mapDir' printSubDiv) $ d
             ("mkrtc" , Right d) -> getCompendium arg >>= createSubCorpus d 
@@ -86,16 +83,12 @@ ragPatDir d c = void . mapDirInDir (mapDir' (printPatCount c)) $ d
 createSubCorpus :: FilePath -> [RTC] -> IO ()
 createSubCorpus dir c = do m <- readRTCMidis dir
                            mapM_ (copyRTCMidi "D:\\temp\\ragtimesSubSet") 
-                                 (matchAll m (groupRTCMidis m) c)
+                                 (matchAll m c)
 
-          
--- | do stuff with a 'MidiScore' ...
-doScore :: FilePath -> IO ()
-doScore f = readMidiScore f >>= putStrLn . showMidiScore
 
 -- | Print some stats
-showMidiStats :: FilePath -> IO ()
-showMidiStats fp = do mf <- readMidi fp
+showFileStats :: FilePath -> IO ()
+showFileStats fp = do mf <- readMidi fp
                       case mf of
                         Left  err -> putStrLn (fp ++ '\t' : show err)
                         Right mid -> 
@@ -104,11 +97,9 @@ showMidiStats fp = do mf <- readMidi fp
                                  d  = gcIOId tm
                              when (hasValidGridSize m) 
                                   (putStrLn (fp ++ '\t' : (show . isStraight $ m)))
-                                -- ++ '\t' : show (getKey m)
-                                -- ++ '\t' : (show . length . getVoices $ m) 
-                                -- ++ '\t' : show d 
-                                -- ++ '\t' : (show . ticksPerBeat $ m)
-                                -- ++ '\t' : (show . nrOfNotes $ m)
-                                -- ++ '\t' : (show . length . keys $ tm)
-                                -- ++ '\t' :  show tm)
+
+showDirStats :: FilePath -> [RTC] -> IO ()
+showDirStats dir c = do m <- readRTCMidis dir
+                        mapM_ print (matchAll m c)
+
 

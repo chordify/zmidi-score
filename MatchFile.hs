@@ -7,11 +7,11 @@ module MatchFile ( -- | * Retrieving Meta data (after creating a matched corpus)
                  , readRTCMidiPath
                    -- | ** Printing & Copying
                  , printMatch
+                 , hasMatch 
                  , copyRTCMidi
                    -- | ** Matching
                  , match
                  , matchAll
-                 , groupRTCMidis
                  ) where
 
 -- import Data.Array
@@ -63,13 +63,15 @@ compareRTCMidi a b =  case compare (tripletPerc a) (tripletPerc b) of
                         x   -> x
 
  -- | Prints a match between a compendium entry and a midifile
-printMatch :: ((RTC, Maybe RTCMidi)) -> String
+printMatch :: (RTC, Maybe RTCMidi) -> String
 printMatch (r,m) = let l  = [show (rtcid r), show (title r), show (folders r)]
                        l' = case m of
                               Just p  -> l ++ [show p]
                               Nothing -> l
                    in intercalate "\t" l'
- 
+
+hasMatch :: (RTC, Maybe RTCMidi) -> Bool
+hasMatch (_, mrtc) = isJust mrtc
 --------------------------------------------------------------------------------
 -- IO stuff
 --------------------------------------------------------------------------------
@@ -130,12 +132,6 @@ toPath rtcf = case lookup (folder rtcf) folderMap of
 -- Matching Filenames
 --------------------------------------------------------------------------------
 
--- | groups the files based on 
-groupRTCMidis :: [RTCMidi] -> [(RTCFolder, [RTCMidi])]
-groupRTCMidis m = let grp = groupBy ((==) `on` folder) m
-                      ixs = map (folder . head) grp
-                   in zip ixs grp
-
 -- | Returns a subset of the compendium based on pre-annotated folders
 getSubSet :: [RTCFolder] -> [(RTCFolder, [RTCMidi])] -> [RTCMidi]
 getSubSet fs = concat . map snd . filter ((flip elem) fs . fst) 
@@ -143,8 +139,14 @@ getSubSet fs = concat . map snd . filter ((flip elem) fs . fst)
 -- State to keep track of the unmatched compendium entries
 type MidiSt = ([RTCMidi],[(RTCFolder, [RTCMidi])])
 
-matchAll :: [RTCMidi] -> [(RTCFolder, [RTCMidi])] -> [RTC] -> [(RTC, Maybe RTCMidi)]
-matchAll ms grp rs = evalState (mapM match rs) (ms, grp)
+matchAll :: [RTCMidi] -> [RTC] -> [(RTC, Maybe RTCMidi)]
+matchAll ms rs = evalState (mapM match rs) (ms, groupRTCMidis ms) where
+
+  -- | groups the files based on 
+  groupRTCMidis :: [RTCMidi] -> [(RTCFolder, [RTCMidi])]
+  groupRTCMidis m = let grp = groupBy ((==) `on` folder) m
+                        ixs = map (folder . head) grp
+                     in zip ixs grp
 
 -- | matches 'RTCMidi's to an 'RTC' meta data entry
 match ::  RTC -> State MidiSt (RTC, Maybe RTCMidi)
