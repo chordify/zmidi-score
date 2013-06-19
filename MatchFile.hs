@@ -6,8 +6,7 @@ module MatchFile ( -- | * Retrieving Meta data (after creating a matched corpus)
                  , readRTCMidis
                  , readRTCMidiPath
                    -- | ** Printing & Copying
-                 , printMatch
-                 , hasMatch 
+                 , printMatch 
                  , copyRTCMidi
                    -- | ** Matching
                  , match
@@ -70,8 +69,6 @@ printMatch (r,m) = let l  = [show (rtcid r), show (title r), show (folders r)]
                               Nothing -> l
                    in intercalate "\t" l'
 
-hasMatch :: (RTC, Maybe RTCMidi) -> Bool
-hasMatch (_, mrtc) = isJust mrtc
 --------------------------------------------------------------------------------
 -- IO stuff
 --------------------------------------------------------------------------------

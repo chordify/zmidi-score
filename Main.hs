@@ -3,17 +3,14 @@ module Main where
 
 import ZMidi.Core         ( readMidi )
 import ZMidiBasic
-import MidiCommonIO       ( mapDirInDir, mapDir', readMidiScore )
-
--- import System.Environment ( getArgs )
-import Data.IntMap.Lazy   ( keys )
+import MidiCommonIO       ( mapDirInDir, mapDir' )
 
 -- other libraries
 import System.Console.ParseArgs
 import Control.Monad      ( void, when )
 import RTCParser          ( readRTC, RTC (..) )
-import MatchFile          ( readRTCMidis, matchAll, copyRTCMidi )
-import RagPat             ( printFileSubDiv, printSubDiv, hasValidTimeSig
+import MatchFile          ( readRTCMidis, matchAll, copyRTCMidi, printMatch )
+import RagPat             ( printFileSubDiv, printSubDiv -- , hasValidTimeSig
                           , printFilePatMat, printPatCount, isStraight
                           , hasValidGridSize)
 
@@ -100,6 +97,6 @@ showFileStats fp = do mf <- readMidi fp
 
 showDirStats :: FilePath -> [RTC] -> IO ()
 showDirStats dir c = do m <- readRTCMidis dir
-                        mapM_ print (matchAll m c)
+                        mapM_ (putStrLn . printMatch) $ matchAll m c
 
 
