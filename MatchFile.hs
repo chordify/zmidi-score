@@ -29,7 +29,7 @@ import Control.Monad.State
 import RTCParser
 import MidiCommonIO      ( mapDir, mapDirInDir )
 import ZMidi.Core        ( readMidi )
-import ZMidiBasic        ( MidiScore (..), midiFileToMidiScore )
+import ZMidiBasic        ( MidiScore (..), midiFileToMidiScore, TimeSig, Timed )
 
 import RagPat            ( getPercTripGridOnsets, hasValidTimeSig, hasValidGridSize)
                          
@@ -48,11 +48,15 @@ import System.FilePath   ( (</>), (<.>), splitDirectories, takeFileName
 data RTCMidi = RTCMidi { baseDir      :: FilePath
                        , folder       :: RTCFolder 
                        , fileName     :: String
+                       -- some properties of the midifile 
+                       -- (We don't store the complete midi files to save space)
                        , nrOfVoices   :: Int
+                       , rtsTimeSig   :: [Timed TimeSig]
                        , tripletPerc  :: Double
+                       , validGrid    :: Bool
                        } deriving (Show, Eq)
  
--- comparse the midi file based on statistics that might reflect the quality 
+-- compare the midi file based on statistics that might reflect the quality 
 -- of the data: a) does it has a meter, b) how many different note lengths
 -- do the files have (less is better = smaller), c) how many tracks do the files
 -- have
@@ -66,8 +70,12 @@ printMatch :: (RTC, Maybe RTCMidi) -> String
 printMatch (r,m) = let l  = [ show (rtcid r)   , show (title r)
                             , show (folders r) , show (year  r) ]
                        l' = case m of
-                              Just p  -> l ++ [show (nrOfVoices p), show (fileName p)]
-                              Nothing -> l ++ ["n/a\tno matching file found"]
+                              Just p  -> l ++ [ show (nrOfVoices  p)
+                                              , show (rtsTimeSig  p)
+                                              , show (tripletPerc p)
+                                              , show (validGrid   p)
+                                              , show (fileName    p) ]
+                              Nothing -> l ++ ["n/a\tn/a\tn/a\tn/a\tno matching file found"]
                    in intercalate "\t" l'
 
 --------------------------------------------------------------------------------
@@ -105,8 +113,15 @@ readRTCMidiPath bd fp = -- Path conversions
                                      case m of
                                        Left  _ -> return Nothing -- ignore erroneous files
                                        Right x -> do let sc = midiFileToMidiScore x
-                                                         -- is the nr or ticks per beat dividable by 12
-                                                     case hasValidGridSize sc of 
+                                                         n = length . getVoices $ sc  
+                                                         t = getTimeSig sc
+                                                         g = hasValidGridSize sc
+                                                         p = if g then getPercTripGridOnsets sc else -1
+                                                         r = RTCMidi bd rtcf (takeFileName fp) n t p g
+                                                     n `seq` t `seq` p `seq` r `seq` (return . Just $ r) 
+ 
+                                                     -- is the nr or ticks per beat dividable by 12
+ {-                                                    case hasValidGridSize sc of 
                                                        False -> return Nothing
                                                                 -- does it has a 2/4 4/4 2/2 meter
                                                        True  -> case hasValidTimeSig sc of
@@ -118,7 +133,7 @@ readRTCMidiPath bd fp = -- Path conversions
                                                                                 False ->  do let n = length . getVoices $ sc  
                                                                                                  r = RTCMidi bd rtcf (takeFileName fp) n p
                                                                                              n `seq` r `seq` (return . Just $ r)
-
+-}
 -- | returns the filepath of the RTCMidi
 toPath :: RTCMidi -> FilePath
 toPath rtcf = case lookup (folder rtcf) folderMap of
