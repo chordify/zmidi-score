@@ -262,7 +262,7 @@ data ShortestNote = Eighth | Sixteenth | ThirtySecond
 
 type GridUnit = Time
 
--- | Quantises a 'MidiScore' snapping all events to a 1/32 grid
+-- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid
 quantise :: ShortestNote -> MidiScore -> MidiScore
 quantise sn (MidiScore k ts dv mf tp _md vs) =  MidiScore k ts' dv mf tp md' vs' where
   
@@ -294,7 +294,7 @@ quantise sn (MidiScore k ts dv mf tp _md vs) =  MidiScore k ts' dv mf tp md' vs'
                where (d,m) = t `divMod` g
 
     
--- | Allthought 'quantise' also quantises the duration of 'NoteEvents', it can
+-- | Although 'quantise' also quantises the duration of 'NoteEvents', it can
 -- happen that melody notes do still overlap. This function removes the overlap
 -- N.B. This function is designed only for monophonic melodies, it does not 
 -- work on a polyphonic score.
@@ -320,8 +320,8 @@ toGridUnit ThirtySecond = 8
 toGridUnit FourtyEighth = 12
 toGridUnit SixtyFourth  = 16
 
--- | The Inter Onset Interval that is the greates common divider. It can be
---used to estimate wheter a track is quantised or not.
+-- | The Inter Onset Interval that is the greatest common divider. It can be
+--used to estimate whether a track is quantised or not.
 gcIOId :: TickMap -> Time
 gcIOId tm = case keys $ tm of
   [] -> 0

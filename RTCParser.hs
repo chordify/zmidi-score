@@ -190,7 +190,16 @@ parseField p empt t
   | T.null t  = empt
   | otherwise = parseDataSafe p t
 
--- | Parses a year
+-- | Parses a year:
+-- processed as (numbers including MIDI file): 
+--   IOYear: we take I                 (currently 17 files) 
+--   Decade: pick if < 1910 or >= 1920 (currently 13 files)
+--   Approx: pick if < 1910 or >= 1930 (currently 46 files)
+--   Modern: add to > 1920 group
+--   OtherYear: parse also composed/copyrighted (c/c) and take composed
+--   Pre: Ignore for now               (currently 12 files)
+--   Range: pick if total range is  < 1910 or >= 1920 (currently 26 files)
+--   Year: just use (currently 5330)
 pRTCYear :: Parser RTCYear
 pRTCYear =   Year        <$>  pInteger
          <|> Decade      <$> pInteger <* pString "'s"
