@@ -119,21 +119,7 @@ readRTCMidiPath bd fp = -- Path conversions
                                                          p = if g then getPercTripGridOnsets sc else -1
                                                          r = RTCMidi bd rtcf (takeFileName fp) n t p g
                                                      n `seq` t `seq` p `seq` r `seq` (return . Just $ r) 
- 
-                                                     -- is the nr or ticks per beat dividable by 12
- {-                                                    case hasValidGridSize sc of 
-                                                       False -> return Nothing
-                                                                -- does it has a 2/4 4/4 2/2 meter
-                                                       True  -> case hasValidTimeSig sc of
-                                                                  False -> return Nothing
-                                                                  True  -> do let p = getPercTripGridOnsets sc
-                                                                              -- is it quantizable enough, and not in swing?
-                                                                              case p >=0.01 of
-                                                                                True  -> return Nothing
-                                                                                False ->  do let n = length . getVoices $ sc  
-                                                                                                 r = RTCMidi bd rtcf (takeFileName fp) n p
-                                                                                             n `seq` r `seq` (return . Just $ r)
--}
+
 -- | returns the filepath of the RTCMidi
 toPath :: RTCMidi -> FilePath
 toPath rtcf = case lookup (folder rtcf) folderMap of

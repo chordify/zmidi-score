@@ -1,5 +1,12 @@
 {-# OPTIONS_GHC -Wall                #-}
-module RagPat where
+module RagPat ( getPercTripGridOnsets
+              , hasValidTimeSig
+              , hasValidGridSize
+              , printFileSubDiv
+              , printSubDiv 
+              , printFilePatMat
+              , printPatCount
+              )where
 
 import ZMidiBasic
 import MidiCommonIO       ( readMidiScore )
@@ -127,13 +134,16 @@ getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
 -- Important tests for valid midi files
 --------------------------------------------------------------------------------
 
+-- | 
 hasValidGridSize :: MidiScore -> Bool
 hasValidGridSize ms = (ticksPerBeat ms `mod` toGridUnit FourtyEighth) == 0
 
 -- | has the 'MididScore' a 'Straight' 'SubDiv'ision
-isStraight :: MidiScore -> Bool
-isStraight = (<= 0.01) . getPercTripGridOnsets 
+-- isStraight :: MidiScore -> Bool
+-- isStraight = (<= 0.01) . getPercTripGridOnsets 
 
+-- | Returns the percentage of onsets that are not on grid positions 0, 3, 6,
+-- and 9 (of 12) for a 'Pattern' (by applying 'percTripGridOnsets)
 getPercTripGridOnsets :: MidiScore -> Double
 getPercTripGridOnsets = percTripGridOnsets . segByTimeSig FourtyEighth
 
@@ -155,7 +165,9 @@ isValid ts = case getEvent ts of
 --------------------------------------------------------------------------------
 -- Matching beat subdivisions
 --------------------------------------------------------------------------------
-  
+
+-- | Returns the percentage of onsets that are not on grid positions 0, 3, 6,
+-- and 9 (of 12) for a 'Pattern'
 percTripGridOnsets :: [Pattern] -> Double
 percTripGridOnsets ps = 
   let (trip,rest) = foldr step (0,0) ps

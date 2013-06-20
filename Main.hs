@@ -11,7 +11,7 @@ import Control.Monad      ( void, when )
 import RTCParser          ( readRTC, RTC (..) )
 import MatchFile          ( readRTCMidis, matchAll, copyRTCMidi, printMatch )
 import RagPat             ( printFileSubDiv, printSubDiv -- , hasValidTimeSig
-                          , printFilePatMat, printPatCount, isStraight
+                          , printFilePatMat, printPatCount -- , isStraight
                           , hasValidGridSize)
 
 data RagArgs = Mode| MidiDir | RTCFile | MidiFile deriving (Eq, Ord, Show)
@@ -92,8 +92,7 @@ showFileStats fp = do mf <- readMidi fp
                           do let m  = quantise FourtyEighth . midiFileToMidiScore $ mid
                                  tm = buildTickMap . getVoices $ m
                                  d  = gcIOId tm
-                             when (hasValidGridSize m) 
-                                  (putStrLn (fp ++ '\t' : (show . isStraight $ m)))
+                             when (hasValidGridSize m) (putStrLn fp)
 
 showDirStats :: FilePath -> [RTC] -> IO ()
 showDirStats dir c = do m <- readRTCMidis dir
