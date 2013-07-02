@@ -262,36 +262,46 @@ data ShortestNote = Eighth | Sixteenth | ThirtySecond
 
 type GridUnit = Time
 
+type Deviation = Time
 -- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid
 quantise :: ShortestNote -> MidiScore -> MidiScore
-quantise sn (MidiScore k ts dv mf tp _md vs) =  MidiScore k ts' dv mf tp md' vs' where
+quantise s = fst . quantiseDev s
+
+quantiseDev :: ShortestNote -> MidiScore -> (MidiScore, Deviation)
+quantiseDev sn (MidiScore k ts dv mf tp _md vs) =  
+  (MidiScore k ts' dv mf tp md' vs', sum d)  where
   
   gu = dv `div` toGridUnit sn
   -- snap all events to a grid, and remove possible overlaps 
-  vs' = map (map snapEvent ) vs 
+  (vs',d) = unzip . map (quantiseVoice gu) $ vs 
+  -- nrEv    = sum . map length vs
   -- the minimum duration might have changed
   md' = getMinDur . buildTickMap $ vs'
   -- also align the time signatures to a grid
   ts' = map snapTS ts
   
   snapTS :: Timed TimeSig -> Timed TimeSig
-  snapTS t = t {onset = snap gu $ onset t}
+  snapTS t = t {onset = fst . snap gu $ onset t}  
   
-  snapEvent :: Timed ScoreEvent -> Timed ScoreEvent
-  snapEvent (Timed ons dat) = case dat of
-    (NoteEvent c p v d) -> Timed (snap gu ons) (NoteEvent c p v (snap gu d))
-    _                   -> Timed (snap gu ons) dat
+quantiseVoice :: GridUnit -> Voice -> (Voice, Deviation)
+quantiseVoice gu v = second sum . unzip . map snapEvent $ v where
+
+  snapEvent :: Timed ScoreEvent -> (Timed ScoreEvent, Deviation)
+  snapEvent (Timed ons dat) = let (t', d) = snap gu ons 
+                              in case dat of
+    (NoteEvent c p v l) -> (Timed t' (NoteEvent c p v (fst $ snap gu l)), d)
+    _                   -> (Timed t' dat                                , d)
     
-  -- snaps a 'Time' to a grid
-  snap :: GridUnit -> Time -> Time
-  snap g t | m == 0  = t               -- score event is on the grid
-           | m >  0  = if (g - m) >= m -- score event is off the grid
-                       -- and closer to the past grid point
-                       then    d  * g  -- snap backwards
-                       -- or closer to the next grid point
-                       else (1+d) * g  -- snap forwards
-           | otherwise = error "Negative time stamp found"
-               where (d,m) = t `divMod` g
+-- snaps a 'Time' to a grid
+snap :: GridUnit -> Time -> (Time, Deviation) 
+snap g t | m == 0  = (t, 0)          -- score event is on the grid
+         | m >  0  = if (g - m) >= m -- score event is off the grid
+                     -- and closer to the past grid point
+                     then let t' =    d  * g in (t', t  - t') -- snap backwards
+                     -- or closer to the next grid point
+                     else let t' = (1+d) * g in (t', t' - t ) -- snap forwards
+         | otherwise = error "Negative time stamp found"
+             where (d,m) = t `divMod` g
 
     
 -- | Although 'quantise' also quantises the duration of 'NoteEvents', it can
@@ -312,8 +322,11 @@ removeOverlap = foldr step [] where
                                        then nxt - onset t else d
                              in  t {getEvent = NoteEvent c p v d'}
       _                   -> t
-    
-toGridUnit :: ShortestNote -> GridUnit
+
+-- | takes the quantisation granularity parameter 'ShortestNote' and returns
+-- a the 'Int' that the beat length should be divided by. The resulting 
+-- value we name 'GridUnit'; it describes the minimal length of an event.
+toGridUnit :: ShortestNote -> Int
 toGridUnit Eighth       = 2
 toGridUnit Sixteenth    = 4
 toGridUnit ThirtySecond = 8
@@ -365,7 +378,7 @@ midiFileToMidiScore mf = MidiScore (select isKeyChange keyChange NoKey meta)
                  unzip . map (partition isNoteEvent . midiTrackToVoice)
                        . mf_tracks $ mf -- get midi tracks
                        
-  -- Given a filter function, a transformation functin and a default value
+  -- Given a filter function, a transformation function and a default value
   -- this function transforms a list of score events, which can possibly be
   -- empty, into a Timed meta information
   select :: (Timed ScoreEvent -> Bool) -> (ScoreEvent -> a) -> a
@@ -381,7 +394,7 @@ midiFileToMidiScore mf = MidiScore (select isKeyChange keyChange NoKey meta)
   -- quarter note
   getDivision :: MidiHeader -> Time
   getDivision hd = case time_division hd of
-                    (FPS _ ) -> error "no devision found"
+                    (FPS _ ) -> error "no division found"
                     (TPB b ) -> fromIntegral b
     
     
