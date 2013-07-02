@@ -29,7 +29,8 @@ import Control.Monad.State
 import RTCParser
 import MidiCommonIO      ( mapDir, mapDirInDir )
 import ZMidi.Core        ( readMidi )
-import ZMidiBasic        ( MidiScore (..), midiFileToMidiScore, TimeSig, Timed )
+import ZMidiBasic        ( MidiScore (..), midiFileToMidiScore, TimeSig, Timed
+                         , GridUnit, ShortestNote, nrOfNotes, quantiseDev )
 
 import RagPat            ( getPercTripGridOnsets, hasValidTimeSig, hasValidGridSize)
                          
@@ -54,6 +55,8 @@ data RTCMidi = RTCMidi { baseDir      :: FilePath
                        , rtsTimeSig   :: [Timed TimeSig]
                        , tripletPerc  :: Double
                        , validGrid    :: Bool
+                       , avgDeviation :: Float
+                       , gridUnit     :: GridUnit
                        } deriving (Show, Eq)
  
 -- compare the midi file based on statistics that might reflect the quality 
@@ -70,11 +73,14 @@ printMatch :: (RTC, Maybe RTCMidi) -> String
 printMatch (r,m) = let l  = [ show (rtcid r)   , show (title r)
                             , show (folders r) , show (year  r) ]
                        l' = case m of
-                              Just p  -> l ++ [ show (nrOfVoices  p)
-                                              , show (rtsTimeSig  p)
-                                              , show (tripletPerc p)
-                                              , show (validGrid   p)
-                                              , show (fileName    p) ]
+                              Just p  -> l ++ [ show (nrOfVoices   p)
+                                              , show (rtsTimeSig   p)
+                                              , show (tripletPerc  p)
+                                              , show (validGrid    p)
+                                              , show (validGrid    p)
+                                              , show (avgDeviation p)
+                                              , show (gridUnit     p)
+                                              , show (fileName     p) ]
                               Nothing -> l ++ ["n/a\tn/a\tn/a\tn/a\tno matching file found"]
                    in intercalate "\t" l'
 
@@ -83,7 +89,7 @@ printMatch (r,m) = let l  = [ show (rtcid r)   , show (title r)
 --------------------------------------------------------------------------------
 
 -- copies a matched midi file if it has a matching compendium entry
-copyRTCMidi :: FilePath -> (RTC,Maybe RTCMidi) -> IO ()
+copyRTCMidi :: FilePath -> (RTC, Maybe RTCMidi) -> IO ()
 copyRTCMidi newBase m@(rtc, mfrom) = case mfrom of
   Nothing   -> putStrLn ("ignored\t" ++ printMatch m)
   -- Here we select if a match between a compendium entry and a midifile
@@ -97,13 +103,13 @@ copyRTCMidi newBase m@(rtc, mfrom) = case mfrom of
                         else putStrLn ("N.B. File does not exist: " ++ fr)
 
 
-readRTCMidis :: FilePath -> IO [RTCMidi]
-readRTCMidis d =   mapDirInDir (mapDir (readRTCMidiPath d)) d 
-               >>= return . catMaybes . concat
+readRTCMidis :: ShortestNote -> FilePath -> IO [RTCMidi]
+readRTCMidis sn d =   mapDirInDir (mapDir (readRTCMidiPath sn d)) d 
+                  >>= return . catMaybes . concat
 
 -- reads a 'RTCMidi' given a base directory and a path to the file
-readRTCMidiPath :: FilePath -> FilePath -> IO (Maybe RTCMidi)
-readRTCMidiPath bd fp = -- Path conversions
+readRTCMidiPath :: ShortestNote -> FilePath -> FilePath -> IO (Maybe RTCMidi)
+readRTCMidiPath sn bd fp = -- Path conversions
   case stripPrefix (bd </> "") fp of
     Nothing -> error ("basedir and filepath do not match " ++ bd ++" /=  " ++ fp)
     Just f  -> let s = head . dropWhile (isPathSeparator . head) . splitDirectories $ f 
@@ -112,13 +118,27 @@ readRTCMidiPath bd fp = -- Path conversions
                      Just rtcf -> do m <- readMidi fp 
                                      case m of
                                        Left  _ -> return Nothing -- ignore erroneous files
-                                       Right x -> do let sc = midiFileToMidiScore x
-                                                         n = length . getVoices $ sc  
-                                                         t = getTimeSig sc
-                                                         g = hasValidGridSize sc
-                                                         p = if g then getPercTripGridOnsets sc else -1
-                                                         r = RTCMidi bd rtcf (takeFileName fp) n t p g
-                                                     n `seq` t `seq` p `seq` r `seq` (return . Just $ r) 
+                                       Right x -> return . Just $ toRTCMidi rtcf bd fp sn (midiFileToMidiScore x)
+                                                         -- n = length . getVoices $ sc  
+                                                         -- t = getTimeSig sc
+                                                         -- g = hasValidGridSize sc
+                                                         -- p = if g then getPercTripGridOnsets sc else -1
+                                                         -- (_, d, gu) = quantiseDev sn sc
+                                                         -- x = fromIntegral nrOfNotes sc
+                                                         -- r = RTCMidi bd rtcf (takeFileName fp) n t p g d gu
+                                                     -- n `seq` t `seq` p `seq` r `seq` (return . Just $ r) 
+                                                     
+toRTCMidi :: RTCFolder -> FilePath -> FilePath -> ShortestNote -> MidiScore 
+          -> RTCMidi
+toRTCMidi rtcf bd fp sn ms = 
+  let n          = length . getVoices $ ms  
+      t          = getTimeSig ms
+      g          = hasValidGridSize ms
+      p          = if g then getPercTripGridOnsets ms else -1
+      (_, d, gu) = quantiseDev sn ms
+      x          = fromIntegral . nrOfNotes $ ms
+      r          = RTCMidi bd rtcf (takeFileName fp) n t p g (fromIntegral d / x) gu
+  in n `seq` t `seq` p `seq` r `seq` r
 
 -- | returns the filepath of the RTCMidi
 toPath :: RTCMidi -> FilePath

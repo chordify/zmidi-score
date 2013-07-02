@@ -23,6 +23,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , quantiseVoice
                   , removeOverlap
                   , ShortestNote (..)
+                  , GridUnit
                   , toGridUnit
                   , buildTickMap
                   , getMinDur
