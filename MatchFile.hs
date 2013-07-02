@@ -81,7 +81,7 @@ printMatch (r,m) = let l  = [ show (rtcid r)   , show (title r)
                                               , show (avgDeviation p)
                                               , show (gridUnit     p)
                                               , show (fileName     p) ]
-                              Nothing -> l ++ ["n/a\tn/a\tn/a\tn/a\tno matching file found"]
+                              Nothing -> l ++ ["n/a\tn/a\tn/a\tn/a\tn/a\tn/a\tno matching file found"]
                    in intercalate "\t" l'
 
 --------------------------------------------------------------------------------
@@ -118,7 +118,9 @@ readRTCMidiPath sn bd fp = -- Path conversions
                      Just rtcf -> do m <- readMidi fp 
                                      case m of
                                        Left  _ -> return Nothing -- ignore erroneous files
-                                       Right x -> return . Just $ toRTCMidi rtcf bd fp sn (midiFileToMidiScore x)
+                                       Right x -> let ms = midiFileToMidiScore x
+                                                      r  = toRTCMidi rtcf bd fp sn ms
+                                                  in ms `seq` r `seq` (return . Just $ r)
                                                          -- n = length . getVoices $ sc  
                                                          -- t = getTimeSig sc
                                                          -- g = hasValidGridSize sc
@@ -138,7 +140,7 @@ toRTCMidi rtcf bd fp sn ms =
       (_, d, gu) = quantiseDev sn ms
       x          = fromIntegral . nrOfNotes $ ms
       r          = RTCMidi bd rtcf (takeFileName fp) n t p g (fromIntegral d / x) gu
-  in n `seq` t `seq` p `seq` r `seq` r
+  in n `seq` t `seq` p `seq` g `seq` p `seq` d `seq` gu `seq` x `seq` r
 
 -- | returns the filepath of the RTCMidi
 toPath :: RTCMidi -> FilePath
