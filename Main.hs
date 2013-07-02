@@ -79,8 +79,8 @@ ragPatDir d c = void . mapDirInDir (mapDir' (printPatCount c)) $ d
 -- | creates a subcorpus
 createSubCorpus :: FilePath -> [RTC] -> IO ()
 createSubCorpus dir c = do m <- readRTCMidis FourtyEighth dir
-                           mapM_ (copyRTCMidi "D:\\temp\\ragtimesSubSet") 
-                                 (matchAll m c)
+                           matchAll (copyRTCMidi "D:\\temp\\ragtimesSubSet") m c
+                           return ()
 
 
 -- | Print some stats
@@ -94,6 +94,7 @@ showFileStats fp = do mf <- readMidi fp
 
 showDirStats :: FilePath -> [RTC] -> IO ()
 showDirStats dir c = do m <- readRTCMidis FourtyEighth dir
-                        mapM_ (putStrLn . printMatch) $ matchAll m c
+                        matchAll (putStrLn . printMatch) m c
+                        return ()
 
 

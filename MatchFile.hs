@@ -24,7 +24,7 @@ import Data.Maybe        ( catMaybes, isJust, fromJust )
 import Data.Function     ( on )
 
 import Control.Arrow     ( second )
-import Control.Monad.State
+import Control.Monad     ( when )
 
 import RTCParser
 import MidiCommonIO      ( mapDir, mapDirInDir )
@@ -37,7 +37,8 @@ import RagPat            ( getPercTripGridOnsets, hasValidTimeSig, hasValidGridS
 import System.Directory  ( copyFile, createDirectoryIfMissing, doesFileExist )
 import System.FilePath   ( (</>), (<.>), splitDirectories, takeFileName
                          , isPathSeparator, takeDirectory, makeValid )
-
+import Control.Monad.Trans.State.Strict ( evalStateT, StateT (..), get, modify )
+import Control.Monad.IO.Class    ( liftIO )
  
 
  
@@ -121,14 +122,6 @@ readRTCMidiPath sn bd fp = -- Path conversions
                                        Right x -> let ms = midiFileToMidiScore x
                                                       r  = toRTCMidi rtcf bd fp sn ms
                                                   in ms `seq` r `seq` (return . Just $ r)
-                                                         -- n = length . getVoices $ sc  
-                                                         -- t = getTimeSig sc
-                                                         -- g = hasValidGridSize sc
-                                                         -- p = if g then getPercTripGridOnsets sc else -1
-                                                         -- (_, d, gu) = quantiseDev sn sc
-                                                         -- x = fromIntegral nrOfNotes sc
-                                                         -- r = RTCMidi bd rtcf (takeFileName fp) n t p g d gu
-                                                     -- n `seq` t `seq` p `seq` r `seq` (return . Just $ r) 
                                                      
 toRTCMidi :: RTCFolder -> FilePath -> FilePath -> ShortestNote -> MidiScore 
           -> RTCMidi
@@ -160,8 +153,11 @@ getSubSet fs = concat . map snd . filter ((flip elem) fs . fst)
 -- State to keep track of the unmatched compendium entries
 type MidiSt = ([RTCMidi],[(RTCFolder, [RTCMidi])])
 
-matchAll :: [RTCMidi] -> [RTC] -> [(RTC, Maybe RTCMidi)]
-matchAll ms rs = evalState (mapM match rs) (ms, groupRTCMidis ms) where
+matchAll :: ((RTC, Maybe RTCMidi) -> IO a) -> [RTCMidi] -> [RTC] -> IO [a]
+matchAll f ms rs = evalStateT (mapM g rs) (ms, groupRTCMidis ms) where
+  
+  -- g :: RTC -> StateT MidiSt IO a
+  g x = match x >>= liftIO . f 
 
   -- | groups the files based on 
   groupRTCMidis :: [RTCMidi] -> [(RTCFolder, [RTCMidi])]
@@ -170,7 +166,7 @@ matchAll ms rs = evalState (mapM match rs) (ms, groupRTCMidis ms) where
                      in zip ixs grp
 
 -- | matches 'RTCMidi's to an 'RTC' meta data entry
-match ::  RTC -> State MidiSt (RTC, Maybe RTCMidi)
+match ::  RTC -> StateT MidiSt IO (RTC, Maybe RTCMidi)
 match r = do (ms, grp) <- get 
              let m = case folders r of
                        [] -> doMatch ms -- match against the complete corpus
