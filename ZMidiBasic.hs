@@ -19,6 +19,8 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , midiScoreToMidiFile
                   -- * Quantisation
                   , quantise
+                  , quantiseDev
+                  , quantiseVoice
                   , removeOverlap
                   , ShortestNote (..)
                   , toGridUnit
@@ -264,17 +266,22 @@ type GridUnit = Time
 
 type Deviation = Time
 -- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid
+-- similar to 'quantiseDev', but then discarding the cumulative deviation.
 quantise :: ShortestNote -> MidiScore -> MidiScore
-quantise s = fst . quantiseDev s
+quantise s ms = let (ms', _, _) = quantiseDev s ms in ms'
 
-quantiseDev :: ShortestNote -> MidiScore -> (MidiScore, Deviation)
+-- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid. 
+-- The absolute size of the grid is based on the 'GridUnit', which is the
+-- 'ticksPerBeat' divided by the number of quantization bins per beat. Besides
+-- the quantised 'MidiScore' and the 'GridUnit' also the cumulative deviation 
+-- from the grid is returned.
+quantiseDev :: ShortestNote -> MidiScore -> (MidiScore, Deviation, GridUnit)
 quantiseDev sn (MidiScore k ts dv mf tp _md vs) =  
-  (MidiScore k ts' dv mf tp md' vs', sum d)  where
+  (MidiScore k ts' dv mf tp md' vs', sum d, gu)  where
   
   gu = dv `div` toGridUnit sn
   -- snap all events to a grid, and remove possible overlaps 
   (vs',d) = unzip . map (quantiseVoice gu) $ vs 
-  -- nrEv    = sum . map length vs
   -- the minimum duration might have changed
   md' = getMinDur . buildTickMap $ vs'
   -- also align the time signatures to a grid
@@ -282,9 +289,10 @@ quantiseDev sn (MidiScore k ts dv mf tp _md vs) =
   
   snapTS :: Timed TimeSig -> Timed TimeSig
   snapTS t = t {onset = fst . snap gu $ onset t}  
-  
+
+-- | quantises a 'Voice', and returns the cumulative 'Deviation'.
 quantiseVoice :: GridUnit -> Voice -> (Voice, Deviation)
-quantiseVoice gu v = second sum . unzip . map snapEvent $ v where
+quantiseVoice gu = second sum . unzip . map snapEvent  where
 
   snapEvent :: Timed ScoreEvent -> (Timed ScoreEvent, Deviation)
   snapEvent (Timed ons dat) = let (t', d) = snap gu ons 
@@ -292,7 +300,7 @@ quantiseVoice gu v = second sum . unzip . map snapEvent $ v where
     (NoteEvent c p v l) -> (Timed t' (NoteEvent c p v (fst $ snap gu l)), d)
     _                   -> (Timed t' dat                                , d)
     
--- snaps a 'Time' to a grid
+-- | snaps a 'Time' to a grid
 snap :: GridUnit -> Time -> (Time, Deviation) 
 snap g t | m == 0  = (t, 0)          -- score event is on the grid
          | m >  0  = if (g - m) >= m -- score event is off the grid

@@ -90,8 +90,6 @@ showFileStats fp = do mf <- readMidi fp
                         Left  err -> putStrLn (fp ++ '\t' : show err)
                         Right mid -> 
                           do let m  = quantise FourtyEighth . midiFileToMidiScore $ mid
-                                 tm = buildTickMap . getVoices $ m
-                                 d  = gcIOId tm
                              when (hasValidGridSize m) (putStrLn fp)
 
 showDirStats :: FilePath -> [RTC] -> IO ()
