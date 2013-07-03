@@ -32,7 +32,7 @@ import ZMidi.Core        ( readMidi )
 import ZMidiBasic        ( MidiScore (..), midiFileToMidiScore, TimeSig, Timed
                          , GridUnit, ShortestNote, nrOfNotes, quantiseDev )
 
-import RagPat            ( getPercTripGridOnsets, hasValidTimeSig, hasValidGridSize)
+import RagPat            ( getPercTripGridOnsets, hasValidGridSize)
                          
 import System.Directory  ( copyFile, createDirectoryIfMissing, doesFileExist )
 import System.FilePath   ( (</>), (<.>), splitDirectories, takeFileName
@@ -77,12 +77,16 @@ printMatch (r,m) = let l  = [ show (rtcid r)   , show (title r)
                               Just p  -> l ++ [ show (nrOfVoices   p)
                                               , show (rtsTimeSig   p)
                                               , show (tripletPerc  p)
-                                              , show (validGrid    p)
+                                              , show (tripletPerc  p <= 0.01)
                                               , show (validGrid    p)
                                               , show (avgDeviation p)
                                               , show (gridUnit     p)
+                                              , show (avgDeviation p / 
+                                                     (fromIntegral . gridUnit $ p))
+                                              , show ((avgDeviation p / 
+                                                     (fromIntegral . gridUnit $ p)) <= 0.1)
                                               , show (fileName     p) ]
-                              Nothing -> l ++ ["n/a\tn/a\tn/a\tn/a\tn/a\tn/a\tno matching file found"]
+                              Nothing -> l ++ ["n/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tno matching file found"]
                    in intercalate "\t" l'
 
 --------------------------------------------------------------------------------
@@ -119,10 +123,11 @@ readRTCMidiPath sn bd fp = -- Path conversions
                      Just rtcf -> do m <- readMidi fp 
                                      case m of
                                        Left  _ -> return Nothing -- ignore erroneous files
-                                       Right x -> let ms = midiFileToMidiScore x
-                                                      r  = toRTCMidi rtcf bd fp sn ms
-                                                  in ms `seq` r `seq` (return . Just $ r)
-                                                     
+                                       Right x -> let r  = toRTCMidi rtcf bd fp sn (midiFileToMidiScore x)
+                                                  in  r `seq` (return . Just $ r)
+
+-- | Strictly extract information needed for the selection of Midifiles from
+-- a 'MidiScore'.
 toRTCMidi :: RTCFolder -> FilePath -> FilePath -> ShortestNote -> MidiScore 
           -> RTCMidi
 toRTCMidi rtcf bd fp sn ms = 
