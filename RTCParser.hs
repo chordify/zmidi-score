@@ -4,6 +4,7 @@ module RTCParser ( readRTC
                  , parseRTC
                  , RTC (..)
                  , preciseYear
+                 , approxYear
                  , isPrecise
                  , RTCFolder (..)
                  , getRTCMeta ) where
@@ -94,6 +95,33 @@ data RTCYear = Year   Int
 preciseYear :: RTCYear -> String
 preciseYear (Year y) = show y
 preciseYear _        = "n/a"
+
+
+-- processed as (numbers including MIDI file): 
+--   IOYear: we take I                 (currently 17 files) 
+--   Decade: pick if < 1910 or >= 1920 (currently 13 files)
+--   Approx: pick if < 1910 or >= 1930 (currently 46 files)
+--   Modern: add to > 1920 group
+--   OtherYear: parse also composed/copyrighted (c/c) and take composed
+--   Pre: Ignore for now               (currently 12 files)
+--   Range: pick if total range is  < 1910 or >= 1920 (currently 26 files)
+--   Year: just use (currently 5330)
+approxYear :: RTCYear -> String
+approxYear (Year   y)   = show y
+approxYear (IOYear i _) = show i
+approxYear (Decade y  ) = decade y
+approxYear (Approx y  ) = decade y
+approxYear Modern       = "1930"
+approxYear (Range f t)  |             t <= 1910 = "1910" 
+                        | f > 1910 && t <= 1920 = "1920" 
+                        | f > 1920              = "1930" 
+                        | otherwise             = "n/a"
+approxYear _            = "n/a"
+
+decade :: Int -> String
+decade d | d <= 1910 = "1910" -- put into the pre 1910 category
+         | d >= 1930 = "1930" -- put into the post 1910 category
+         | otherwise = "1920" -- put into the modern category
 
 isPrecise :: RTCYear -> Bool
 isPrecise (Year _ ) = True
@@ -191,15 +219,6 @@ parseField p empt t
   | otherwise = parseDataSafe p t
 
 -- | Parses a year:
--- processed as (numbers including MIDI file): 
---   IOYear: we take I                 (currently 17 files) 
---   Decade: pick if < 1910 or >= 1920 (currently 13 files)
---   Approx: pick if < 1910 or >= 1930 (currently 46 files)
---   Modern: add to > 1920 group
---   OtherYear: parse also composed/copyrighted (c/c) and take composed
---   Pre: Ignore for now               (currently 12 files)
---   Range: pick if total range is  < 1910 or >= 1920 (currently 26 files)
---   Year: just use (currently 5330)
 pRTCYear :: Parser RTCYear
 pRTCYear =   Year        <$>  pInteger
          <|> Decade      <$> pInteger <* pString "'s"
