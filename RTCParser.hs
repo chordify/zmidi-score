@@ -13,7 +13,8 @@ import Text.ParserCombinators.UU.Core           ( (<$>), (<$), (<*>), (*>), (<*)
                                                 , (<|>), P )
 import Text.ParserCombinators.UU.BasicInstances ( Parser, pSym, Str, LineColPos )
 import Text.ParserCombinators.UU.Utils          ( pInteger, lexeme, pUpper )
-import HarmTrace.Base.Parsing                   ( pString, parseDataSafe, parseDataWithErrors )
+import HarmTrace.Base.Parsing                   ( pString, parseDataSafe
+                                                , parseDataWithErrors, pMaybe )
 import Data.Maybe                               ( catMaybes ) 
 import Data.List                                ( intercalate, find )
 import Data.Text                                ( pack, split, Text, strip, unpack )
@@ -82,13 +83,14 @@ data RTCID   = RTCID Int | New | NoID deriving (Show, Eq, Ord)
  -- its first publication (which is the date usually cited).  Where there is 
  -- evidence of an earlier published orchestration it has been noted, e.g. 
  -- i 1914 (o 1912). 
-data RTCYear = Year   Int
-             | Approx Int
-             | Pre    Int
-             | Range  Int Int
-             | Decade Int
-             | Modern
-             | IOYear Int Int
+data RTCYear = Year      Int
+             | Approx    Int
+             | Pre       Int
+             | Range     Int Int
+             | Decade    Int
+             | Modern    
+             | IOYear    Int Int
+             | CompCopy  Int Int
              | YNone
              | OtherYear Text deriving (Show, Eq, Ord)
 
@@ -220,17 +222,26 @@ parseField p empt t
 
 -- | Parses a year:
 pRTCYear :: Parser RTCYear
-pRTCYear =   Year        <$>  pInteger
-         <|> Decade      <$> pInteger <* pString "'s"
-         <|> Approx      <$> (pString "ca "  *> pInteger)
-         <|> Approx      <$> (pSym  '~'      *> pInteger)
-         <|> Pre         <$> (pString "pre " *> pInteger)
-         <|> Range       <$>  pInteger <*> (pString "-" *> pInteger)
-         <|> IOYear      <$> (pString "i " *> pInteger) 
-                         <*> (pString ", o " *> pInteger)
-         <|> flip IOYear <$> (pString "o " *> pInteger) 
-                         <*> (pString ", i " *> pInteger)
-         <|> Modern      <$  pString "[modern]"
+pRTCYear =   Year              <$>  pInteger
+         <|> Decade            <$> pInteger <* pString "'s"
+         <|> Approx            <$> (pString "ca "  *> pInteger)
+         <|> Approx            <$> (pSym  '~'      *> pInteger)
+         <|> Pre               <$> (pString "pre " *> pInteger)
+         <|> setRange Range    <$>  pInteger <*> (pString "-" *> pInteger)
+         <|> setRange CompCopy <$>  pInteger <*> (pSym '/' 
+                                              *>  pMaybe (pSym ' ') 
+                                              *>  pMaybe (pSym 'c') 
+                                              *>  pInteger )
+         <|> IOYear            <$> (pString "i " *> pInteger) 
+                               <*> (pString ", o " *> pInteger)
+         <|> flip IOYear       <$> (pString "o " *> pInteger) 
+                               <*> (pString ", i " *> pInteger)
+         <|> Modern            <$  pString "[modern]"
+         
+-- corrects 1910 - 20 to 1910 - 1920
+setRange :: (Int -> Int -> RTCYear) -> Int -> Int -> RTCYear
+setRange g f t | t < 100   = g f (t + floor (fromIntegral f / 100 :: Float) * 100)
+               | otherwise = g f  t 
 
 pRTCID :: Parser RTCID
 pRTCID =   RTCID <$> pInteger
