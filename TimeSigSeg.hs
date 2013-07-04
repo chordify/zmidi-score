@@ -40,9 +40,6 @@ columns l = let (col, rows) = unzip $ map saveHead l
                  [] -> []
                  c  -> c : columns rows
 
-
-
-
 segment :: Ord a => [Timed a] -> [Timed b] -> [TimedSeg a b]
 segment ts v = toTimeSigSeg v (toSegments ts)
 
@@ -68,4 +65,4 @@ toSegments = foldr step [] . sort where
   step srt rest =  (srt, Just . onset . fst . head $ rest) : rest
 
   
-testData = take 110 $ zipWith Timed [0..] (cycle ['a'..'z'])
+testData = take 20 $ zipWith Timed [0..] (cycle ['a'..'z'])
