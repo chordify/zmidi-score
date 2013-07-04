@@ -8,6 +8,10 @@ import Data.Maybe   ( catMaybes )
 type TimeSigSeg   = TimedSeg TimeSig ScoreEvent
 type TimedSeg a b = (Timed a, [Timed b])
 
+-- TODO : two bugs: 1) the timesignature midi event can be set to immediate
+-- and to change signature in the next bar, resulting in an unwanted offset
+-- 2) 2/4 is not always translated correctly to 4/4 when writing midi files
+
 segByTimeSig :: MidiScore -> [MidiScore]
 segByTimeSig ms = map toSeg . toTimeSigSegs $ ms where
 
