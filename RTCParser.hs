@@ -225,18 +225,25 @@ pRTCYear :: Parser RTCYear
 pRTCYear =   Year              <$>  pInteger
          <|> Decade            <$> pInteger <* pString "'s"
          <|> Approx            <$> (pString "ca "  *> pInteger)
-         <|> Approx            <$> (pSym  '~'      *> pInteger)
+         <|> Approx            <$> (pSym  '~'      *> pMaybe (pSym ' ') 
+                                                   *> pInteger)
          <|> Pre               <$> (pString "pre " *> pInteger)
-         <|> setRange Range    <$>  pInteger <*> (pString "-" *> pInteger)
-         <|> setRange CompCopy <$>  pInteger <*> (pSym '/' 
+         <|> setRange Range    <$>  pInteger <*> (pString "-" 
+                                              *>  pMaybe (pSym ' ')
+                                              *>  pInteger)
+                                             <*   pMaybe (pString "/ c" <* pInteger)
+         <|> setRange CompCopy <$>  pInteger <*> (pMaybe (pSym 'c') 
+                                              *>          pSym '/' 
                                               *>  pMaybe (pSym ' ') 
                                               *>  pMaybe (pSym 'c') 
+                                              *>  pMaybe (pSym ' ') 
                                               *>  pInteger )
          <|> IOYear            <$> (pString "i " *> pInteger) 
                                <*> (pString ", o " *> pInteger)
          <|> flip IOYear       <$> (pString "o " *> pInteger) 
                                <*> (pString ", i " *> pInteger)
          <|> Modern            <$  pString "[modern]"
+              
          
 -- corrects 1910 - 20 to 1910 - 1920
 setRange :: (Int -> Int -> RTCYear) -> Int -> Int -> RTCYear
