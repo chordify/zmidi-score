@@ -5,6 +5,7 @@ module RTCParser ( readRTC
                  , RTC (..)
                  , preciseYear
                  , approxYear
+                 , isValidYear
                  , isPrecise
                  , RTCFolder (..)
                  , getRTCMeta ) where
@@ -114,20 +115,29 @@ approxYear (IOYear i _) = show i
 approxYear (Decade y  ) = decade y
 approxYear (Approx y  ) = decade y
 approxYear Modern       = "1930"
-approxYear (Range f t)  |             t <= 1910 = "1910" 
-                        | f > 1910 && t <= 1920 = "1920" 
-                        | f > 1920              = "1930" 
-                        | otherwise             = "n/a"
+approxYear (Range f t)  |             t <= 1902 = "1900" 
+                        | f > 1902 && t <= 1920 = "1910" 
+                        | otherwise             = "1920" -- f > 1920  
 approxYear _            = "n/a"
 
 decade :: Int -> String
-decade d | d <= 1910 = "1910" -- put into the pre 1910 category
-         | d >= 1930 = "1930" -- put into the post 1910 category
-         | otherwise = "1920" -- put into the modern category
+decade d | d <= 1902 = "1900" -- put into the pre 1910 category
+         | d >= 1920 = "1920" -- put into the post 1910 category
+         | otherwise = "1910" -- put into the modern category
 
 isPrecise :: RTCYear -> Bool
 isPrecise (Year _ ) = True
 isPrecise _         = False
+
+isValidYear :: RTCYear -> Bool
+isValidYear y = case y of
+                  Year   _   -> True
+                  IOYear _ _ -> True
+                  Decade _   -> True
+                  Approx _   -> True
+                  Modern     -> True
+                  Range  _ _ -> True
+                  _          -> False
 
 -- | Type - unfortunately somewhat a grey area, but there are hundreds of 
 -- corrections in this version.	
@@ -231,7 +241,11 @@ pRTCYear =   Year              <$>  pInteger
          <|> setRange Range    <$>  pInteger <*> (pString "-" 
                                               *>  pMaybe (pSym ' ')
                                               *>  pInteger)
-                                             <*   pMaybe (pString "/ c" <* pInteger)
+                                             -- This is actually a CompCopy with
+                                             -- a Range as first arg, but we 
+                                             -- don't use the Copy part anyway..
+                                             <*   pMaybe (pString "/ c"   
+                                                      <* (pInteger :: Parser Int))
          <|> setRange CompCopy <$>  pInteger <*> (pMaybe (pSym 'c') 
                                               *>          pSym '/' 
                                               *>  pMaybe (pSym ' ') 

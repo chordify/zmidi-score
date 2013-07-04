@@ -29,7 +29,7 @@ import Control.Monad     ( when )
 import RTCParser
 import MidiCommonIO      ( mapDir, mapDirInDir )
 import ZMidi.Core        ( readMidi )
-import ZMidiBasic        ( MidiScore (..), midiFileToMidiScore, TimeSig, Timed
+import ZMidiBasic        ( MidiScore (..), midiFileToMidiScore, TimeSig (..), Timed (..)
                          , GridUnit, ShortestNote, nrOfNotes, quantiseDev )
 
 import RagPat            ( getPercTripGridOnsets, hasValidGridSize)
@@ -40,8 +40,31 @@ import System.FilePath   ( (</>), (<.>), splitDirectories, takeFileName
 import Control.Monad.Trans.State.Strict ( evalStateT, StateT (..), get, modify )
 import Control.Monad.IO.Class    ( liftIO )
  
+--------------------------------------------------------------------------------
+-- A Datatype for matching midifiles to the ragtime compendium
+--------------------------------------------------------------------------------
 
+selectRTCMidi :: (RTC, Maybe RTCMidi) -> Bool
+selectRTCMidi (rtc, mm) = 
+  case mm of
+    Nothing -> False
+    Just m  ->    isValidYear      (year rtc)
+               && isValidTimeSig   (rtcTimeSig m)
+               && isValidDeviation (gridUnit m) (avgDeviation m)
  
+-- | Is the 'TimeSig'natur a meter we can use for analysis?
+isValidTimeSig :: [Timed TimeSig] -> Bool
+isValidTimeSig [ts] = case getEvent ts of 
+                        -- there should be one valid time signature
+                        (TimeSig 4 4 _ _) -> True 
+                        (TimeSig 2 4 _ _) -> True
+                        (TimeSig 2 2 _ _) -> True
+                        _                 -> False 
+isValidTimeSig _    = False
+ 
+-- | Is the quantisation deviation small enough for analysis?
+isValidDeviation :: GridUnit -> Float -> Bool
+isValidDeviation gu d = (d / fromIntegral gu) < 0.01
 --------------------------------------------------------------------------------
 -- A Datatype for matching midifiles to the ragtime compendium
 --------------------------------------------------------------------------------
@@ -53,7 +76,7 @@ data RTCMidi = RTCMidi { baseDir      :: FilePath
                        -- some properties of the midifile 
                        -- (We don't store the complete midi files to save space)
                        , nrOfVoices   :: Int
-                       , rtsTimeSig   :: [Timed TimeSig]
+                       , rtcTimeSig   :: [Timed TimeSig]
                        , tripletPerc  :: Double
                        , validGrid    :: Bool
                        , avgDeviation :: Float
@@ -72,21 +95,23 @@ compareRTCMidi a b =  case compare (tripletPerc a) (tripletPerc b) of
  -- | Prints a match between a compendium entry and a midifile
 printMatch :: (RTC, Maybe RTCMidi) -> String
 printMatch (r,m) = let l  = [ show (rtcid r)   , show (title r)
-                            , show (folders r) , show (year  r) ]
+                            , show (folders r) , show (year  r)
+                            , approxYear (year r) ]
                        l' = case m of
-                              Just p  -> l ++ [ show (nrOfVoices   p)
-                                              , show (rtsTimeSig   p)
-                                              , show (tripletPerc  p)
-                                              , show (tripletPerc  p <= 0.01)
-                                              , show (validGrid    p)
-                                              , show (avgDeviation p)
-                                              , show (gridUnit     p)
-                                              , show (avgDeviation p / 
+                              Just p  -> l ++ [ show (selectRTCMidi (r,m))
+                                              , show (nrOfVoices    p)
+                                              , show (rtcTimeSig    p)
+                                              , show (tripletPerc   p)
+                                              , show (tripletPerc   p <= 0.01)
+                                              , show (validGrid     p)
+                                              , show (avgDeviation  p)
+                                              , show (gridUnit      p)
+                                              , show (avgDeviation  p / 
                                                      (fromIntegral . gridUnit $ p))
                                               , show ((avgDeviation p / 
                                                      (fromIntegral . gridUnit $ p)) <= 0.1)
-                                              , show (fileName     p) ]
-                              Nothing -> l ++ ["n/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tno matching file found"]
+                                              , show (fileName      p) ]
+                              Nothing -> l ++ ["n/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tno matching file found"]
                    in intercalate "\t" l'
 
 --------------------------------------------------------------------------------

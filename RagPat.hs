@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wall                #-}
 module RagPat ( getPercTripGridOnsets
-              , hasValidTimeSig
               , hasValidGridSize
               , printFileSubDiv
               , printSubDiv 
@@ -138,29 +137,11 @@ getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
 hasValidGridSize :: MidiScore -> Bool
 hasValidGridSize ms = (ticksPerBeat ms `mod` toGridUnit FourtyEighth) == 0
 
--- | has the 'MididScore' a 'Straight' 'SubDiv'ision
--- isStraight :: MidiScore -> Bool
--- isStraight = (<= 0.01) . getPercTripGridOnsets 
-
 -- | Returns the percentage of onsets that are not on grid positions 0, 3, 6,
 -- and 9 (of 12) for a 'Pattern' (by applying 'percTripGridOnsets)
 getPercTripGridOnsets :: MidiScore -> Double
 getPercTripGridOnsets = percTripGridOnsets . segByTimeSig FourtyEighth
 
--- | has the 'MidiScore' a meter we can use for analysis
-hasValidTimeSig :: MidiScore -> Bool
--- hasValidTimeSig = or . map isValid . getTimeSig where
-hasValidTimeSig ms = case getTimeSig ms of
-  [ts] -> isValid ts  -- there should be one valid time signature
-  _    -> False
-
-
-isValid :: Timed TimeSig -> Bool
-isValid ts = case getEvent ts of
-  (TimeSig 4 4 _ _) -> True
-  (TimeSig 2 4 _ _) -> True
-  (TimeSig 2 2 _ _) -> True
-  _                 -> False
 
 --------------------------------------------------------------------------------
 -- Matching beat subdivisions
