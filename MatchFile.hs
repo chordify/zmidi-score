@@ -120,17 +120,21 @@ printMatch (r,m) = let l  = [ show (rtcid r)   , show (title r)
 
 -- copies a matched midi file if it has a matching compendium entry
 copyRTCMidi :: FilePath -> (RTC, Maybe RTCMidi) -> IO ()
-copyRTCMidi newBase m@(rtc, mfrom) = case mfrom of
-  Nothing   -> putStrLn ("ignored\t" ++ printMatch m)
+copyRTCMidi newBase m@(rtc, mfrom) 
+  | selectRTCMidi m = 
+      do let from = fromJust mfrom
+             to = toPath $ from { baseDir  = newBase
+                                , fileName = makeValid ((unpack . strip . title $ rtc) <.> ".mid")}
+             fr = toPath from
+         createDirectoryIfMissing True . takeDirectory $ to
+         e <- doesFileExist fr
+         if e then do copyFile fr to
+                      putStrLn ("created\t" ++ printMatch m ++ "\t"++ to) 
+              else putStrLn ("N.B. File does not exist: " ++ fr)
   -- Here we select if a match between a compendium entry and a midifile
-  Just from ->  do let to = toPath $ from { baseDir  = newBase
-                                          , fileName = makeValid ((unpack . strip . title $ rtc) <.> ".mid")}
-                       fr = toPath from
-                   createDirectoryIfMissing True . takeDirectory $ to
-                   e <- doesFileExist fr
-                   if e then do copyFile fr to
-                                putStrLn ("created\t" ++ printMatch m ++ "\t"++ to) 
-                        else putStrLn ("N.B. File does not exist: " ++ fr)
+  | otherwise = putStrLn ("ignored\t" ++ printMatch m)
+  
+  
 
 
 readRTCMidis :: ShortestNote -> FilePath -> IO [RTCMidi]
