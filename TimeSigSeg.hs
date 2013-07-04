@@ -68,5 +68,7 @@ toSegments = foldr step [] . sort where
   step ts  []   = [(ts , Nothing)] 
   step srt rest =  (srt, Just . onset . fst . head $ rest) : rest
 
-  
-testData = take 20 $ zipWith Timed [0..] (cycle ['a'..'z'])
+-- some tests
+-- testData = take 20 $ zipWith Timed [0..] (cycle ['a'..'z'])
+-- readMidiScore "mid\\Coontown Review, De - Pitt-Payne.mid" >>= mapM showMidiScore . segByTimeSig 
+-- readMidiScore "mid\\Coontown Review, De - Pitt-Payne.mid" >>= \x -> sequence (zipWith writeMidiScore (segByTimeSig x) ["test1.mid", "test2.mid", "test3.mid", "test4.mid"])
