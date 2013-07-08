@@ -20,19 +20,26 @@ filterMelodyQuant :: ShortestNote -> MidiScore -> MidiScore
 filterMelodyQuant q ms = ms {getVoices = [findMelodyQuant q ms]}
 
 -- | Merges all 'Voices' and returns the melody using the skyline algorithm
--- with a lowerlimet at the middle C. The melody is quantised by
--- 'FourtyEighth' and the onverlapping notes are cut off. [more..?]
+-- with a lower limit at the middle C. The melody is quantised by
+-- 'ShortestNote' and the overlapping notes are cut off. [more..?]
 findMelodyQuant :: ShortestNote ->  MidiScore -> Voice
-findMelodyQuant q = removeOverlap . head . getVoices 
-                                  -- . sepHand (skyLineLowLim (Pitch (0,0))) 
-                                  . sepHand skyLineLLDipDetect
-                                  . quantise q . mergeTracks 
+findMelodyQuant q = removeOverlap . head . getVoices -- get the first voice 
+                                  . sepHand skyLineLLDipDetect -- melody finding
+                                  . quantise q . mergeTracks   
 
+-- | The complement of 'findMelodyQuant', returning only the accompaniment 
+-- without the melody in a single 'Voice'.
+getAccompQuant  :: ShortestNote ->  MidiScore -> Voice
+getAccompQuant q = (!! 1) . getVoices          -- get the second voice
+                 . sepHand skyLineLLDipDetect  -- melody separation
+                 . quantise q . mergeTracks 
+                                  
 -- | Returns the melody 'Voice', if there the 'MidiScore' has exactly 2 voices
+-- This function assumes that the first track is the melody.
 getMelody :: MidiScore -> Voice 
 getMelody ms = case getVoices ms of
   [r,_l] -> r
-  _   -> error "getMelody: Found a midifile with more or less than 2 tracks"
+  _   -> error "getMelody: Found a MIDI file with more or less than 2 tracks"
 
 -- | Merges all tracks into one track
 mergeTracks :: MidiScore -> MidiScore
@@ -47,7 +54,8 @@ sepHand f mf = case getVoices mf of
   [x] -> let (r,l) = f x in mf {getVoices = [r,l]}
   _   -> error "sepHand: more or less than 1 voice!"
 
-
+-- | Skyline melody finding with a lower limit at the middle C and a dip
+-- detection tolerance of 9 semitones.
 skyLineLLDipDetect :: Voice -> (Voice, Voice)
 skyLineLLDipDetect = combine (skyLineLowLim (Pitch (0,0))) (dipDetect (-9) 9)
   
@@ -77,6 +85,9 @@ pickHigh p l | getPitch h >= p = ([h], t)
 -- Dip detection
 --------------------------------------------------------------------------------
 
+-- | Takes an 'Interval' down and up, respectively, and performs dip detection
+-- on a 'Voice', returning the melody without dips and the dips. N.B. a 
+-- monophonic melody is assumed.
 dipDetect :: Interval -> Interval -> Voice -> (Voice, Voice)
 dipDetect dwn up v = 
   (f *** f) . partition ((Dip /= ) . snd) . markDip dwn up $ v where f = map fst
@@ -110,6 +121,7 @@ markDip dwn up v = foldr mark [] . foldr classInter [] $ v where
 -- Utilities
 --------------------------------------------------------------------------------
 
+-- | combines to 'MelFind' melody finding functions.
 combine :: MelFind -> MelFind -> (Voice -> (Voice, Voice))
 combine f s v = let (melf, accf) = f v
                     (mels, accs) = s melf
