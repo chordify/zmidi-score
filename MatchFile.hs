@@ -50,7 +50,8 @@ selectRTCMidi (rtc, mm) =
     Nothing -> False
     Just m  ->    isValidYear      (year rtc)
                && isValidTimeSig   (rtcTimeSig m)
-               && isValidDeviation (gridUnit m) (avgDeviation m)
+               && validGrid m
+              -- && isValidDeviation (gridUnit m) (avgDeviation m)
  
 -- | Is the 'TimeSig'natur a meter we can use for analysis?
 isValidTimeSig :: [Timed TimeSig] -> Bool
@@ -164,7 +165,7 @@ toRTCMidi rtcf bd fp sn ms =
       t          = getTimeSig ms
       g          = hasValidGridSize ms
       p          = if g then getPercTripGridOnsets ms else -1
-      (_, d, gu) = quantiseDev sn ms
+      (_, d, gu) = quantiseDev sn ms -- using the complete MIDI file !
       x          = fromIntegral . nrOfNotes $ ms
       r          = RTCMidi bd rtcf (takeFileName fp) n t p g (fromIntegral d / x) gu
   in n `seq` t `seq` p `seq` g `seq` p `seq` d `seq` gu `seq` x `seq` r
