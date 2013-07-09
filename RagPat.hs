@@ -90,7 +90,7 @@ segByTimeSig q ms = scoreToPatterns (getMinGridSize q ms) (toGridUnit q)
 
 reGroup :: TimeSig -> [Pattern] -> [Pattern]
 reGroup ts p = case ts of
-  (TimeSig 2 2 _ _ ) -> takeConcatOverlap 4 p -- is this right???
+  (TimeSig 2 2 _ _ ) -> takeConcatOverlap 8 p -- is this right???
   (TimeSig 2 4 _ _ ) -> takeConcatOverlap 4 p
   (TimeSig 4 4 _ _ ) -> takeConcatOverlap 8 p
   _                  -> error "reGroup: invalid time signature"
@@ -223,7 +223,7 @@ tied2   = [ X, X, X, X,  X, X, I, I,  O, I, X, X,  X, X, X, X ]
 
 upScalePat :: TimeSig -> Pattern -> Pattern
 upScalePat ts p = case ts of 
-  (TimeSig 2 2 _ _ ) -> scale 2 p
+  (TimeSig 2 2 _ _ ) -> scale 5 p
   (TimeSig 2 4 _ _ ) -> scale 2 p
   (TimeSig 4 4 _ _ ) -> scale 5 p
   _                  -> error "upScalePat: invalid time signature"

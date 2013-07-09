@@ -81,7 +81,7 @@ getLocalMeters = filterMax . foldr projectMeter empty . tails   where
   projectMeter :: [Time] -> Set LMeter -> Set LMeter
   projectMeter []  m = m
   projectMeter ons m = foldr (project (head ons) 0 ons) m  
-                        [1, (1 + phaseStepSize) .. (min maximumPhase (last ons))] 
+                        [1, (1 + phaseStepSize) .. (min maximumPhase (last ons))] -- neem de helft van de totale lengte van het stuk.
 
   -- given a phase (IOI), projects a local meter forward
   project :: Time -> Length -> [Time] -> Period -> Set LMeter -> Set LMeter
