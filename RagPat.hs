@@ -28,12 +28,12 @@ printPatCount rtc f =
          ps = reGroup ts . segByTimeSig FourtyEighth $ ms
          mt = getRTCMeta rtc f
          yr = year mt
-     when (isPrecise yr) ( putStrLn . intercalate "\t"  
+     putStrLn . intercalate "\t"  
               $ ( show (rtcid mt) : f 
                 : show ts : preciseYear yr
                 : map (show . matchRatio . matchPat ps . upScalePat ts) 
                   [ untied1, untied2, tied1, tied2 ]
-                ))
+                )
                 
 -- | Match the patterns to one file
 printFilePatMat :: FilePath -> IO ()
