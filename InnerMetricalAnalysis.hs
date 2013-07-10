@@ -12,7 +12,7 @@
 -- Summary: implements the Inner Metrical Analysis model 
 -- see: 
 --------------------------------------------------------------------------------
-module InnerMetricalAnalysis ( -- * Types for Local Meters
+module Main ( -- * Types for Local Meters
                                LMeter (..)
                              , Time
                              , Weight
@@ -22,9 +22,11 @@ module InnerMetricalAnalysis ( -- * Types for Local Meters
                              , getLocalMeters
                              , getMetricWeight
                              , getSpectralWeight
+                             , normalise
                                -- * parameters
                              -- , maximumPhase
                              -- , phaseStepSize
+                             , main
                              )where
 
 import Data.List                 ( tails              )
@@ -181,3 +183,7 @@ normalise :: [Weight] -> [Float]
 normalise ws = let mx = fromIntegral (maximum ws) 
                in map (\x -> fromIntegral x / mx) ws
 
+-- testing
+main :: IO ()
+main = print $ getMetricWeight 1 [6,10,16,18,20,22,30,34,38,44,46,48,50,58,62,66,68,70,72,74,82,86,94,96,98,100,102,112,114,122,174,176,178,180,182,188,189,190,192,194,202,204,206,208,210,212,214,216,218,220,222,224,226,234,246,250,256,258,260,262,270,274,280,282,284,286,292,293,294,296,298,300,302,308,309,310,312,314]
+               
