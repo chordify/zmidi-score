@@ -12,20 +12,20 @@
 -- Summary: implements the Inner Metrical Analysis model 
 -- see: 
 --------------------------------------------------------------------------------
-module InnerMetricAnalysis ( -- * Types for Local Meters
-                             LMeter (..)
-                           , Time
-                           , Weight
-                           , Period
-                           , Length
-                             -- * The Inner Metrical Analysis
-                           , getLocalMeters
-                           , getMetricWeight
-                           , getSpectralWeight
-                             -- * parameters
-                           , maximumPhase
-                           , phaseStepSize
-                           )where
+module InnerMetricalAnalysis ( -- * Types for Local Meters
+                               LMeter (..)
+                             , Time
+                             , Weight
+                             , Period
+                             , Length
+                               -- * The Inner Metrical Analysis
+                             , getLocalMeters
+                             , getMetricWeight
+                             , getSpectralWeight
+                               -- * parameters
+                             -- , maximumPhase
+                             -- , phaseStepSize
+                             )where
 
 import Data.List                 ( tails              )
 import qualified Data.Set as Set ( foldr, filter      ) 
@@ -36,12 +36,12 @@ import Data.Set                  ( Set, insert, empty )
 --------------------------------------------------------------------------------
 
 -- | The maximum phase that can contribute to a local meter
-maximumPhase  :: Period
-maximumPhase  = 100
+-- maximumPhase  :: Period
+-- maximumPhase  = 100
 
 -- | The minimal phase step size 
-phaseStepSize :: Period
-phaseStepSize = 1
+-- phaseStepSize :: Period
+-- phaseStepSize = 10
 
 --------------------------------------------------------------------------------
 -- types
@@ -74,14 +74,14 @@ type Weight = Int
 -- the base of note onsets. The model considers all the pulses, called 
 -- local metres, that can overlay with each other with very different periods 
 -- and shifted at all phases.
-getLocalMeters :: [Time] -> Set LMeter
-getLocalMeters = filterMax . foldr projectMeter empty . tails   where
+getLocalMeters :: Period -> [Time] -> Set LMeter
+getLocalMeters phs = filterMax . foldr projectMeter empty . tails   where
   
   -- project the meters for the head of the list of onsets
   projectMeter :: [Time] -> Set LMeter -> Set LMeter
   projectMeter []  m = m
   projectMeter ons m = foldr (project (head ons) 0 ons) m  
-                        [1, (1 + phaseStepSize) .. (min maximumPhase (last ons))] -- neem de helft van de totale lengte van het stuk.
+                        [phs, (2 * phs) .. (last ons `div` 2)] 
 
   -- given a phase (IOI), projects a local meter forward
   project :: Time -> Length -> [Time] -> Period -> Set LMeter -> Set LMeter
@@ -137,9 +137,12 @@ lMeterEnd (LMeter s p l) = s + (l *p)
 -- pulses coincide get a greater weight than onsets where fewer pulses coincide. 
 -- Moreover, the intuition modelled in the metric weight is that longer 
 -- repetitions should contribute more weight than shorter ones.
-getMetricWeight :: [Time] -> [(Time, Weight)]
-getMetricWeight ons = 
-  let ms = getLocalMeters $ ons 
+getMetricWeight :: Period -> [Time] -> [Weight]
+getMetricWeight phs = map snd . getMetricWeight' phs 
+
+getMetricWeight' :: Period -> [Time] -> [(Time, Weight)]
+getMetricWeight' phs ons = 
+  let ms = getLocalMeters phs ons 
       
       getWeight :: Time -> (Time, Weight)
       getWeight o = (o, sumPowers2 . Set.filter ( hasLocalMeter o) $ ms)
@@ -151,14 +154,17 @@ getMetricWeight ons =
 
 -- | The spectral weight is based on the extension of each local metre throughout 
 -- the entire piece.
-getSpectralWeight :: [Time] -> [(Time, Weight)]
-getSpectralWeight ons = 
-  let ms = getLocalMeters $ ons 
+getSpectralWeight :: Period -> [Time] -> [Weight]
+getSpectralWeight phs = map snd . getSpectralWeight' phs 
+
+getSpectralWeight' :: Period -> [Time] -> [(Time, Weight)]
+getSpectralWeight' phs ons = 
+  let ms = getLocalMeters phs ons 
       
       getWeight :: Time -> (Time, Weight)
       getWeight o = (o, sumPowers2 . Set.filter (matchesPhase o) $ ms )
  
-  in map getWeight [head ons .. last ons]
+  in map getWeight [head ons, (phs + head ons)  .. last ons]
   
 -- given an onset and an 'LMeter' returns True if both have the same 
 -- phase, which means that the onset coincides with the grid of the 'LMeter'
@@ -170,4 +176,8 @@ matchesPhase o (LMeter strt per _len) = (o - strt) `mod` per == 0
 -- teh results
 sumPowers2 :: Set LMeter -> Int
 sumPowers2 = Set.foldr ((+) . (^ (2 ::Int)). mlength) 0 
+
+normalise :: [Weight] -> [Float]
+normalise ws = let mx = fromIntegral (maximum ws) 
+               in map (\x -> fromIntegral x / mx) ws
 

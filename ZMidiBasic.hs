@@ -31,6 +31,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   -- * Utilities
                   , nrOfNotes
                   , toIOIs
+                  , toOnsets
                   , toMidiNr
                   , toPitch
                   , getPitch
@@ -38,6 +39,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , changePitch
                   , pitchClass
                   , hasTimeSigs
+                  , getMinGridSize
                   -- * MidiFile Utilities
                   , hasNotes 
                   , isNoteOnEvent
@@ -64,9 +66,10 @@ import Data.Maybe          ( catMaybes, mapMaybe, isJust )
 import Data.Ord            ( comparing )
 import Data.List           ( partition, intersperse, sortBy, sort, nub
                            , genericLength, find )
+import qualified Data.List.Ordered as Sort ( nub )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( insertWith, IntMap, findMin, keys, delete )
-import qualified Data.IntMap.Lazy as M ( empty )
+import qualified Data.IntMap.Lazy  as M    ( empty )
 import Text.Printf         ( printf )
 import GHC.Float           ( integerLogBase )
 
@@ -622,7 +625,12 @@ changePitch :: Pitch -> Interval -> Pitch
 changePitch (Pitch (oct, pc)) i = let (octi, pci) = divMod  i         12 
                                       (oct', pc') = divMod (pc + pci) 12    
                                   in Pitch (oct + octi + oct', pc')
-  
+
+-- | Ignores all pitch information and returns a list of onsets. N.B. in case
+-- of a polyphonic track duplicate onsets are deleted.
+toOnsets :: Voice -> [Time]
+toOnsets = Sort.nub . map onset
+                                  
 -- | Transforms a 'Voice' into a list of Inter Onset Intervals (IOIs)
 toIOIs :: Voice -> [Time]
 toIOIs v = execState (foldrM step [] v) [] where
@@ -653,6 +661,14 @@ invalidMidiNumberError w = error ("invalid MIDI note number" ++ show w)
 -- | Returns True if the 'MidiScore' has time signatures other than 'NoTimeSig'
 hasTimeSigs :: MidiScore -> Bool
 hasTimeSigs = not . null . filter (not . (== NoTimeSig) . getEvent) . getTimeSig
+
+-- | Returns the minimal grid size of a 'MidiScore' if it has been quantised. 
+-- This is the 'ticksPerBeat' divided by the number of quantisation bins.
+-- N.B. this function does not check whether a file is quantised.
+getMinGridSize :: ShortestNote -> MidiScore -> Time
+getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
+                        (d,0) -> d
+                        _     -> error "getMinGridSize: invalid quantisation"
 
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities

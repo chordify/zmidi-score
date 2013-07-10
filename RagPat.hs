@@ -123,11 +123,6 @@ groupEvery x p | glen == x =  g : groupEvery x r
   where (g,r) = splitAt x p 
         glen  = length g
                                  
-
-getMinGridSize :: ShortestNote -> MidiScore -> Time
-getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
-                        (d,0) -> d
-                        _     -> error "getMinGridSize: invalid quantisation"
      
 --------------------------------------------------------------------------------
 -- Important tests for valid midi files
