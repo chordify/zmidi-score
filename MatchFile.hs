@@ -93,7 +93,7 @@ data RTCMidi = RTCMidi { baseDir      :: FilePath
 -- do the files have (less is better = smaller), c) how many tracks do the files
 -- have
 compareRTCMidi :: RTCMidi -> RTCMidi -> Ordering
-compareRTCMidi a b =  case compare (tripletPerc a) (tripletPerc b) of
+compareRTCMidi a b =  case compare (avgDeviation a) (avgDeviation b) of
                         EQ  -> compare (nrOfVoices a) (nrOfVoices b) 
                         x   -> x
 
