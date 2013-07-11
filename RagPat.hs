@@ -24,14 +24,15 @@ import MelFind            ( findMelodyQuant )
 printPatCount :: [RTC] -> FilePath -> IO ()
 printPatCount rtc f = 
   do ms <- readMidiScore f 
-     let ts = getEvent . head . getTimeSig $ ms
-         ps = reGroup ts . segByTimeSig FourtyEighth $ ms
-         mt = getRTCMeta rtc f
-         yr = year mt
+     let ts  = getTimeSig $ ms
+         ts' = getEvent . head $ ts
+         ps  = createOverlapSegs ts' . toPatterns FourtyEighth $ ms
+         mt  = getRTCMeta rtc f
+         yr  = year mt
      putStrLn . intercalate "\t"  
               $ ( show (rtcid mt) : f 
                 : show ts : approxYear yr 
-                : map (show . matchRatio . matchPat ps . upScalePat ts) 
+                : map (show . matchRatio . matchPat ps . upScalePat ts') 
                   [ untied1, untied2, tied1, tied2 ]
                 )
                 
@@ -40,7 +41,7 @@ printFilePatMat :: FilePath -> IO ()
 printFilePatMat f =  
   do ms <-readMidiScore f 
      let ts = getEvent . head . getTimeSig $ ms
-         ps = reGroup ts . segByTimeSig FourtyEighth $ ms
+         ps = createOverlapSegs ts . toPatterns FourtyEighth $ ms
      putStrLn . showPats $ ps
      putStrLn ("Time Signtaure: " ++ show ts)
      
@@ -62,7 +63,7 @@ printFilePatMat f =
 
 printSubDiv :: FilePath -> IO ()
 printSubDiv f = do ms <- readMidiScore f 
-                   let p = segByTimeSig FourtyEighth ms
+                   let p = toPatterns FourtyEighth ms
                        -- r = rankSubDiv p
                        t = percTripGridOnsets p
                    when ( hasValidGridSize ms ) 
@@ -72,7 +73,7 @@ printSubDiv f = do ms <- readMidiScore f
 -- | do stuff with a 'MidiScore' ...
 printFileSubDiv :: FilePath -> IO ()
 printFileSubDiv f = do p <- readMidiScore f 
-                         >>= return . segByTimeSig FourtyEighth
+                         >>= return . toPatterns FourtyEighth
                        putStrLn . showPats $ p
                        -- print . rankSubDiv $ p
                        print . percTripGridOnsets $ p
@@ -84,12 +85,39 @@ showPats = intercalate "\n" . map show
 -- Converting to patterns
 --------------------------------------------------------------------------------
 
-segByTimeSig :: ShortestNote -> MidiScore -> [Pattern]
-segByTimeSig q ms = scoreToPatterns (getMinGridSize q ms) (toGridUnit q) 
-                  . findMelodyQuant q $ ms
-
-reGroup :: TimeSig -> [Pattern] -> [Pattern]
-reGroup ts p = case ts of
+-- | Takes a midiscore, quantises it, finds the melody, and turns it into a 
+-- 'Pattern' list, where every 'Pattern' represents a beat
+toPatterns :: ShortestNote -> MidiScore -> [Pattern]
+toPatterns q ms = scoreToPatterns (getMinGridSize q ms) (toGridUnit q) 
+                . findMelodyQuant q $ ms where
+                
+  scoreToPatterns :: Time -> Int -> Voice -> [Pattern]
+  scoreToPatterns ml gu = groupEvery gu . toPat [0, ml .. ] . map onset where
+  
+    -- from onset Time to Onset type
+    toPat :: [Time] -> [Time] -> [Onset]
+    toPat [] []  = []
+    toPat [] _   = error "no more grid?" -- impossible?
+    toPat _  []  = []
+    toPat (g:gs) (d:ds) | g == d = I : toPat gs ds
+                        | g <  d = if d - g < ml
+                                   then error "unquantised interval encountered"
+                                   else O : toPat gs (d:ds)
+                                 
+  -- | Groups a list of patterns in fixed size lists, if the last list is not 
+  -- of the same length, the remainder is filled with 'X's
+  groupEvery :: Int -> Pattern -> [Pattern]
+  groupEvery x p | glen == x =  g : groupEvery x r
+                 | otherwise = [g ++ replicate (x - glen) X]
+    where (g,r) = splitAt x p 
+          glen  = length g
+        
+-- | Because the tied pattern crosses a barline, we take overlapping segments
+-- of two bars. Also, because the prototypical patterns are at the eighth note 
+-- level in a 2/4 and at the quarter note level in the 4/4 and 2/2 the segment
+-- boundaries are determined by the 'TimeSig'nature.
+createOverlapSegs :: TimeSig -> [Pattern] -> [Pattern]
+createOverlapSegs ts p = case ts of
   (TimeSig 2 2 _ _ ) -> takeConcatOverlap 8 p
   (TimeSig 2 4 _ _ ) -> takeConcatOverlap 4 p
   (TimeSig 4 4 _ _ ) -> takeConcatOverlap 8 p
@@ -101,28 +129,6 @@ takeConcatOverlap i l  = let (top, rest) = splitAt i l
                          in concat top 
                           : takeConcatOverlap i (drop (i `div` 2) top ++ rest)
 
--- | Takes a midiscore, quantises it, finds the melody, and turns it into a 
--- 'Pattern' list, where every 'Pattern' represents a beat
-scoreToPatterns :: Time -> Int -> Voice -> [Pattern]
-scoreToPatterns ml gu = groupEvery gu . toPat [0, ml .. ] . map onset  where
-  
-  toPat :: [Time] -> [Time] -> [Onset]
-  toPat [] []  = []
-  toPat [] _   = error "no more grid?" -- impossible?
-  toPat _  []  = []
-  toPat (g:gs) (d:ds) | g == d = I : toPat gs ds
-                      | g <  d = if d - g < ml
-                                 then error "unquantised interval encountered"
-                                 else O : toPat gs (d:ds)
-                                 
--- | Groups a list of patterns in fixed size lists, if the last list is not 
--- of the same length, the remainder is filled with 'X's
-groupEvery :: Int -> Pattern -> [Pattern]
-groupEvery x p | glen == x =  g : groupEvery x r
-               | otherwise = [g ++ replicate (x - glen) X]
-  where (g,r) = splitAt x p 
-        glen  = length g
-                                 
      
 --------------------------------------------------------------------------------
 -- Important tests for valid midi files
@@ -135,7 +141,7 @@ hasValidGridSize ms = (ticksPerBeat ms `mod` toGridUnit FourtyEighth) == 0
 -- | Returns the percentage of onsets that are not on grid positions 0, 3, 6,
 -- and 9 (of 12) for a 'Pattern' (by applying 'percTripGridOnsets)
 getPercTripGridOnsets :: MidiScore -> Double
-getPercTripGridOnsets = percTripGridOnsets . segByTimeSig FourtyEighth
+getPercTripGridOnsets = percTripGridOnsets . toPatterns FourtyEighth
 
 
 --------------------------------------------------------------------------------
