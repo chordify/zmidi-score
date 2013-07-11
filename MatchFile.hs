@@ -55,13 +55,17 @@ selectRTCMidi (rtc, mm) =
  
 -- | Is the 'TimeSig'natur a meter we can use for analysis?
 isValidTimeSig :: [Timed TimeSig] -> Bool
-isValidTimeSig [ts] = case getEvent ts of 
-                        -- there should be one valid time signature
-                        (TimeSig 4 4 _ _) -> True 
-                        (TimeSig 2 4 _ _) -> True
-                        (TimeSig 2 2 _ _) -> True
-                        _                 -> False 
-isValidTimeSig _    = False
+-- there should be one valid time signature
+isValidTimeSig [Timed ons ts] = case ons of 
+                                  -- it should start at position 0 
+                                  0 ->  case ts of 
+                                          -- and should be 2/2 2/4 4/4
+                                          (TimeSig 4 4 _ _) -> True 
+                                          (TimeSig 2 4 _ _) -> True
+                                          (TimeSig 2 2 _ _) -> True
+                                          _                 -> False 
+                                  _ -> False
+isValidTimeSig _              = False
  
 -- | Is the quantisation deviation small enough for analysis?
 isValidDeviation :: GridUnit -> Float -> Bool
