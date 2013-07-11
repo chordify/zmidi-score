@@ -50,8 +50,8 @@ selectRTCMidi (rtc, mm) =
     Nothing -> False
     Just m  ->    isValidYear      (year rtc)
                && isValidTimeSig   (rtcTimeSig m)
-               && validGrid m
-              -- && isValidDeviation (gridUnit m) (avgDeviation m)
+               -- && validGrid m 
+               && isValidDeviation (gridUnit m) (avgDeviation m)
  
 -- | Is the 'TimeSig'natur a meter we can use for analysis?
 isValidTimeSig :: [Timed TimeSig] -> Bool
@@ -69,7 +69,7 @@ isValidTimeSig _              = False
  
 -- | Is the quantisation deviation small enough for analysis?
 isValidDeviation :: GridUnit -> Float -> Bool
-isValidDeviation gu d = (d / fromIntegral gu) < 0.01
+isValidDeviation gu d = (d / fromIntegral gu) < 0.02
 --------------------------------------------------------------------------------
 -- A Datatype for matching midifiles to the ragtime compendium
 --------------------------------------------------------------------------------
