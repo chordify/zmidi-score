@@ -41,7 +41,7 @@ import Control.Monad.Trans.State.Strict ( evalStateT, StateT (..), get, modify )
 import Control.Monad.IO.Class    ( liftIO )
  
 --------------------------------------------------------------------------------
--- A Datatype for matching midifiles to the ragtime compendium
+-- selecting Midi files
 --------------------------------------------------------------------------------
 
 selectRTCMidi :: (RTC, Maybe RTCMidi) -> Bool

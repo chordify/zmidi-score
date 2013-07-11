@@ -116,14 +116,14 @@ approxYear (Decade y  ) = decade y
 approxYear (Approx y  ) = decade y
 approxYear Modern       = "1930"
 approxYear (Range f t)  |             t <= 1902 = "1900" 
-                        | f > 1902 && t <= 1920 = "1910" 
-                        | otherwise             = "1920" -- f > 1920  
+                        | f > 1902 && t <= 1919 = "1910" 
+                        | otherwise             = "1920" -- f >= 1920  
 approxYear _            = "n/a"
 
 decade :: Int -> String
 decade d | d <= 1902 = "1900" -- put into the pre 1910 category
          | d >= 1920 = "1920" -- put into the post 1910 category
-         | otherwise = "1910" -- put into the modern category
+         | otherwise = "1910" -- put into the 1910 category
 
 isPrecise :: RTCYear -> Bool
 isPrecise (Year _ ) = True
