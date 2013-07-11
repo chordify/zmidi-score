@@ -9,7 +9,7 @@ module RagPat ( getPercTripGridOnsets
 
 import ZMidiBasic
 import MidiCommonIO       ( readMidiScore )
-import RTCParser          ( RTC (..), getRTCMeta, preciseYear, isPrecise )
+import RTCParser          ( RTC (..), getRTCMeta, approxYear )
 
 import Data.List          ( intercalate )
 import Control.Arrow      ( first, second )
@@ -30,7 +30,7 @@ printPatCount rtc f =
          yr = year mt
      putStrLn . intercalate "\t"  
               $ ( show (rtcid mt) : f 
-                : show ts : preciseYear yr
+                : show ts : approxYear yr 
                 : map (show . matchRatio . matchPat ps . upScalePat ts) 
                   [ untied1, untied2, tied1, tied2 ]
                 )

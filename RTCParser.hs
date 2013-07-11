@@ -109,17 +109,20 @@ preciseYear _        = "n/a"
 --   Pre: Ignore for now               (currently 12 files)
 --   Range: pick if total range is  < 1910 or >= 1920 (currently 26 files)
 --   Year: just use (currently 5330)
+--   Composed/copywrited: take composed
 approxYear :: RTCYear -> String
-approxYear (Year   y)   = show y
-approxYear (IOYear i _) = show i
-approxYear (Decade y  ) = decade y
-approxYear (Approx y  ) = decade y
-approxYear Modern       = "1930"
-approxYear (Range f t)  |             t <= 1902 = "1900" 
-                        | f > 1902 && t <= 1919 = "1910" 
-                        | otherwise             = "1920" -- f >= 1920  
-approxYear _            = "n/a"
+approxYear (Year     y  ) = show y
+approxYear (IOYear   i _) = show i
+approxYear (CompCopy c _) = show c
+approxYear (Decade   y  ) = decade y
+approxYear (Approx   y  ) = decade y
+approxYear Modern         = "1930"
+approxYear (Range    f t) |             t <= 1902 = "1900" 
+                          | f > 1902 && t <= 1919 = "1910" 
+                          | otherwise             = "1920" -- f >= 1920  
+approxYear _              = "n/a"
 
+-- classifies the decade to be 1900's, 1910's or 1920's
 decade :: Int -> String
 decade d | d <= 1902 = "1900" -- put into the pre 1910 category
          | d >= 1920 = "1920" -- put into the post 1910 category
@@ -131,13 +134,14 @@ isPrecise _         = False
 
 isValidYear :: RTCYear -> Bool
 isValidYear y = case y of
-                  Year   _   -> True
-                  IOYear _ _ -> True
-                  Decade _   -> True
-                  Approx _   -> True
-                  Modern     -> True
-                  Range  _ _ -> True
-                  _          -> False
+                  Year     _   -> True
+                  IOYear   _ _ -> True
+                  CompCopy _ _ -> True
+                  Decade   _   -> True
+                  Approx   _   -> True
+                  Modern       -> True
+                  Range    _ _ -> True
+                  _            -> False
 
 -- | Type - unfortunately somewhat a grey area, but there are hundreds of 
 -- corrections in this version.	
