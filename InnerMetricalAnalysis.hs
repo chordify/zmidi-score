@@ -12,7 +12,7 @@
 -- Summary: implements the Inner Metrical Analysis model 
 -- see: 
 --------------------------------------------------------------------------------
-module Main ( -- * Types for Local Meters
+module InnerMetricalAnalysis ( -- * Types for Local Meters
                                LMeter (..)
                              , Time
                              , Weight
@@ -27,11 +27,12 @@ module Main ( -- * Types for Local Meters
                              -- , maximumPhase
                              -- , phaseStepSize
                              , main
+                             , toList
                              )where
 
 import Data.List                 ( tails              )
 import qualified Data.Set as Set ( foldr, filter      ) 
-import Data.Set                  ( Set, insert, empty )
+import Data.Set                  ( Set, insert, empty, toList)
 
 --------------------------------------------------------------------------------
 -- parameters
