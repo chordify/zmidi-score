@@ -142,9 +142,9 @@ getLocalMetersV phs = foldr projectMeter empty . tails   where
         where ioi = y - x  
   
   -- stop and create a new Local Meter if its size is larger than 2
-  stop :: Vector [Int] -> Time -> Length -> Period -> Vector [Int]
-  stop s l p | l >= 2    = insert (LMeter s p l) m
-               | otherwise = m
+  stop :: Vector [Int] -> Time -> Length -> Vector [Int]
+  stop s l | l >= 2    = insert (LMeter s p l) m
+           | otherwise = m
 
 -- | Returns True if the first 'LMeter' is a subset of the second 'LMeter'. 
 -- 'isSubSet' returns true of the two 'LMeter's are equal.
