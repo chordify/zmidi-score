@@ -127,10 +127,10 @@ getLocalMetersV phs = foldr projectMeter empty . tails   where
                         [phs, (2 * phs) .. (last ons `div` 2)] 
 
   -- given a phase (IOI), projects a local meter forward
-  project :: Time -> Length -> [Time] -> Period -> Set LMeter -> Set LMeter
-  project s l []  p m  = stop m s l p
-  project s l [_] p m  = stop m s l p
-  project s l (x : y : tl) p m
+  project :: Time -> Length -> [Time] -> Vector [Int] -> Vector [Int]
+  project s l []  = stop s l
+  project s l [_] = stop s l
+  project s l (x : y : tl) p 
     -- phase is larger than the ioi, go to the next ioi
     | ioi  < p = project s       l  (x : tl) p m
     -- phase and ioi are identical, we add 1 to the length of this local meter
@@ -142,8 +142,8 @@ getLocalMetersV phs = foldr projectMeter empty . tails   where
         where ioi = y - x  
   
   -- stop and create a new Local Meter if its size is larger than 2
-  stop :: Set LMeter -> Time -> Length -> Period -> Set LMeter
-  stop m s l p | l >= 2    = insert (LMeter s p l) m
+  stop :: Vector [Int] -> Time -> Length -> Period -> Vector [Int]
+  stop s l p | l >= 2    = insert (LMeter s p l) m
                | otherwise = m
 
 -- | Returns True if the first 'LMeter' is a subset of the second 'LMeter'. 
