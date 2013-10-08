@@ -12,7 +12,7 @@
 -- Summary: implements the Inner Metrical Analysis model 
 -- see: 
 --------------------------------------------------------------------------------
-module InnerMetricalAnalysis ( -- * Types for Local Meters
+module Main ( -- * Types for Local Meters
                                LMeter (..)
                              , Time
                              , Weight
@@ -121,7 +121,8 @@ getLocalMeters phs = filterMax . foldr projectMeter empty . tails   where
 -- 'isSubSet' returns true of the two 'LMeter's are equal.
 isSubSet :: LMeter -> LMeter -> Bool
 isSubSet a b =  
-     (period a) `mod` (period b) == 0 -- the phase of a is a multitude that of b
+     -- (period a) `mod` (period b) == 0 -- the phase of a is a multitude that of b
+     period a    ==    period b       -- the above is wrong, I believe
   && start  a    >=    start  b       -- a starts after b
   && lMeterEnd a <=    lMeterEnd b    -- a ends before b
   && not (a == b)                     -- a is not identical to b

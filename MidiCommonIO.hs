@@ -102,8 +102,7 @@ removeTrackLabels f = readMidiFile f >>=
                       
 
 putErrStrLn :: String -> IO ()
-putErrStrLn s = do hPutStr stderr s
-                   hPutStr stderr "\n"
+putErrStrLn s = hPutStrLn stderr s
                    
 --------------------------------------------------------------------------------
 -- Unexported directory utils
