@@ -33,7 +33,7 @@ module Main ( -- * Types for Local Meters
 import Data.List                 ( tails              )
 import qualified Data.Set as Set ( foldr, filter      ) 
 import Data.Set                  ( Set, insert, empty, toList)
-
+import LocalMeter
 --------------------------------------------------------------------------------
 -- parameters
 --------------------------------------------------------------------------------
@@ -50,24 +50,24 @@ import Data.Set                  ( Set, insert, empty, toList)
 -- types
 --------------------------------------------------------------------------------
 
-data LMeter = LMeter { start   :: Time
-                     , period  :: Period
-                     , mlength :: Length } deriving (Eq)
+-- data LMeter = LMeter { start   :: Time
+                     -- , period  :: Period
+                     -- , mlength :: Length } deriving (Eq)
                      
-instance Ord LMeter where
-  compare a b = case compare (period a) (period b) of
-                  EQ -> case compare (period a) (period b) of
-                          EQ -> compare (start a) (start b)
-                          cs -> cs
-                  cp -> cp
+-- instance Ord LMeter where
+  -- compare a b = case compare (period a) (period b) of
+                  -- EQ -> case compare (period a) (period b) of
+                          -- EQ -> compare (start a) (start b)
+                          -- cs -> cs
+                  -- cp -> cp
                                   
-instance Show LMeter where
-  show (LMeter s p l) = '(' : show s ++ ", " ++ show p ++ ", " ++ show l ++ ")"
+-- instance Show LMeter where
+  -- show (LMeter s p l) = '(' : show s ++ ", " ++ show p ++ ", " ++ show l ++ ")"
 
-type Length = Int
-type Period = Int
-type Time   = Int
-type Weight = Int
+-- type Length = Int
+-- type Period = Int
+-- type Time   = Int
+-- type Weight = Int
 
 --------------------------------------------------------------------------------
 -- Local Meters
@@ -116,6 +116,35 @@ getLocalMeters phs = filterMax . foldr projectMeter empty . tails   where
       step :: LMeter -> Bool -> Bool
       step _  True  = True
       step lm False = m `isSubSet` lm
+
+getLocalMetersV :: Period -> [Time] -> LMeters
+getLocalMetersV phs = foldr projectMeter empty . tails   where
+  
+  -- project the meters for the head of the list of onsets
+  projectMeter :: [Time] -> LMeters -> LMeters
+  projectMeter []  m = m
+  projectMeter ons m = foldr (project (head ons) 0 ons) m  
+                        [phs, (2 * phs) .. (last ons `div` 2)] 
+
+  -- given a phase (IOI), projects a local meter forward
+  project :: Time -> Length -> [Time] -> Period -> Set LMeter -> Set LMeter
+  project s l []  p m  = stop m s l p
+  project s l [_] p m  = stop m s l p
+  project s l (x : y : tl) p m
+    -- phase is larger than the ioi, go to the next ioi
+    | ioi  < p = project s       l  (x : tl) p m
+    -- phase and ioi are identical, we add 1 to the length of this local meter
+    | ioi == p = project s (succ l) (y : tl) p m
+    -- ioi > p: phase is smaller than the ioi, we're done with this local meter
+    -- Next, if the local meter is at least projected twice (l=2) we add
+    -- an LMeter and otherwise we continue
+    | otherwise = stop m s l p 
+        where ioi = y - x  
+  
+  -- stop and create a new Local Meter if its size is larger than 2
+  stop :: Set LMeter -> Time -> Length -> Period -> Set LMeter
+  stop m s l p | l >= 2    = insert (LMeter s p l) m
+               | otherwise = m
 
 -- | Returns True if the first 'LMeter' is a subset of the second 'LMeter'. 
 -- 'isSubSet' returns true of the two 'LMeter's are equal.
