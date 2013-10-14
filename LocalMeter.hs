@@ -1,11 +1,44 @@
 {-# OPTIONS_GHC -Wall #-}
 module LocalMeter where
 
+import Data.IntMap                ( IntMap, insertWith, mapWithKey 
+                                  , split, fromList, showTree )
+import qualified Data.IntMap as M ( foldr )
+
+test :: MeterMap
+test = fromList [(1, [(1,2), (2,4)]), (3, [(1,4), (2,2)]), (4, [])]
+
 -- | A matrix is a Vector of Vectors, we could also use one large Vector with
 -- another 'ix' function
 type LMeters = [(Period, [(Time, Length)])]
 
-type SMeters = [(Time, [(Period, Length)])]
+-- type SMeters = [(Time, [(Time, [(Period, Length)])])]
+-- type SMeters = IntMap (IntMap [(Period, Length)])
+type MeterMap = IntMap [(Period, Length)]
+
+insertMeter :: MeterMap -> Period -> (Time, Length) -> MeterMap
+insertMeter m p (s,l) = insertWith (++) s [(p,l)] m
+
+-- filter all local meters with an onset greater then o, and which are in reach 
+-- of o
+filterLMeters :: Time -> MeterMap -> MeterMap
+filterLMeters o = mapWithKey filterInReach . fst . split (succ o) 
+
+  where filterInReach :: Time -> [(Period, Length)] -> [(Period, Length)]
+        filterInReach s = filter (inReach s)
+        
+        -- returns true if  onset o lies in reach the meter starting at s
+        -- with period p and length l
+        inReach :: Time -> (Period, Length) -> Bool
+        inReach s (p, l) = o <= meterEnd p l s
+
+nrOfLMeters :: MeterMap -> Int
+nrOfLMeters = M.foldr step 0 where
+  
+  step :: [(Period, Length)] -> Int -> Int
+  step l r = r + length l
+
+
 
 data LMeter = LMeter { start   :: Time
                      , period  :: Period
@@ -46,11 +79,19 @@ addLMeter m p t l | isMaximal (t,l) = addMeter (t,l)
         -- returns true if the first pair is a meter that is a subset of the
         -- second meter pair
         isSubSet :: (Time, Length) -> (Time, Length) -> Bool
-        isSubSet (ta, la) (tb, lb) =           ta    >=          tb 
-                                   && meterEnd ta la <= meterEnd tb lb
+        isSubSet (ta, la) (tb, lb) =             ta    >=            tb 
+                                   && meterEnd p ta la <= meterEnd p tb lb
                                            
-        meterEnd :: Length -> Time -> Time
-        meterEnd len tm = tm + (p * len)
+meterEnd :: Period -> Length -> Time -> Time
+meterEnd p len tm = tm + (p * len)
         
-indexByStart :: LMeters -> SMeters
-indexByStart = undefined
+
+
+
+
+
+
+
+
+
+
