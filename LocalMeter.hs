@@ -9,7 +9,7 @@ import Prelude hiding (sum)
 
 -- | A matrix is a Vector of Vectors, we could also use one large Vector with
 -- another 'ix' function
-type LMeters = Vector (Vector [Int]) 
+type LMeters = Vector [(Time, Length)]
 
 data LMeter = LMeter { start   :: Time
                      , period  :: Period
@@ -25,14 +25,37 @@ type Weight = Int
 
                      
 -- | Indexing a matrix
-getOnsets :: LMeters -> Period -> Length -> [Time] 
-getOnsets m p l = (m V.! p) V.! l  
+getStarts :: LMeters -> Period -> Length -> [Time] 
+getStarts m p l = map fst $ filter ((== l) . snd) (m V.! p) 
+
+getLengths :: LMeters -> Period -> Time -> [Length] 
+getLengths m p s = map snd $ filter ((== s) . fst) (m V.! p) 
 
 getLMeters :: LMeters -> Period -> Length -> [LMeter]
-getLMeters m p l = map (\o -> LMeter o p l) $ getOnsets m p l
+getLMeters m p l = map (\(o,_) -> LMeter o p l) $ filter ((== l) . snd) (m V.! p) 
 
-addLMeter :: LMeters -> Period -> Length -> Time -> LMeters
-addLMeter  = undefined
+addLMeter :: [(Time, Length)] -> Period -> Time -> Length -> [(Time,Length)]
+addLMeter m p t l | isMaximal (t,l) = addMeter (t,l)
+                  | otherwise       = m
+
+  where -- adds a meter to the collection, and removes any meters that are 
+        -- included in the added meter
+        addMeter :: (Time, Length) -> [(Time, Length)]
+        addMeter x = x : filter (\y -> not $ isSubSet y x) m
+        
+        -- being maximal means not being a subset
+        isMaximal :: (Time, Length) -> Bool
+        isMaximal x = and $ map (not . isSubSet x) m
+        
+        -- returns true if the first pair is a meter that is a subset of the
+        -- second meter pair
+        isSubSet :: (Time, Length) -> (Time, Length) -> Bool
+        isSubSet (ta, la) (tb, lb) =           ta    >=          tb 
+                                   && meterEnd ta la <= meterEnd tb lb
+                                           
+        meterEnd :: Length -> Time -> Time
+        meterEnd len tm = tm + (p * len)
+        
 
 {-
 -- | Displaying a matrix
