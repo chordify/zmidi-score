@@ -1,15 +1,11 @@
 {-# OPTIONS_GHC -Wall #-}
 module LocalMeter where
 
-import qualified Data.Vector as V
-import Data.Vector ( Vector )
--- import Data.List   ( intercalate )
--- import Text.Printf ( printf, PrintfArg )
-import Prelude hiding (sum)
-
 -- | A matrix is a Vector of Vectors, we could also use one large Vector with
 -- another 'ix' function
-type LMeters = Vector [(Time, Length)]
+type LMeters = [(Period, [(Time, Length)])]
+
+type SMeters = [(Time, [(Period, Length)])]
 
 data LMeter = LMeter { start   :: Time
                      , period  :: Period
@@ -25,14 +21,14 @@ type Weight = Int
 
                      
 -- | Indexing a matrix
-getStarts :: LMeters -> Period -> Length -> [Time] 
-getStarts m p l = map fst $ filter ((== l) . snd) (m V.! p) 
+getStarts :: [(Time,Length)] -> Length -> [Time] 
+getStarts m l = map fst $ filter ((== l) . snd) m 
 
-getLengths :: LMeters -> Period -> Time -> [Length] 
-getLengths m p s = map snd $ filter ((== s) . fst) (m V.! p) 
+getLengths :: [(Time,Length)] -> Time -> [Length] 
+getLengths m s = map snd $ filter ((== s) . fst) m
 
-getLMeters :: LMeters -> Period -> Length -> [LMeter]
-getLMeters m p l = map (\(o,_) -> LMeter o p l) $ filter ((== l) . snd) (m V.! p) 
+-- getLMeters :: LMeters -> Period -> Length -> [LMeter]
+-- getLMeters m p l = map (\(o,_) -> LMeter o p l) $ filter ((== l) . snd) (m !! p) 
 
 addLMeter :: [(Time, Length)] -> Period -> Time -> Length -> [(Time,Length)]
 addLMeter m p t l | isMaximal (t,l) = addMeter (t,l)
@@ -56,24 +52,5 @@ addLMeter m p t l | isMaximal (t,l) = addMeter (t,l)
         meterEnd :: Length -> Time -> Time
         meterEnd len tm = tm + (p * len)
         
-
-{-
--- | Displaying a matrix
-disp :: Show a => Matrix a -> String
-disp = disp' dispRow
-
-  where dispRow :: Show a => Vector a -> String
-        dispRow = intercalate " " . V.foldr (\j js -> show j : js ) [] 
-
--- | Displaying a matrix
-dispf :: PrintfArg a => Matrix a -> String
-dispf = disp' dispRow
-
-  where dispRow :: PrintfArg a => Vector a -> String
-        dispRow = concat . V.foldr (\j js -> printf "\t%.2f" j : js ) [] 
-
--- | Displaying a matrix
-disp' :: (Vector a -> String) -> Matrix a -> String
-disp' dispRow  = intercalate "\n" . V.foldr (\i is -> dispRow i : is) ["\n"] 
-
--}
+indexByStart :: LMeters -> SMeters
+indexByStart = undefined
