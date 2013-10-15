@@ -4,7 +4,7 @@ module LocalMeter where
 
 import Data.List                  ( intercalate )
 import Data.IntMap                ( IntMap, insertWith, mapWithKey 
-                                  , split, fromList, showTree, foldrWithKey )
+                                  , split, fromList, foldrWithKey )
 import qualified Data.IntMap as M ( foldr )
 
 test :: MeterMap
@@ -13,13 +13,13 @@ test = fromList [(1, [(1,2), (2,4)]), (3, [(1,4), (2,2)]), (4, [])]
 -- | A matrix is a Vector of Vectors, we could also use one large Vector with
 -- another 'ix' function
 type LMeters = [(Period, [(Time, Len)])]
-
--- type SMeters = [(Time, [(Time, [(Period, Len)])])]
--- type SMeters = IntMap (IntMap [(Period, Len)])
 type MeterMap = IntMap [(Period, Len)]
 
-insertMeter :: MeterMap -> Period -> (Time, Len) -> MeterMap
-insertMeter m p (s,l) = insertWith (++) (time s) [(p,l)] m
+insertMeters :: MeterMap -> Period -> [(Time, Len)] -> MeterMap
+insertMeters m p l = foldr (insertMeter p) m l
+
+insertMeter :: Period -> (Time, Len) -> MeterMap -> MeterMap
+insertMeter p (s,l) m = insertWith (++) (time s) [(p,l)] m
 
 -- filter all local meters with an onset greater then o, and which are in reach 
 -- of o
@@ -69,9 +69,12 @@ instance Show LMeter where
 
   showList a b = (intercalate "\n" . map show $ a) ++ b
 
-newtype Len    = Len    { len    :: Int } deriving ( Eq, Show, Num, Ord, Enum )
-newtype Period = Period { period :: Int } deriving ( Eq, Show, Num, Ord, Enum )
-newtype Time   = Time   { time   :: Int } deriving ( Eq, Show, Num, Ord, Enum )
+newtype Len    = Len    { len    :: Int } 
+                        deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+newtype Period = Period { period :: Int } 
+                        deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+newtype Time   = Time   { time   :: Int }
+                        deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
 -- newtype Weight = Int
 
                      
@@ -86,8 +89,8 @@ getLens m s = map snd $ filter ((== s) . fst) m
 -- getLMeters m p l = map (\(o,_) -> LMeter o p l) $ filter ((== l) . snd) (m !! p) 
 
 addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
-addLMeter m p t l | isMaximal (t,l) = addMeter (t,l)
-                  | otherwise       = m
+addLMeter m p t l | isMaximal (t,l) && (len l) > 2 = addMeter (t,l)
+                  | otherwise                      = m
 
   where -- adds a meter to the collection, and removes any meters that are 
         -- included in the added meter

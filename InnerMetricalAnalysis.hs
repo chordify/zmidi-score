@@ -12,27 +12,27 @@
 -- Summary: implements the Inner Metrical Analysis model 
 -- see: 
 --------------------------------------------------------------------------------
-module Main ( -- * Types for Local Meters
-                               LMeter (..)
-                             , Time
-                             , Weight
-                             , Period
-                             , Length
-                               -- * The Inner Metrical Analysis
-                             , getLocalMeters
-                             , getMetricWeight
-                             , getSpectralWeight
-                             , normalise
-                               -- * parameters
-                             -- , maximumPhase
-                             -- , phaseStepSize
-                             , main
-                             , toList
-                             )where
+module Main -- ( -- * Types for Local Meters
+                               -- LMeter (..)
+                             -- , Time
+                             -- , Weight
+                             -- , Period
+                             -- , Len
+                               -- -- * The Inner Metrical Analysis
+                             -- , getLocalMeters
+                             -- , getMetricWeight
+                             -- , getSpectralWeight
+                             -- , normalise
+                               -- -- * parameters
+                             -- -- , maximumPhase
+                             -- -- , phaseStepSize
+                             -- , main
+                             -- , toList
+                             -- )
+                             where
 
 import Data.List                 ( tails              )
-import qualified Data.Set as Set ( foldr, filter      ) 
-import Data.Set                  ( Set, insert, empty, toList)
+import Data.IntMap               ( empty )
 import LocalMeter
 --------------------------------------------------------------------------------
 -- parameters
@@ -52,7 +52,7 @@ import LocalMeter
 
 -- data LMeter = LMeter { start   :: Time
                      -- , period  :: Period
-                     -- , mlength :: Length } deriving (Eq)
+                     -- , mLen :: Len } deriving (Eq)
                      
 -- instance Ord LMeter where
   -- compare a b = case compare (period a) (period b) of
@@ -64,10 +64,10 @@ import LocalMeter
 -- instance Show LMeter where
   -- show (LMeter s p l) = '(' : show s ++ ", " ++ show p ++ ", " ++ show l ++ ")"
 
--- type Length = Int
+-- type Len = Int
 -- type Period = Int
 -- type Time   = Int
--- type Weight = Int
+type Weight = Int
 
 --------------------------------------------------------------------------------
 -- Local Meters
@@ -77,88 +77,63 @@ import LocalMeter
 -- the base of note onsets. The model considers all the pulses, called 
 -- local metres, that can overlay with each other with very different periods 
 -- and shifted at all phases.
-getLocalMeters :: Period -> [Time] -> Set LMeter
-getLocalMeters phs = filterMax . foldr projectMeter empty . tails   where
+getLocalMeters :: Period -> [Time] -> MeterMap
+getLocalMeters phs = foldr projectMeter empty . tails   where
   
   -- project the meters for the head of the list of onsets
-  projectMeter :: [Time] -> Set LMeter -> Set LMeter
+  projectMeter :: [Time] -> MeterMap -> MeterMap
   projectMeter []  m = m
-  projectMeter ons m = foldr (project (head ons) 0 ons) m  
-                        [phs, (2 * phs) .. (last ons `div` 2)] 
+  projectMeter ons m = foldr (addToMap ons) m 
+                      [phs, (2 * phs) .. (Period (time . last $ ons) `div` 2)] 
 
+  addToMap :: [Time] -> Period -> MeterMap -> MeterMap 
+  addToMap ons p m = insertMeters m p (project (head ons) 0 ons p [])
+                        
   -- given a phase (IOI), projects a local meter forward
-  project :: Time -> Length -> [Time] -> Period -> Set LMeter -> Set LMeter
-  project s l []  p m  = stop m s l p
-  project s l [_] p m  = stop m s l p
+  project :: Time -> Len -> [Time] -> Period -> [(Time,Len)] -> [(Time,Len)]
+  project s l []  p m  = addLMeter m p s l
+  project s l [_] p m  = addLMeter m p s l
   project s l (x : y : tl) p m
     -- phase is larger than the ioi, go to the next ioi
-    | ioi  < p = project s       l  (x : tl) p m
-    -- phase and ioi are identical, we add 1 to the length of this local meter
-    | ioi == p = project s (succ l) (y : tl) p m
+    | ioi  < period p = project s       l  (x : tl) p m
+    -- phase and ioi are identical, we add 1 to the Len of this local meter
+    | ioi == period p = project s (succ l) (y : tl) p m
     -- ioi > p: phase is smaller than the ioi, we're done with this local meter
     -- Next, if the local meter is at least projected twice (l=2) we add
     -- an LMeter and otherwise we continue
-    | otherwise = stop m s l p 
-        where ioi = y - x     
+    | otherwise = addLMeter m p s l
+        where ioi = time (y - x)
   
   -- stop and create a new Local Meter if its size is larger than 2
-  stop :: Set LMeter -> Time -> Length -> Period -> Set LMeter
-  stop m s l p | l >= 2    = insert (LMeter s p l) m
-               | otherwise = m
+  -- stop :: Set LMeter -> Time -> Len -> Period -> Set LMeter
+  -- stop m s l p | l >= 2    = insert (LMeter s p l) m
+               -- | otherwise = m
 
   -- delete the 'LMeter's that are a subset of other 'LMeter's
-  filterMax :: Set LMeter -> Set LMeter
-  filterMax s = Set.filter (not . hasSuperSet s) s where
+  -- filterMax :: Set LMeter -> Set LMeter
+  -- filterMax s = Set.filter (not . hasSuperSet s) s where
 
-    hasSuperSet :: Set LMeter -> LMeter -> Bool
-    hasSuperSet x m = Set.foldr step False x where
+    -- hasSuperSet :: Set LMeter -> LMeter -> Bool
+    -- hasSuperSet x m = Set.foldr step False x where
 
-      step :: LMeter -> Bool -> Bool
-      step _  True  = True
-      step lm False = m `isSubSet` lm
+      -- step :: LMeter -> Bool -> Bool
+      -- step _  True  = True
+      -- step lm False = m `isSubSet` lm
 
-getLocalMetersV :: Period -> [Time] -> LMeters
-getLocalMetersV phs = foldr projectMeter empty . tails   where
-  
-  -- project the meters for the head of the list of onsets
-  projectMeter :: [Time] -> LMeters -> LMeters
-  projectMeter []  m = m
-  projectMeter ons m = foldr (project (head ons) 0 ons) m  
-                        [phs, (2 * phs) .. (last ons `div` 2)] 
-
-  -- given a phase (IOI), projects a local meter forward
-  project :: Time -> Length -> [Time] -> Vector [Int] -> Vector [Int]
-  project s l []  = stop s l
-  project s l [_] = stop s l
-  project s l (x : y : tl) p 
-    -- phase is larger than the ioi, go to the next ioi
-    | ioi  < p = project s       l  (x : tl) p m
-    -- phase and ioi are identical, we add 1 to the length of this local meter
-    | ioi == p = project s (succ l) (y : tl) p m
-    -- ioi > p: phase is smaller than the ioi, we're done with this local meter
-    -- Next, if the local meter is at least projected twice (l=2) we add
-    -- an LMeter and otherwise we continue
-    | otherwise = stop m s l p 
-        where ioi = y - x  
-  
-  -- stop and create a new Local Meter if its size is larger than 2
-  stop :: Vector [Int] -> Time -> Length -> Vector [Int]
-  stop s l | l >= 2    = insert (LMeter s p l) m
-           | otherwise = m
 
 -- | Returns True if the first 'LMeter' is a subset of the second 'LMeter'. 
 -- 'isSubSet' returns true of the two 'LMeter's are equal.
-isSubSet :: LMeter -> LMeter -> Bool
-isSubSet a b =  
-     -- (period a) `mod` (period b) == 0 -- the phase of a is a multitude that of b
-     period a    ==    period b       -- the above is wrong, I believe
-  && start  a    >=    start  b       -- a starts after b
-  && lMeterEnd a <=    lMeterEnd b    -- a ends before b
-  && not (a == b)                     -- a is not identical to b
+-- isSubSet :: LMeter -> LMeter -> Bool
+-- isSubSet a b =  
+     -- -- (period a) `mod` (period b) == 0 -- the phase of a is a multitude that of b
+     -- period a    ==    period b       -- the above is wrong, I believe
+  -- && start  a    >=    start  b       -- a starts after b
+  -- && lMeterEnd a <=    lMeterEnd b    -- a ends before b
+  -- && not (a == b)                     -- a is not identical to b
 
--- returns the ending postion ('Int') of an 'LMeter'
-lMeterEnd :: LMeter -> Int
-lMeterEnd (LMeter s p l) = s + (l *p)
+-- -- returns the ending postion ('Int') of an 'LMeter'
+-- lMeterEnd :: LMeter -> Int
+-- lMeterEnd (LMeter s p l) = s + (l *p)
 
 --------------------------------------------------------------------------------
 -- Inner Metrical Analysis Weights
@@ -170,6 +145,8 @@ lMeterEnd (LMeter s p l) = s + (l *p)
 -- pulses coincide get a greater weight than onsets where fewer pulses coincide. 
 -- Moreover, the intuition modelled in the metric weight is that longer 
 -- repetitions should contribute more weight than shorter ones.
+
+{-
 getMetricWeight :: Period -> [Time] -> [Weight]
 getMetricWeight phs = map snd . getMetricWeight' phs 
 
@@ -203,18 +180,18 @@ getSpectralWeight' phs ons =
 -- phase, which means that the onset coincides with the grid of the 'LMeter'
 -- matchesPhase :: Time -> LMeter -> Bool
 -- matchesPhase o (LMeter strt per _len) = (o - strt) `mod` per == 0 
-
+-}
     
--- takes a set of 'LMeter's, takes of every length the power of 2 and sums
+-- takes a set of 'LMeter's, takes of every Len the power of 2 and sums
 -- teh results
-sumPowers2 :: Set LMeter -> Int
-sumPowers2 = Set.foldr ((+) . (^ (2 ::Int)). mlength) 0 
+-- sumPowers2 :: Set LMeter -> Int
+-- sumPowers2 = Set.foldr ((+) . (^ (2 ::Int)). mLen) 0 
 
-normalise :: [Weight] -> [Float]
-normalise ws = let mx = fromIntegral (maximum ws) 
-               in map (\x -> fromIntegral x / mx) ws
+-- normalise :: [Weight] -> [Float]
+-- normalise ws = let mx = fromIntegral (maximum ws) 
+               -- in map (\x -> fromIntegral x / mx) ws
 
 -- testing
-main :: IO ()
-main = print $ getMetricWeight 1 [6,10,16,18,20,22,30,34,38,44,46,48,50,58,62,66,68,70,72,74,82,86,94,96,98,100,102,112,114,122,174,176,178,180,182,188,189,190,192,194,202,204,206,208,210,212,214,216,218,220,222,224,226,234,246,250,256,258,260,262,270,274,280,282,284,286,292,293,294,296,298,300,302,308,309,310,312,314]
+-- main :: IO ()
+-- main = print $ getMetricWeight 1 [6,10,16,18,20,22,30,34,38,44,46,48,50,58,62,66,68,70,72,74,82,86,94,96,98,100,102,112,114,122,174,176,178,180,182,188,189,190,192,194,202,204,206,208,210,212,214,216,218,220,222,224,226,234,246,250,256,258,260,262,270,274,280,282,284,286,292,293,294,296,298,300,302,308,309,310,312,314]
                
