@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module LocalMeter where
 
-import Data.List                  ( intercalate )
+import Data.List                  ( intercalate, sort )
 import Data.IntMap                ( IntMap, insertWith, mapWithKey 
                                   , split, fromList, foldrWithKey )
 import qualified Data.IntMap as M ( foldr )
@@ -49,7 +49,7 @@ nrOfLMeters = M.foldr step 0 where
   step l r = r + length l
 
 toLMeters :: MeterMap -> [LMeter]
-toLMeters = foldrWithKey step [] where
+toLMeters = sort . foldrWithKey step [] where
 
   step :: Int -> [(Period, Len)] -> [LMeter] -> [LMeter]
   step s x [] =       map (toLMeter s) x 
@@ -69,6 +69,13 @@ instance Show LMeter where
 
   showList a b = (intercalate "\n" . map show $ a) ++ b
 
+instance Ord LMeter where
+  compare a b = case compare (mPeriod a) (mPeriod b) of
+                  EQ -> case compare (mLen a) (mLen b) of
+                          EQ -> compare (mStart a) (mStart b)
+                          cs -> cs
+                  cp -> cp
+  
 newtype Len    = Len    { len    :: Int } 
                         deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
 newtype Period = Period { period :: Int } 
@@ -89,8 +96,8 @@ getLens m s = map snd $ filter ((== s) . fst) m
 -- getLMeters m p l = map (\(o,_) -> LMeter o p l) $ filter ((== l) . snd) (m !! p) 
 
 addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
-addLMeter m p t l | isMaximal (t,l) && (len l) > 2 = addMeter (t,l)
-                  | otherwise                      = m
+addLMeter m p t l | isMaximal (t,l) && (len l) >= 2 = addMeter (t,l)
+                  | otherwise                       = m
 
   where -- adds a meter to the collection, and removes any meters that are 
         -- included in the added meter
@@ -111,7 +118,8 @@ meterEnd :: Period -> Len -> Time -> Time
 meterEnd (Period p) (Len l) (Time t) = Time (t + (p * l))
         
 
-
+test2 :: [(Time, Len)]
+test2 = [(Time 0, Len 4)]
 
 
 
