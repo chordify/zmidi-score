@@ -78,17 +78,15 @@ type Weight = Int
 -- local metres, that can overlay with each other with very different periods 
 -- and shifted at all phases.
 getLocalMeters :: Period -> [Time] -> MeterMap
-getLocalMeters phs = foldr projectMeter empty . tails   where
+getLocalMeters phs ons = foldr onePeriod empty 
+              [phs, (2 * phs) .. (Period (time . last $ ons) `div` 2)]    where
   
-  -- project the meters for the head of the list of onsets
-  projectMeter :: [Time] -> MeterMap -> MeterMap
-  projectMeter []  m = m
-  projectMeter ons m = foldr (addToMap ons) m 
-                      [phs, (2 * phs) .. (Period (time . last $ ons) `div` 2)] 
-
-  addToMap :: [Time] -> Period -> MeterMap -> MeterMap 
-  addToMap ons p m = insertMeters m p (project (head ons) 0 ons p [])
-                        
+  onePeriod :: Period -> MeterMap -> MeterMap
+  onePeriod p m = insertMeters m p $ foldr (startProj p) [] (tails ons)
+  
+  startProj :: Period -> [Time] -> [(Time,Len)] -> [(Time,Len)]
+  startProj p tls m = project (head tls) 0 tls p m
+  
   -- given a phase (IOI), projects a local meter forward
   project :: Time -> Len -> [Time] -> Period -> [(Time,Len)] -> [(Time,Len)]
   project s l []  p m  = addLMeter m p s l
