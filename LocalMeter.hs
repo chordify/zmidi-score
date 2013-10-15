@@ -7,6 +7,8 @@ import Data.IntMap                ( IntMap, insertWith, mapWithKey
                                   , split, fromList, foldrWithKey )
 import qualified Data.IntMap as M ( foldr )
 
+import Debug.Trace
+
 test :: MeterMap
 test = fromList [(1, [(1,2), (2,4)]), (3, [(1,4), (2,2)]), (4, [])]
 
@@ -19,6 +21,7 @@ insertMeters :: MeterMap -> Period -> [(Time, Len)] -> MeterMap
 insertMeters m p l = foldr (insertMeter p) m l
 
 insertMeter :: Period -> (Time, Len) -> MeterMap -> MeterMap
+-- insertMeter p (s,l) m = traceShow (toLMeters m) (insertWith (++) (time s) [(p,l)] m)
 insertMeter p (s,l) m = insertWith (++) (time s) [(p,l)] m
 
 -- filter all local meters with an onset greater then o, and which are in reach 
