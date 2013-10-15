@@ -18,10 +18,10 @@ type LMeters = [(Period, [(Time, Len)])]
 type MeterMap = IntMap [(Period, Len)]
 
 insertMeters :: MeterMap -> Period -> [(Time, Len)] -> MeterMap
-insertMeters m p l = foldr (insertMeter p) m l
+-- insertMeters m p l = foldr (insertMeter p) m l
+insertMeters m p l = trace ("p: " ++ show p ++ show l) (foldr (insertMeter p) m l)
 
 insertMeter :: Period -> (Time, Len) -> MeterMap -> MeterMap
--- insertMeter p (s,l) m = traceShow (toLMeters m) (insertWith (++) (time s) [(p,l)] m)
 insertMeter p (s,l) m = insertWith (++) (time s) [(p,l)] m
 
 -- filter all local meters with an onset greater then o, and which are in reach 
@@ -51,6 +51,7 @@ nrOfLMeters = M.foldr step 0 where
   step :: [(Period, Len)] -> Int -> Int
   step l r = r + length l
 
+-- Converts a 'MeterMap' into a sorted list of 'LMeters'
 toLMeters :: MeterMap -> [LMeter]
 toLMeters = sort . foldrWithKey step [] where
 
@@ -85,19 +86,10 @@ newtype Period = Period { period :: Int }
                         deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
 newtype Time   = Time   { time   :: Int }
                         deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
--- newtype Weight = Int
 
-                     
--- | Indexing a matrix
-getStarts :: [(Time,Len)] -> Len -> [Time] 
-getStarts m l = map fst $ filter ((== l) . snd) m 
-
-getLens :: [(Time,Len)] -> Time -> [Len] 
-getLens m s = map snd $ filter ((== s) . fst) m
-
--- getLMeters :: LMeters -> Period -> Len -> [LMeter]
--- getLMeters m p l = map (\(o,_) -> LMeter o p l) $ filter ((== l) . snd) (m !! p) 
-
+                    
+-- TODO move to InnerMetricalAnalysis
+-- Adds a new local meter to a list of local meters with the same period
 addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
 addLMeter m p t l | isMaximal (t,l) && (len l) >= 2 = addMeter (t,l)
                   | otherwise                       = m
@@ -117,18 +109,7 @@ addLMeter m p t l | isMaximal (t,l) && (len l) >= 2 = addMeter (t,l)
         isSubSet (ta, la) (tb, lb) =             ta    >=            tb 
                                    && meterEnd p la ta <= meterEnd p lb tb
                                            
+-- | returns the meter ending 'Time'
 meterEnd :: Period -> Len -> Time -> Time
 meterEnd (Period p) (Len l) (Time t) = Time (t + (p * l))
-        
-
-test2 :: [(Time, Len)]
-test2 = [(Time 0, Len 4)]
-
-
-
-
-
-
-
-
 
