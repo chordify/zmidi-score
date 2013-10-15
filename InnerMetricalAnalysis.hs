@@ -201,8 +201,8 @@ getSpectralWeight' phs ons =
   
 -- given an onset and an 'LMeter' returns True if both have the same 
 -- phase, which means that the onset coincides with the grid of the 'LMeter'
-matchesPhase :: Time -> LMeter -> Bool
-matchesPhase o (LMeter strt per _len) = (o - strt) `mod` per == 0 
+-- matchesPhase :: Time -> LMeter -> Bool
+-- matchesPhase o (LMeter strt per _len) = (o - strt) `mod` per == 0 
 
     
 -- takes a set of 'LMeter's, takes of every length the power of 2 and sums

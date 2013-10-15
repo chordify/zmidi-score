@@ -25,12 +25,19 @@ filterLMeters :: Time -> MeterMap -> MeterMap
 filterLMeters o = mapWithKey filterInReach . fst . split (succ o) 
 
   where filterInReach :: Time -> [(Period, Length)] -> [(Period, Length)]
-        filterInReach s = filter (inReach s)
+        filterInReach s = filter (\x -> inReach s x && matchesPhase s x)
         
         -- returns true if  onset o lies in reach the meter starting at s
         -- with period p and length l
         inReach :: Time -> (Period, Length) -> Bool
         inReach s (p, l) = o <= meterEnd p l s
+        
+        -- given an onset and an 'LMeter' returns True if both have the same 
+        -- phase, which means that the onset coincides with the grid of the 'LMeter'
+        -- matchesPhase :: Time -> LMeter -> Bool
+        -- matchesPhase o (LMeter strt per _len) = (o - strt) `mod` per == 0 
+        matchesPhase :: Time -> (Period, Length) -> Bool
+        matchesPhase s (p, _ ) = (o - s) `mod` p == 0
 
 nrOfLMeters :: MeterMap -> Int
 nrOfLMeters = M.foldr step 0 where
@@ -85,6 +92,7 @@ addLMeter m p t l | isMaximal (t,l) = addMeter (t,l)
 meterEnd :: Period -> Length -> Time -> Time
 meterEnd p len tm = tm + (p * len)
         
+
 
 
 
