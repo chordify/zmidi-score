@@ -8,18 +8,20 @@ import Data.IntMap                ( IntMap, insertWith, mapWithKey
 import qualified Data.IntMap as M ( foldr )
 
 import Debug.Trace
+import Test.QuickCheck
 
 test :: MeterMap
 test = fromList [(1, [(1,2), (2,4)]), (3, [(1,4), (2,2)]), (4, [])]
 
-a, b, c, d, e :: LMeter
-a = LMeter (Time 2) (Period 2) (Len 4)
-b = LMeter (Time 1) (Period 2) (Len 3)
-c = LMeter (Time 2) (Period 3) (Len 3)
-d = LMeter (Time 3) (Period 6) (Len 3)
-e = LMeter (Time 3) (Period 2) (Len 6)
+-- a, b, c, d, e :: LMeter
+-- a = LMeter (Time 2) (Period 2) (Len 4)
+-- b = LMeter (Time 1) (Period 2) (Len 3)
+-- c = LMeter (Time 2) (Period 3) (Len 3)
+d = LMeter (Time 5) (Period 10) (Len 3)
+e = LMeter (Time 2) (Period  1) (Len 2)
 
-l = [a,b,c,d,e]
+-- l = [a,b,c,d,e]
+l = [d,e]
 
 doTest :: Show a => (LMeter -> LMeter -> a) -> IO ()
 doTest f = mapM_ (\x -> mapM_ (pprint f x) l) l
@@ -56,19 +58,40 @@ isSubset ma@(LMeter sa pa la) mb@(LMeter sb pb lb)
                    (True , c ) -> c
                    (False, GT) -> GT 
                    (False, _ ) -> LT
-  | otherwise = compare (meterEnd pa la sa) (meterEnd pb lb sb)
+  | otherwise = compare (meterEnd' pa la sa) (meterEnd' pb lb sb)
 
 
 -- given an onset and an 'LMeter' returns True if both have the same 
 -- phase, which means that the onset coincides with the grid of the 'LMeter'
 matchesPhase :: LMeter -> LMeter -> Bool
 -- matchesPhase o (LMeter strt per _len) = (o - strt) `mod` per == 0 
-matchesPhase (LMeter (Time sa) (Period pa) la) 
-             (LMeter (Time sb) (Period pb) lb) = (sa - sb) `mod` pa == 0
-                                               ||(sa - sb) `mod` pb == 0
+matchesPhase a@(LMeter (Time sa) (Period pa) _la) 
+             b@(LMeter (Time sb) (Period pb) _lb) 
+               | pa == 1 || pb == 1 = inRange a b
+               | d == 1             = matchesPhaseSet a b
+               | otherwise          = (sa - sb) `mod` d == 0
+                    where d = gcd pa pb
   
+inRange :: LMeter -> LMeter -> Bool 
+inRange a@(LMeter sa _ _) b@(LMeter sb _ _) 
+  | sa <= sb  = meterEnd a >= sb
+  | otherwise = meterEnd b >= sa
+  
+meterEnd :: LMeter -> Time 
+meterEnd (LMeter (Time s) (Period p) (Len l)) = Time (s + (l+p))
+ 
 getSet :: LMeter -> [Int]
-getSet (LMeter (Time t) (Period p) (Len l)) = [t, (t+p) .. (t + (l*p))]
+getSet m = take (len . mLen $ m) . expMeter $ m
+
+expMeter :: LMeter -> [Int]
+expMeter (LMeter (Time t) (Period p) (Len l)) = [t, (t+p) .. ]
+
+matchesPhaseSet :: LMeter -> LMeter -> Bool
+matchesPhaseSet a b=let -- sa = take 1000 . expMeter $ a 
+                        -- sb = take 1000 . expMeter $ b
+                        sa = getSet a 
+                        sb = getSet b
+                    in or . map (\x -> elem x sa) $ sb
 
 -- filter all local meters with an onset greater then o, and which are in reach 
 -- of o
@@ -82,7 +105,7 @@ filterLMeters o = mapWithKey filterInReach . fst . split (succ . time $ o)
         -- returns true if  onset o lies in reach the meter starting at s
         -- with period p and Len l
         inReach :: Time -> (Period, Len) -> Bool
-        inReach s (p, l) = o <= meterEnd p l s
+        inReach s (p, l) = o <= meterEnd' p l s
         
         -- given an onset and an 'LMeter' returns True if both have the same 
         -- phase, which means that the onset coincides with the grid of the 'LMeter'
@@ -133,6 +156,24 @@ newtype Period = Period { period :: Int }
 newtype Time   = Time   { time   :: Int }
                         deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
 
+instance Arbitrary Len where
+     arbitrary = choose (2,10) >>= return . Len
+
+instance Arbitrary Period where
+     arbitrary = choose (1,10) >>= return . Period
+
+instance Arbitrary Time where
+     arbitrary = choose (0,10) >>= return . Time
+     
+instance Arbitrary LMeter where
+     arbitrary = do s <- arbitrary
+                    p <- arbitrary
+                    l <- arbitrary
+                    return (LMeter s p l)
+
+pPhase :: LMeter -> LMeter -> Bool
+pPhase a b = matchesPhase a b == matchesPhaseSet a b
+
                     
 -- TODO move to InnerMetricalAnalysis
 -- Adds a new local meter to a list of local meters with the same period
@@ -153,9 +194,9 @@ addLMeter m p t l | isMaximal (t,l) && (len l) >= 2 = addMeter (t,l)
         -- second meter pair
         isSubSet :: (Time, Len) -> (Time, Len) -> Bool
         isSubSet (ta, la) (tb, lb) =             ta    >=            tb 
-                                   && meterEnd p la ta <= meterEnd p lb tb
-                                           
+                                   && meterEnd' p la ta <= meterEnd' p lb tb
+                                                   
 -- | returns the meter ending 'Time'
-meterEnd :: Period -> Len -> Time -> Time
-meterEnd (Period p) (Len l) (Time t) = Time (t + (p * l))
+meterEnd' :: Period -> Len -> Time -> Time
+meterEnd' (Period p) (Len l) (Time t) = Time (t + (p * l))
 
