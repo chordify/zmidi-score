@@ -12,6 +12,22 @@ import Debug.Trace
 test :: MeterMap
 test = fromList [(1, [(1,2), (2,4)]), (3, [(1,4), (2,2)]), (4, [])]
 
+a, b, c, d, e :: LMeter
+a = LMeter (Time 2) (Period 2) (Len 4)
+b = LMeter (Time 1) (Period 2) (Len 3)
+c = LMeter (Time 2) (Period 3) (Len 3)
+d = LMeter (Time 3) (Period 6) (Len 3)
+e = LMeter (Time 3) (Period 2) (Len 6)
+
+l = [a,b,c,d,e]
+
+doTest :: Show a => (LMeter -> LMeter -> a) -> IO ()
+doTest f = mapM_ (\x -> mapM_ (pprint f x) l) l
+
+pprint :: Show a => (LMeter -> LMeter -> a) -> LMeter -> LMeter -> IO ()
+pprint f a b = putStrLn (show a ++ " " ++ show b ++ " : " ++ show (f a b) 
+                        ++ " " ++ show (getSet a) ++ " " ++ show (getSet b))
+
 -- | A matrix is a Vector of Vectors, we could also use one large Vector with
 -- another 'ix' function
 type LMeters = [(Period, [(Time, Len)])]
@@ -23,6 +39,36 @@ insertMeters m p l = trace ("p: " ++ show p ++ show l) (foldr (insertMeter p) m 
 
 insertMeter :: Period -> (Time, Len) -> MeterMap -> MeterMap
 insertMeter p (s,l) m = insertWith (++) (time s) [(p,l)] m
+
+-- Returns 
+--
+-- * 'LT' if the first argument is a subset of the second argument, 
+-- * 'GT' if the first argument is a superset of the second argument, 
+-- * 'EQ' if the two 'LMeters' describe the same set
+isSubset :: LMeter -> LMeter -> Ordering
+isSubset ma@(LMeter sa pa la) mb@(LMeter sb pb lb) 
+  | sa < sb   = GT
+  | pa < pb   = GT
+  | pa == pb  = if sa == sb then compare la lb
+                            else 
+  
+            case (sa == sb, compare la lb) of 
+                   (True , c ) -> c
+                   (False, GT) -> GT 
+                   (False, _ ) -> LT
+  | otherwise = compare (meterEnd pa la sa) (meterEnd pb lb sb)
+
+
+-- given an onset and an 'LMeter' returns True if both have the same 
+-- phase, which means that the onset coincides with the grid of the 'LMeter'
+matchesPhase :: LMeter -> LMeter -> Bool
+-- matchesPhase o (LMeter strt per _len) = (o - strt) `mod` per == 0 
+matchesPhase (LMeter (Time sa) (Period pa) la) 
+             (LMeter (Time sb) (Period pb) lb) = (sa - sb) `mod` pa == 0
+                                               ||(sa - sb) `mod` pb == 0
+  
+getSet :: LMeter -> [Int]
+getSet (LMeter (Time t) (Period p) (Len l)) = [t, (t+p) .. (t + (l*p))]
 
 -- filter all local meters with an onset greater then o, and which are in reach 
 -- of o
