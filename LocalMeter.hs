@@ -13,15 +13,15 @@ import Test.QuickCheck
 test :: MeterMap
 test = fromList [(1, [(1,2), (2,4)]), (3, [(1,4), (2,2)]), (4, [])]
 
--- a, b, c, d, e :: LMeter
--- a = LMeter (Time 2) (Period 2) (Len 4)
--- b = LMeter (Time 1) (Period 2) (Len 3)
--- c = LMeter (Time 2) (Period 3) (Len 3)
-d = LMeter (Time 5) (Period 10) (Len 3)
-e = LMeter (Time 2) (Period  1) (Len 2)
+a, b, c, d, e :: LMeter
+a = LMeter (Time 2) (Period 2) (Len 4)
+b = LMeter (Time 1) (Period 2) (Len 3)
+c = LMeter (Time 2) (Period 3) (Len 3)
+d = LMeter (Time 5) (Period 3) (Len 3)
+e = LMeter (Time 2) (Period 2) (Len 2)
 
--- l = [a,b,c,d,e]
-l = [d,e]
+l = [a,b,c,d,e]
+-- l = [d,e]
 
 doTest :: Show a => (LMeter -> LMeter -> a) -> IO ()
 doTest f = mapM_ (\x -> mapM_ (pprint f x) l) l
@@ -93,6 +93,22 @@ matchesPhaseSet a b=let -- sa = take 1000 . expMeter $ a
                         sb = getSet b
                     in or . map (\x -> elem x sa) $ sb
 
+-- phaseOffsetSet :: LMeter -> LMeter -> Maybe (Time, Period)
+-- phaseOffsetSet a b = let sa = expMeter $ a 
+                         -- sb = expMeter $ b
+                     -- in case gdc (period a) (period b)
+                          -- (Period 1) take 5 $ filter (\x -> elem x sb) sa
+
+-- phaseOffset :: LMeter -> LMeter -> Maybe (Time, Period)
+phaseOffset a@(LMeter (Time sa) (Period pa) _la) 
+            b@(LMeter (Time sb) (Period pb) _lb) = 
+               let d = gcd pa pb
+               -- in  quotRem (sa - sb) d
+               in  case quotRem (sa - sb) d of
+                     -- (d, 0) -> Just (Time (3 * d), Period (pa * pb))
+                     (q, 0) -> Just (q * d, d)
+                     (_, _) -> Nothing
+                    
 -- filter all local meters with an onset greater then o, and which are in reach 
 -- of o
 filterLMeters :: Time -> MeterMap -> MeterMap
