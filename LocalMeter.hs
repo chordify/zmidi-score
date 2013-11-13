@@ -30,18 +30,26 @@ pprint :: Show a => (LMeter -> LMeter -> a) -> LMeter -> LMeter -> IO ()
 pprint f a b = putStrLn (show a ++ " " ++ show b ++ " : " ++ show (f a b) 
                         ++ " " ++ show (getSet a) ++ " " ++ show (getSet b))
 
+ 
+getSet :: LMeter -> [Int]
+getSet m = take (len . mLen $ m) . expMeter $ m
+    
+expMeter :: LMeter -> [Int]
+expMeter (LMeter (Time t) (Period p) (Len l)) = [t, (t+p) .. ]
+
 -- | A matrix is a Vector of Vectors, we could also use one large Vector with
 -- another 'ix' function
 type LMeters = [(Period, [(Time, Len)])]
 type MeterMap = IntMap [(Period, Len)]
 
 insertMeters :: MeterMap -> Period -> [(Time, Len)] -> MeterMap
--- insertMeters m p l = foldr (insertMeter p) m l
-insertMeters m p l = trace ("p: " ++ show p ++ show l) (foldr (insertMeter p) m l)
+insertMeters m p l = foldr (insertMeter p) m l
+-- insertMeters m p l = trace ("p: " ++ show p ++ show l) (foldr (insertMeter p) m l)
 
 insertMeter :: Period -> (Time, Len) -> MeterMap -> MeterMap
 insertMeter p (s,l) m = insertWith (++) (time s) [(p,l)] m
 
+{-
 -- Returns 
 --
 -- * 'LT' if the first argument is a subset of the second argument, 
@@ -78,13 +86,7 @@ inRange a@(LMeter sa _ _) b@(LMeter sb _ _)
   | otherwise = meterEnd b >= sa
   
 meterEnd :: LMeter -> Time 
-meterEnd (LMeter (Time s) (Period p) (Len l)) = Time (s + (l+p))
- 
-getSet :: LMeter -> [Int]
-getSet m = take (len . mLen $ m) . expMeter $ m
-
-expMeter :: LMeter -> [Int]
-expMeter (LMeter (Time t) (Period p) (Len l)) = [t, (t+p) .. ]
+meterEnd (LMeter (Time s) (Period p) (Len l)) = Time (s + (l+p))
 
 matchesPhaseSet :: LMeter -> LMeter -> Bool
 matchesPhaseSet a b=let -- sa = take 1000 . expMeter $ a 
@@ -129,7 +131,7 @@ filterLMeters o = mapWithKey filterInReach . fst . split (succ . time $ o)
         -- matchesPhase o (LMeter strt per _len) = (o - strt) `mod` per == 0 
         matchesPhase :: Time -> (Period, Len) -> Bool
         matchesPhase (Time s) (Period p, _ ) = (time o - s) `mod` p ==  0
-
+-}
 nrOfLMeters :: MeterMap -> Int
 nrOfLMeters = M.foldr step 0 where
   
@@ -187,8 +189,8 @@ instance Arbitrary LMeter where
                     l <- arbitrary
                     return (LMeter s p l)
 
-pPhase :: LMeter -> LMeter -> Bool
-pPhase a b = matchesPhase a b == matchesPhaseSet a b
+-- pPhase :: LMeter -> LMeter -> Bool
+-- pPhase a b = matchesPhase a b == matchesPhaseSet a b
 
                     
 -- TODO move to InnerMetricalAnalysis
@@ -200,7 +202,8 @@ addLMeter m p t l | isMaximal (t,l) && (len l) >= 2 = addMeter (t,l)
   where -- adds a meter to the collection, and removes any meters that are 
         -- included in the added meter
         addMeter :: (Time, Len) -> [(Time, Len)]
-        addMeter x = x : filter (\y -> not $ isSubSet y x) m
+        -- addMeter x = x : filter (\y -> not $ isSubSet y x) m
+        addMeter x = x : m
         
         -- being maximal means not being a subset
         isMaximal :: (Time, Len) -> Bool
@@ -209,10 +212,18 @@ addLMeter m p t l | isMaximal (t,l) && (len l) >= 2 = addMeter (t,l)
         -- returns true if the first pair is a meter that is a subset of the
         -- second meter pair
         isSubSet :: (Time, Len) -> (Time, Len) -> Bool
-        isSubSet (ta, la) (tb, lb) =             ta    >=            tb 
+        isSubSet (ta, la) (tb, lb) =                 ta >=                tb 
+                                   && matchPhase     ta                   tb
                                    && meterEnd' p la ta <= meterEnd' p lb tb
+        
+        p' = period p
+        -- Returns True if the two time stamps are in phase
+        matchPhase :: Time -> Time -> Bool
+        matchPhase (Time ta) (Time tb) = ta `mod` p' == tb `mod` p'
                                                    
 -- | returns the meter ending 'Time'
 meterEnd' :: Period -> Len -> Time -> Time
 meterEnd' (Period p) (Len l) (Time t) = Time (t + (p * l))
 
+factors :: Period -> [Period]
+factors p = filter (\x -> p `mod` x == 0) [1 .. p]
