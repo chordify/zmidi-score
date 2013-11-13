@@ -31,8 +31,8 @@ module Main -- ( -- * Types for Local Meters
                              -- )
                              where
 
-import Data.List                  ( tails              )
-import Data.IntMap                ( empty, IntMap )
+import Data.List                  ( tails, concatMap              )
+import Data.IntMap                ( empty, IntMap, insert, toAscList )
 import qualified Data.IntMap as M ( lookup )
 import LocalMeter
 --------------------------------------------------------------------------------
@@ -78,12 +78,12 @@ type Weight = Int
 -- the base of note onsets. The model considers all the pulses, called 
 -- local metres, that can overlay with each other with very different periods 
 -- and shifted at all phases.
-getLocalMeters :: Period -> [Time] -> MeterMap
+getLocalMeters :: Period -> [Time] -> MeterMap2
 getLocalMeters phs ons = foldr onePeriod empty 
               [phs, (2 * phs) .. (Period (time . last $ ons) `div` 2)]    where
   
-  onePeriod :: Period -> MeterMap -> MeterMap
-  onePeriod p m = insertMeters m p $ foldr (startProj p) [] (tails ons)
+  onePeriod :: Period -> MeterMap2 -> MeterMap2
+  onePeriod p m = insertMeters2 m p $ foldr (startProj p) [] (tails ons)
   
   startProj :: Period -> [Time] -> [(Time,Len)] -> [(Time,Len)]
   startProj p tls m = project (head tls) 0 tls p m
@@ -105,31 +105,16 @@ getLocalMeters phs ons = foldr onePeriod empty
 
 -- Adds a new local meter to a list of local meters with the same period
 addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
-addLMeter m p t l | isMaximal (t,l) && (len l) >= 2 = addMeter (t,l)
-                  | otherwise                       = m
+addLMeter m p t l | isMax m p (t,l) && (len l) >= 2 = (t,l) : m
+                  | otherwise                       =         m
 
-  where -- adds a meter to the collection, and removes any meters that are 
-        -- included in the added meter
-        addMeter :: (Time, Len) -> [(Time, Len)]
-        -- addMeter x = x : filter (\y -> not $ isSubSet y x) m
-        addMeter x = x : m
-        
-        -- being maximal means not being a subset
-        isMaximal :: (Time, Len) -> Bool
-        isMaximal x = and $ map (not . isSubSet x) m
-        
-        -- returns true if the first pair is a meter that is a subset of the
-        -- second meter pair
-        isSubSet :: (Time, Len) -> (Time, Len) -> Bool
-        isSubSet (ta, la) (tb, lb) =                 ta >=                tb 
-                                   && matchPhase     ta                   tb
-                                   && meterEnd' p la ta <= meterEnd' p lb tb
-        
-        p' = period p
-        -- Returns True if the two time stamps are in phase
-        matchPhase :: Time -> Time -> Bool
-        matchPhase (Time ta) (Time tb) = ta `mod` p' == tb `mod` p'  
-  
+insertMeters2 :: MeterMap2 -> Period -> [(Time, Len)] -> MeterMap2
+insertMeters2 m p l = case filter (isMaximal m p) l of 
+                        [] -> m 
+                        x  -> insert (period p) x m
+-- insertMeters m p l = trace ("p: " ++ show p ++ show l) (foldr (insertMeter p) m l)
+
+                  
 -- data MetersPer = MetersPer { per    :: Period 
                            -- , meters :: [(Time, Len)]
 
@@ -144,9 +129,9 @@ isMaximal m p tl = and . map (isMaxInMeterMap m tl) . factors $ p where
                             Nothing -> True
                             Just l  -> isMax l p x 
 
-  -- being maximal means not being a subset
-  isMax :: [(Time, Len)] -> Period -> (Time, Len) -> Bool
-  isMax m p x = and $ map (not . isSubSet p x) m
+-- being maximal means not being a subset
+isMax :: [(Time, Len)] -> Period -> (Time, Len) -> Bool
+isMax m p x = and $ map (not . isSubSet p x) m
 
 -- returns true if the first pair is a meter that is a subset of the
 -- second meter pair
@@ -155,6 +140,15 @@ isSubSet (Period p) (Time ta, Len la) (Time tb, Len lb) =
      ta            >= tb            -- starts later
   && ta `mod` p    == tb `mod` p    -- has the same phase
   && ta + (la * p) <= tb + (lb * p) -- ends earlier
+  
+showMeterMap2 :: MeterMap2 -> String
+showMeterMap2 = concatMap showPer . toAscList
+
+showPer :: (Int, [(Time, Len)]) -> String
+showPer (p, l) = "Period: " ++ show p ++ concatMap (showMeter p) l ++ "\n"
+
+showMeter :: Int -> (Time, Len) -> String
+showMeter p (Time t, Len l) = " (onset="++ show t++ " per=" ++ show p ++ " len="++ show l ++ ")"
                            
   -- stop and create a new Local Meter if its size is larger than 2
   -- stop :: Set LMeter -> Time -> Len -> Period -> Set LMeter
