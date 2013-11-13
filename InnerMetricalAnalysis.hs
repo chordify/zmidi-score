@@ -31,8 +31,9 @@ module Main -- ( -- * Types for Local Meters
                              -- )
                              where
 
-import Data.List                 ( tails              )
-import Data.IntMap               ( empty )
+import Data.List                  ( tails              )
+import Data.IntMap                ( empty, IntMap )
+import qualified Data.IntMap as M ( lookup )
 import LocalMeter
 --------------------------------------------------------------------------------
 -- parameters
@@ -101,7 +102,60 @@ getLocalMeters phs ons = foldr onePeriod empty
     -- an LMeter and otherwise we continue
     | otherwise = addLMeter m p s l
         where ioi = time (y - x)
+
+-- Adds a new local meter to a list of local meters with the same period
+addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
+addLMeter m p t l | isMaximal (t,l) && (len l) >= 2 = addMeter (t,l)
+                  | otherwise                       = m
+
+  where -- adds a meter to the collection, and removes any meters that are 
+        -- included in the added meter
+        addMeter :: (Time, Len) -> [(Time, Len)]
+        -- addMeter x = x : filter (\y -> not $ isSubSet y x) m
+        addMeter x = x : m
+        
+        -- being maximal means not being a subset
+        isMaximal :: (Time, Len) -> Bool
+        isMaximal x = and $ map (not . isSubSet x) m
+        
+        -- returns true if the first pair is a meter that is a subset of the
+        -- second meter pair
+        isSubSet :: (Time, Len) -> (Time, Len) -> Bool
+        isSubSet (ta, la) (tb, lb) =                 ta >=                tb 
+                                   && matchPhase     ta                   tb
+                                   && meterEnd' p la ta <= meterEnd' p lb tb
+        
+        p' = period p
+        -- Returns True if the two time stamps are in phase
+        matchPhase :: Time -> Time -> Bool
+        matchPhase (Time ta) (Time tb) = ta `mod` p' == tb `mod` p'  
   
+-- data MetersPer = MetersPer { per    :: Period 
+                           -- , meters :: [(Time, Len)]
+
+-- type MetersPer = (Period, [(Time, Len)])
+type MeterMap2 = IntMap [(Time, Len)]
+
+isMaximal :: MeterMap2 -> Period -> (Time, Len) -> Bool
+isMaximal m p tl = and . map (isMaxInMeterMap m tl) . factors $ p where
+
+  isMaxInMeterMap :: MeterMap2 -> (Time, Len) -> Period -> Bool
+  isMaxInMeterMap m x p  = case M.lookup (period p) m of
+                            Nothing -> True
+                            Just l  -> isMax l p x 
+
+  -- being maximal means not being a subset
+  isMax :: [(Time, Len)] -> Period -> (Time, Len) -> Bool
+  isMax m p x = and $ map (not . isSubSet p x) m
+
+-- returns true if the first pair is a meter that is a subset of the
+-- second meter pair
+isSubSet :: Period -> (Time, Len) -> (Time, Len) -> Bool
+isSubSet (Period p) (Time ta, Len la) (Time tb, Len lb) = 
+     ta            >= tb            -- starts later
+  && ta `mod` p    == tb `mod` p    -- has the same phase
+  && ta + (la * p) <= tb + (lb * p) -- ends earlier
+                           
   -- stop and create a new Local Meter if its size is larger than 2
   -- stop :: Set LMeter -> Time -> Len -> Period -> Set LMeter
   -- stop m s l p | l >= 2    = insert (LMeter s p l) m

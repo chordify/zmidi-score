@@ -192,7 +192,7 @@ instance Arbitrary LMeter where
 -- pPhase :: LMeter -> LMeter -> Bool
 -- pPhase a b = matchesPhase a b == matchesPhaseSet a b
 
-                    
+{-                    
 -- TODO move to InnerMetricalAnalysis
 -- Adds a new local meter to a list of local meters with the same period
 addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
@@ -220,7 +220,8 @@ addLMeter m p t l | isMaximal (t,l) && (len l) >= 2 = addMeter (t,l)
         -- Returns True if the two time stamps are in phase
         matchPhase :: Time -> Time -> Bool
         matchPhase (Time ta) (Time tb) = ta `mod` p' == tb `mod` p'
-                                                   
+
+-}        
 -- | returns the meter ending 'Time'
 meterEnd' :: Period -> Len -> Time -> Time
 meterEnd' (Period p) (Len l) (Time t) = Time (t + (p * l))
