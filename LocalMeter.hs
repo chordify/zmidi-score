@@ -13,18 +13,18 @@ import Test.QuickCheck
 test :: MeterMap
 test = fromList [(1, [(1,2), (2,4)]), (3, [(1,4), (2,2)]), (4, [])]
 
-a, b, c, d, e :: LMeter
-a = LMeter (Time 2) (Period 2) (Len 4)
-b = LMeter (Time 1) (Period 2) (Len 3)
-c = LMeter (Time 2) (Period 3) (Len 3)
-d = LMeter (Time 5) (Period 3) (Len 3)
-e = LMeter (Time 2) (Period 2) (Len 2)
+-- a, b, c, d, e :: LMeter
+-- a = LMeter (Time 2) (Period 2) (Len 4)
+-- b = LMeter (Time 1) (Period 2) (Len 3)
+-- c = LMeter (Time 2) (Period 3) (Len 3)
+-- d = LMeter (Time 5) (Period 3) (Len 3)
+-- e = LMeter (Time 2) (Period 2) (Len 2)
 
-l = [a,b,c,d,e]
+-- l = [a,b,c,d,e]
 -- l = [d,e]
 
-doTest :: Show a => (LMeter -> LMeter -> a) -> IO ()
-doTest f = mapM_ (\x -> mapM_ (pprint f x) l) l
+-- doTest :: Show a => (LMeter -> LMeter -> a) -> IO ()
+-- doTest f = mapM_ (\x -> mapM_ (pprint f x) l) l
 
 pprint :: Show a => (LMeter -> LMeter -> a) -> LMeter -> LMeter -> IO ()
 pprint f a b = putStrLn (show a ++ " " ++ show b ++ " : " ++ show (f a b) 

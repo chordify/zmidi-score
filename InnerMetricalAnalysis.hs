@@ -82,14 +82,22 @@ type Weight = Int
 -- local metres, that can overlay with each other with very different periods 
 -- and shifted at all phases.
 getLocalMeters :: Period -> [Time] -> MeterMap2
-getLocalMeters phs ons = foldr onePeriod empty 
-              [phs, (2 * phs) .. (Period (time . last $ ons) `div` 2)]    where
+getLocalMeters _   []  = error "getLocalMeters: no onsets"
+getLocalMeters phs ons = foldl onePeriod empty 
+              -- todo change this into a parameter
+              ([phs, (2 * phs) .. (Period (time . last $ ons) `div` 2)])    where
   
-  onePeriod :: Period -> MeterMap2 -> MeterMap2
-  onePeriod p m = insertMeters2 m p $ foldr (startProj p) [] (tails ons)
+  onePeriod :: MeterMap2 -> Period -> MeterMap2
+  -- onePeriod :: Period -> MeterMap2 -> MeterMap2
+  onePeriod m p = insertMeters2 m p $ foldl (startProj p) [] (tails ons)
+  -- onePeriod m p = insertMeters2 m p $ foldr (startProj p) [] (tails ons)
   
-  startProj :: Period -> [Time] -> [(Time,Len)] -> [(Time,Len)]
-  startProj p tls m = traceShow (p,a) a where a = project (head tls) 0 tls p m
+  startProj :: Period -> [(Time,Len)] -> [Time] -> [(Time,Len)]
+  -- startProj p ons m = project (head ons) 0 ons p m
+  -- startProj p ons m =  traceShow (p,a) a where a = project (head ons) 0 ons p m
+  -- startProj p tls m = project (head tls) 0 tls p m
+  startProj _ m []  = m
+  startProj p m tls = traceShow (p,a) a where a = project (head tls) 0 tls p m
   
   -- given a phase (IOI), projects a local meter forward
   project :: Time -> Len -> [Time] -> Period -> [(Time,Len)] -> [(Time,Len)]
@@ -108,20 +116,18 @@ getLocalMeters phs ons = foldr onePeriod empty
 
 -- Adds a new local meter to a list of local meters with the same period
 addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
-addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = (t,l) : m
-                  | otherwise                         =         m
-
+-- addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = (t,l) : m
+                  -- | otherwise                         =         m
+addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = trace ("add: " ++ show (p,t,l)) ((t,l) : m)
+                  | otherwise                         = trace ("no add: " ++ show (p,t,l))        m
+                  
 insertMeters2 :: MeterMap2 -> Period -> [(Time, Len)] -> MeterMap2
 insertMeters2 m p l = case filter (isMaximal m p) l of 
-                        [] -> m 
-                        x  -> insert (period p) x m
--- insertMeters m p l = trace ("p: " ++ show p ++ show l) (foldr (insertMeter p) m l)
+                        -- [] -> m 
+                        -- x  -> insert (period p) x m
+                        [] -> trace ("skip: " ++ show p ++ show l) m 
+                        x  -> trace ("insert: " ++ show p ++ show l) (insert (period p) x m)
 
-                  
--- data MetersPer = MetersPer { per    :: Period 
-                           -- , meters :: [(Time, Len)]
-
--- type MetersPer = (Period, [(Time, Len)])
 type MeterMap2 = IntMap [(Time, Len)]
 
 isMaximal :: MeterMap2 -> Period -> (Time, Len) -> Bool
@@ -135,6 +141,7 @@ isMaximal m p tl = and . map (isMaxInMeterMap m) . factors $ p where
 -- being maximal means not being a subset
 isMax :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
 isMax f m p x = and $ map (not . isSubSet p x f) m
+-- isMax f m p x =  traceShow (p,x,a) a where a = and $ map (not . isSubSet p x f) m
 
 -- returns true if the first pair is a meter that is a subset of the
 -- second meter pair
