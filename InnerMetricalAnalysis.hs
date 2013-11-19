@@ -31,12 +31,12 @@ module Main -- ( -- * Types for Local Meters
                              -- )
                              where
 
-import Data.List                  ( tails, concatMap, foldl'         )
+import Data.List                  ( tails, foldl'         )
 import Data.IntMap                ( empty, IntMap, insert, toAscList, mapWithKey )
 import qualified Data.IntMap as M ( lookup, foldr )
 import LocalMeter
 
-import Debug.Trace
+-- import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- parameters
@@ -88,13 +88,9 @@ getLocalMeters phs ons = foldl' onePeriod empty
               ([phs, (2 * phs) .. (Period (time . last $ ons) `div` 2)])    where
   
   onePeriod :: MeterMap2 -> Period -> MeterMap2
-  -- onePeriod :: Period -> MeterMap2 -> MeterMap2
   onePeriod m p = insertMeters2 m p $ foldl' (startProj p) [] (tails ons)
-  -- onePeriod m p = insertMeters2 m p $ foldr (startProj p) [] (tails ons)
   
   startProj :: Period -> [(Time,Len)] -> [Time] -> [(Time,Len)]
-  -- startProj p ons m = project (head ons) 0 ons p m
-  -- startProj p ons m =  traceShow (p,a) a where a = project (head ons) 0 ons p m
   startProj _ m []  = m
   startProj p m tls = project (head tls) 0 tls p m
   -- startProj p m tls = traceShow (p,a) a where a = project (head tls) 0 tls p m
@@ -116,17 +112,17 @@ getLocalMeters phs ons = foldl' onePeriod empty
 
 -- Adds a new local meter to a list of local meters with the same period
 addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
--- addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = (t,l) : m
-                  -- | otherwise                         =         m
-addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = trace ("add: " ++ show (p,t,l)) ((t,l) : m)
-                  | otherwise                         = trace ("no add: " ++ show (p,t,l))        m
+addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = (t,l) : m
+                  | otherwise                         =         m
+-- addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = trace ("add: " ++ show (p,t,l)) ((t,l) : m)
+                  -- | otherwise                         = trace ("no add: " ++ show (p,t,l))        m
                   
 insertMeters2 :: MeterMap2 -> Period -> [(Time, Len)] -> MeterMap2
 insertMeters2 m p l = case filter (isMaximal m p) l of 
-                        -- [] -> m 
-                        -- x  -> insert (period p) x m
-                        [] -> trace ("skip: " ++ show p ++ show l) m 
-                        x  -> trace ("insert: " ++ show p ++ show l) (insert (period p) x m)
+                        [] -> m 
+                        x  -> insert (period p) x m
+                        -- [] -> trace ("skip: " ++ show p ++ show l) m 
+                        -- x  -> trace ("insert: " ++ show p ++ show l) (insert (period p) x m)
 
 type MeterMap2 = IntMap [(Time, Len)]
 
@@ -134,9 +130,9 @@ isMaximal :: MeterMap2 -> Period -> (Time, Len) -> Bool
 isMaximal m p tl = and . map (isMaxInMeterMap m) . factors $ p where
 
   isMaxInMeterMap :: MeterMap2 -> Period -> Bool
-  isMaxInMeterMap m f  = case M.lookup (period f) m of
-                           Nothing -> True
-                           Just l  -> isMax f l p tl
+  isMaxInMeterMap m' f  = case M.lookup (period f) m' of
+                            Nothing -> True
+                            Just l  -> isMax f l p tl
 
 -- being maximal means not being a subset
 isMax :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
@@ -154,17 +150,6 @@ isSubSet (Period pa) (Time ta, Len la) (Period pb) (Time tb, Len lb) =
   && ta `mod` pb    == tb `mod` pb    -- has the same phase
   && ta + (la * pa) <= tb + (lb * pb) -- ends earlier
 
-{-
-contains :: Period -> (Time, Len) -> Period -> (Time, Len) -> Bool
-contains (Period pa) (Time ta, Len la) (Period pb) (Time tb, Len lb) = 
-  not (  ta             <  tb            -- starts later
-      || ta `mod` pa    /= tb `mod` pb    -- has the same phase
-      || ta + (la * pa) >  tb + (lb * pb)) -- ends earlier
-  
--- contains == isSubSet  
-pContains :: Period -> (Time, Len) -> Period -> (Time, Len) -> Bool
-pContains pa a pb b = isSubSet pa a pb b == contains pa a pb b
--}
 
 showMeterMap2 :: MeterMap2 -> String
 showMeterMap2 = concatMap showPer . toAscList
@@ -174,37 +159,6 @@ showPer (p, l) = "Period: " ++ show p ++ concatMap (showMeter p) l ++ "\n"
 
 showMeter :: Int -> (Time, Len) -> String
 showMeter p (Time t, Len l) = " (onset="++ show t++ " per=" ++ show p ++ " len="++ show l ++ ")"
-                           
-  -- stop and create a new Local Meter if its size is larger than 2
-  -- stop :: Set LMeter -> Time -> Len -> Period -> Set LMeter
-  -- stop m s l p | l >= 2    = insert (LMeter s p l) m
-               -- | otherwise = m
-
-  -- delete the 'LMeter's that are a subset of other 'LMeter's
-  -- filterMax :: Set LMeter -> Set LMeter
-  -- filterMax s = Set.filter (not . hasSuperSet s) s where
-
-    -- hasSuperSet :: Set LMeter -> LMeter -> Bool
-    -- hasSuperSet x m = Set.foldr step False x where
-
-      -- step :: LMeter -> Bool -> Bool
-      -- step _  True  = True
-      -- step lm False = m `isSubSet` lm
-
-
--- | Returns True if the first 'LMeter' is a subset of the second 'LMeter'. 
--- 'isSubSet' returns true of the two 'LMeter's are equal.
--- isSubSet :: LMeter -> LMeter -> Bool
--- isSubSet a b =  
-     -- -- (period a) `mod` (period b) == 0 -- the phase of a is a multitude that of b
-     -- period a    ==    period b       -- the above is wrong, I believe
-  -- && start  a    >=    start  b       -- a starts after b
-  -- && lMeterEnd a <=    lMeterEnd b    -- a ends before b
-  -- && not (a == b)                     -- a is not identical to b
-
--- -- returns the ending postion ('Int') of an 'LMeter'
--- lMeterEnd :: LMeter -> Int
--- lMeterEnd (LMeter s p l) = s + (l *p)
 
 --------------------------------------------------------------------------------
 -- Inner Metrical Analysis Weights
