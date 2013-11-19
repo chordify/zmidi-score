@@ -85,7 +85,7 @@ instance Arbitrary Period where
      arbitrary = choose (1,10) >>= return . Period
 
 instance Arbitrary Time where
-     arbitrary = choose (0,12) >>= return . Time
+     arbitrary = choose (1,8) >>= return . Time
      
 instance Arbitrary LMeter where
      arbitrary = do s <- arbitrary

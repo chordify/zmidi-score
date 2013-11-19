@@ -92,18 +92,18 @@ getLocalMeters phs ons = foldl' onePeriod empty
   
   startProj :: Period -> [(Time,Len)] -> [Time] -> [(Time,Len)]
   startProj _ m []  = m
-  startProj p m tls = project p (head tls) 0 tls m
+  startProj p m tls = project p (head tls) 0 m tls
   -- startProj p m tls = traceShow (p,a) a where a = project (head tls) 0 tls p m
     
   -- given a phase (IOI), projects a local meter forward
-  project :: Period -> Time -> Len -> [Time] -> [(Time,Len)] -> [(Time,Len)]
-  project p t l []  m  = addLMeter m p t l
-  project p t l [_] m  = addLMeter m p t l
-  project p t l (x : y : tl) m
+  project :: Period -> Time -> Len -> [(Time,Len)] -> [Time] -> [(Time,Len)]
+  project p t l m []  = addLMeter m p t l
+  project p t l m [_] = addLMeter m p t l
+  project p t l m (x : y : tl)
     -- phase is larger than the ioi, go to the next ioi
-    | ioi  < period p = project p t       l  (x : tl) m
+    | ioi  < period p = project p t       l  m (x : tl) 
     -- phase and ioi are identical, we add 1 to the Len of this local meter
-    | ioi == period p = project p t (succ l) (y : tl) m
+    | ioi == period p = project p t (succ l) m (y : tl)
     -- ioi > p: phase is smaller than the ioi, we're done with this local meter
     -- Next, if the local meter is at least projected twice (l=2) we add
     -- an LMeter and otherwise we continue
@@ -114,8 +114,8 @@ getLocalMeters phs ons = foldl' onePeriod empty
 addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
 addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = (t,l) : m
                   | otherwise                         =         m
--- addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = trace ("add: " ++ show (p,t,l)) ((t,l) : m)
-                  -- | otherwise                         = trace ("no add: " ++ show (p,t,l))        m
+-- addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = trace (show m ++ ": add: " ++ show (p,t,l)) ((t,l) : m)
+                  -- | otherwise                         = trace (show m ++ ": no add: " ++ show (p,t,l))        m
                   
 insertMeters2 :: MeterMap2 -> Period -> [(Time, Len)] -> MeterMap2
 insertMeters2 m p l = case filter (isMaximal m p) l of 
@@ -136,7 +136,7 @@ isMaximal m p tl = and . map (isMaxInMeterMap m) . factors $ p where
 
 -- being maximal means not being a subset
 isMax :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
-isMax f m p x = and $ map (not . isSubSet p x f) m
+isMax f m  p x = and $ map (not . isSubSet p x f) m
 -- isMax f m p x =  traceShow (p,x,a) a where a = and $ map (not . isSubSet p x f) m
 
 -- returns true if the first pair is a meter that is a subset of the
