@@ -170,55 +170,61 @@ showMeter p (Time t, Len l) = " (onset="++ show t++ " per=" ++ show p ++ " len="
 -- pulses coincide get a greater weight than onsets where fewer pulses coincide. 
 -- Moreover, the intuition modelled in the metric weight is that longer 
 -- repetitions should contribute more weight than shorter ones.
-
-
 getMetricWeight :: Period -> [Time] -> [Weight]
-getMetricWeight phs = map snd . getMetricWeight' phs 
+getMetricWeight phs ons = map snd $ getWeight partOfLMeter phs ons ons
 
-getMetricWeight' :: Period -> [Time] -> [(Time, Weight)]
-getMetricWeight' phs ons = 
+-- | The spectral weight is based on the extension of each local metre throughout 
+-- the entire piece.
+getSpectralWeight :: Period -> [Time] -> [Weight]
+getSpectralWeight _ []          = []
+getSpectralWeight phs ons@(h:t) = map snd $ getWeight matchPhase phs ons 
+                                           [h .. (last t)]
+
+
+getWeight :: (Time -> Int -> (Time,Len) -> Bool)
+          -> Period -> [Time] -> [Time] -> [(Time, Weight)]
+getWeight f phs ons grid = 
   let ms = getLocalMeters phs ons 
       
-      getWeight :: Time -> (Time, Weight)
-      getWeight o = (o, sumPowers2 . mapWithKey ( filterMetersPer o) $ ms)
+      makePair :: Time -> (Time, Weight)
+      makePair o = (o, sumPowers2 . mapWithKey ( filterMetersPer (f o) ) $ ms)
       
-  in  map getWeight ons
+  in  map makePair grid
 
 
-filterMetersPer :: Time -> Int -> [(Time, Len)] -> [(Time, Len)]
-filterMetersPer t p = filter (partOfLMeter t p) 
+filterMetersPer :: (Int -> (Time,Len) -> Bool)
+                -> Int -> [(Time, Len)] -> [(Time, Len)]
+filterMetersPer f p = filter (f p) 
 
 -- partOfLMeter :: Time -> Period -> (Time, Length) -> Bool
 -- partOfLMeter (Time o) (Period p) (Time t, Len l) = 
 partOfLMeter :: Time -> Int -> (Time, Len) -> Bool
 partOfLMeter (Time o) p (Time t, Len l) = 
-  o >= t && o <= t + (l * p) && o `mod` p == t `mod` p
+  o >= t &&               -- located after the meter starts
+  o <= t + (l * p) &&     -- located before the meter ends
+  o `mod` p == t `mod` p  -- matches the phase of the meter
 
-{-
--- | The spectral weight is based on the extension of each local metre throughout 
--- the entire piece.
-getSpectralWeight :: Period -> [Time] -> [Weight]
-getSpectralWeight phs = map snd . getSpectralWeight' phs 
+matchPhase :: Time -> Int -> (Time, Len) -> Bool
+matchPhase (Time o) p (Time t, _) = o `mod` p == t `mod` p
 
-getSpectralWeight' :: Period -> [Time] -> [(Time, Weight)]
-getSpectralWeight' phs ons = 
-  let ms = getLocalMeters phs ons 
+-- getSpectralWeight' :: Period -> [Time] -> [(Time, Weight)]
+-- getSpectralWeight' phs ons = 
+  -- let ms = getLocalMeters phs ons 
       
-      getWeight :: Time -> (Time, Weight)
-      getWeight o = (o, sumPowers2 . Set.filter (matchesPhase o) $ ms )
+      -- getWeight :: Time -> (Time, Weight)
+      -- getWeight o = (o, sumPowers2 . Set.filter (matchesPhase o) $ ms )
  
-  in map getWeight [head ons, (phs + head ons)  .. last ons]
+  -- in map getWeight [head ons, (phs + head ons)  .. last ons]
   
 -- given an onset and an 'LMeter' returns True if both have the same 
 -- phase, which means that the onset coincides with the grid of the 'LMeter'
 -- matchesPhase :: Time -> LMeter -> Bool
 -- matchesPhase o (LMeter strt per _len) = (o - strt) `mod` per == 0 
--}
+
     
 -- takes a set of 'LMeter's, takes of every Len the power of 2 and sums
--- teh results
+-- the results
 sumPowers2 :: MeterMap2 -> Int
--- sumPowers2 = M.foldr ((+) . (^ (2 ::Int)) . len . snd ) 0 
 sumPowers2 = M.foldr ((+) . sumPower2Len ) 0 where
 
  sumPower2Len :: [(Time, Len)] -> Int
