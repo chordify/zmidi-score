@@ -31,9 +31,12 @@ module Main -- ( -- * Types for Local Meters
                              -- )
                              where
 
-import Data.List                  ( tails, foldl'         )
+import Prelude   hiding           ( (!) )
+import Data.List                  ( tails, foldl', replicate)
 import Data.IntMap                ( empty, IntMap, insert, toAscList, mapWithKey )
 import qualified Data.IntMap as M ( lookup, foldr )
+import Data.Vector                ( Vector, (!) )
+import qualified Data.Vector as V ( fromList, length )
 import LocalMeter
 
 import Debug.Trace
@@ -110,6 +113,42 @@ getLocalMeters phs ons = foldl' onePeriod empty
     | otherwise = addLMeter m p t l
         where ioi = time (y - x)
 
+getLocalMeters2 :: Period -> [Time] -> MeterMap2
+getLocalMeters2 _   []  = error "getLocalMeters: no onsets"
+getLocalMeters2 phs ons = foldl' onePeriod empty 
+              -- todo change this into a parameter
+              ([phs, (2 * phs) .. (Period (time . last $ ons) `div` 2)]) where
+              
+   v = V.fromList $ onsetGrid [0 .. last ons] ons
+   
+   onePeriod :: MeterMap2 -> Period -> MeterMap2
+   onePeriod m p = insertMeters2 m p . filter ((>= 2) . snd) $ [(o, getLength v p o) | o <- ons]   
+        
+        
+-- | Creates a grid of 'Bool's where 'True' represents an onset and 'False'
+-- no onset
+--
+-- >>> onsetGrid [0..10] [2,3,6,7]
+-- >>> [False,False,True,True,False,False,True,True,False,False,False]
+onsetGrid :: [Time] -> [Time] -> [Bool]
+onsetGrid []     []     = []
+onsetGrid []     os     = error ("onsetGrid: grid to small for onsets" ++ show os)
+onsetGrid gs     []     = replicate (length gs) False
+onsetGrid (g:gs) (o:os) | g == o = True  : onsetGrid gs    os
+                        | g <  o = False : onsetGrid gs (o:os)
+                        | o >  g = error "onsetGrid: non-monotone onsets"
+onsetGrid _      _     = error "onsetGrid: non-monotone onsets"
+
+
+        
+getLength :: Vector Bool -> Period -> Time -> Len
+getLength v (Period p) o = pred $ project o where
+
+  project :: Time -> Len
+  project (Time t) | t < V.length v && v ! t = 1 + project (Time (t + p))
+                   | otherwise               = 0
+        
+        
 -- Adds a new local meter to a list of local meters with the same period
 addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
 addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = (t,l) : m
