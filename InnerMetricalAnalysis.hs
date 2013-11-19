@@ -31,7 +31,7 @@ module Main -- ( -- * Types for Local Meters
                              -- )
                              where
 
-import Data.List                  ( tails, concatMap              )
+import Data.List                  ( tails, concatMap, foldl'         )
 import Data.IntMap                ( empty, IntMap, insert, toAscList )
 import qualified Data.IntMap as M ( lookup )
 import LocalMeter
@@ -83,21 +83,21 @@ type Weight = Int
 -- and shifted at all phases.
 getLocalMeters :: Period -> [Time] -> MeterMap2
 getLocalMeters _   []  = error "getLocalMeters: no onsets"
-getLocalMeters phs ons = foldl onePeriod empty 
+getLocalMeters phs ons = foldl' onePeriod empty 
               -- todo change this into a parameter
               ([phs, (2 * phs) .. (Period (time . last $ ons) `div` 2)])    where
   
   onePeriod :: MeterMap2 -> Period -> MeterMap2
   -- onePeriod :: Period -> MeterMap2 -> MeterMap2
-  onePeriod m p = insertMeters2 m p $ foldl (startProj p) [] (tails ons)
+  onePeriod m p = insertMeters2 m p $ foldl' (startProj p) [] (tails ons)
   -- onePeriod m p = insertMeters2 m p $ foldr (startProj p) [] (tails ons)
   
   startProj :: Period -> [(Time,Len)] -> [Time] -> [(Time,Len)]
   -- startProj p ons m = project (head ons) 0 ons p m
   -- startProj p ons m =  traceShow (p,a) a where a = project (head ons) 0 ons p m
-  -- startProj p tls m = project (head tls) 0 tls p m
   startProj _ m []  = m
-  startProj p m tls = traceShow (p,a) a where a = project (head tls) 0 tls p m
+  startProj p m tls = project (head tls) 0 tls p m
+  -- startProj p m tls = traceShow (p,a) a where a = project (head tls) 0 tls p m
   
   -- given a phase (IOI), projects a local meter forward
   project :: Time -> Len -> [Time] -> Period -> [(Time,Len)] -> [(Time,Len)]
@@ -145,25 +145,26 @@ isMax f m p x = and $ map (not . isSubSet p x f) m
 
 -- returns true if the first pair is a meter that is a subset of the
 -- second meter pair
+-- N.B. precondition: pb > pa
 isSubSet :: Period -> (Time, Len) -> Period -> (Time, Len) -> Bool
 isSubSet (Period pa) (Time ta, Len la) (Period pb) (Time tb, Len lb) = 
 -- isSubSet :: LMeter -> LMeter -> Bool
 -- isSubSet (LMeter ta pa la) (LMeter tb pb lb) =
      ta             >= tb            -- starts later
-  && ta `mod` pa    == tb `mod` pb    -- has the same phase
+  && ta `mod` pb    == tb `mod` pb    -- has the same phase
   && ta + (la * pa) <= tb + (lb * pb) -- ends earlier
 
 {-
-contains :: Period -> (Time, Len) -> (Time, Len) -> Bool
-contains (Period p) (Time ta, Len la) (Time tb, Len lb) = 
-  not (  ta            <  tb            -- starts later
-      || ta `mod` p    /= tb `mod` p    -- has the same phase
-      || ta + (la * p) >  tb + (lb * p)) -- ends earlier
+contains :: Period -> (Time, Len) -> Period -> (Time, Len) -> Bool
+contains (Period pa) (Time ta, Len la) (Period pb) (Time tb, Len lb) = 
+  not (  ta             <  tb            -- starts later
+      || ta `mod` pa    /= tb `mod` pb    -- has the same phase
+      || ta + (la * pa) >  tb + (lb * pb)) -- ends earlier
   
 -- contains == isSubSet  
-pContains :: Period -> (Time, Len) -> (Time, Len) -> Bool
-pContains p a b = isSubSet p a b == contains p a b
--}  
+pContains :: Period -> (Time, Len) -> Period -> (Time, Len) -> Bool
+pContains pa a pb b = isSubSet pa a pb b == contains pa a pb b
+-}
 
 showMeterMap2 :: MeterMap2 -> String
 showMeterMap2 = concatMap showPer . toAscList
