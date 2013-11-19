@@ -36,7 +36,7 @@ import Data.IntMap                ( empty, IntMap, insert, toAscList, mapWithKey
 import qualified Data.IntMap as M ( lookup, foldr )
 import LocalMeter
 
--- import Debug.Trace
+import Debug.Trace
 
 --------------------------------------------------------------------------------
 -- parameters
@@ -92,22 +92,22 @@ getLocalMeters phs ons = foldl' onePeriod empty
   
   startProj :: Period -> [(Time,Len)] -> [Time] -> [(Time,Len)]
   startProj _ m []  = m
-  startProj p m tls = project (head tls) 0 tls p m
+  startProj p m tls = project p (head tls) 0 tls m
   -- startProj p m tls = traceShow (p,a) a where a = project (head tls) 0 tls p m
-  
+    
   -- given a phase (IOI), projects a local meter forward
-  project :: Time -> Len -> [Time] -> Period -> [(Time,Len)] -> [(Time,Len)]
-  project s l []  p m  = addLMeter m p s l
-  project s l [_] p m  = addLMeter m p s l
-  project s l (x : y : tl) p m
+  project :: Period -> Time -> Len -> [Time] -> [(Time,Len)] -> [(Time,Len)]
+  project p t l []  m  = addLMeter m p t l
+  project p t l [_] m  = addLMeter m p t l
+  project p t l (x : y : tl) m
     -- phase is larger than the ioi, go to the next ioi
-    | ioi  < period p = project s       l  (x : tl) p m
+    | ioi  < period p = project p t       l  (x : tl) m
     -- phase and ioi are identical, we add 1 to the Len of this local meter
-    | ioi == period p = project s (succ l) (y : tl) p m
+    | ioi == period p = project p t (succ l) (y : tl) m
     -- ioi > p: phase is smaller than the ioi, we're done with this local meter
     -- Next, if the local meter is at least projected twice (l=2) we add
     -- an LMeter and otherwise we continue
-    | otherwise = addLMeter m p s l
+    | otherwise = addLMeter m p t l
         where ioi = time (y - x)
 
 -- Adds a new local meter to a list of local meters with the same period
@@ -235,9 +235,14 @@ sumPowers2 = M.foldr ((+) . sumPower2Len ) 0 where
                -- in map (\x -> fromIntegral x / mx) ws
 
 -- testing
--- main :: IO ()
+main :: IO ()
 -- main = print $ getMetricWeight 1 [6,10,16,18,20,22,30,34,38,44,46,48,50,58,62,66,68,70,72,74,82,86,94,96,98,100,102,112,114,122,174,176,178,180,182,188,189,190,192,194,202,204,206,208,210,212,214,216,218,220,222,224,226,234,246,250,256,258,260,262,270,274,280,282,284,286,292,293,294,296,298,300,302,308,309,310,312,314]
+-- main = print $ getMetricWeight 1 [0..500]
+main = do ons <- randomOnsets 1000 
+          print (map time ons)
+          print (getMetricWeight 1 ons)
                
                
 jmrEx :: [Time]
 jmrEx = [0,1,2,6,8,9,10,14,16,17,18,22,24,25,26,30]
+-- metric weight should be: [17,13,65,57,25,21,65,57,33,21,65,57,25,13,65,57]
