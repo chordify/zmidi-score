@@ -32,8 +32,8 @@ module Main -- ( -- * Types for Local Meters
                              where
 
 import Data.List                  ( tails, concatMap, foldl'         )
-import Data.IntMap                ( empty, IntMap, insert, toAscList )
-import qualified Data.IntMap as M ( lookup )
+import Data.IntMap                ( empty, IntMap, insert, toAscList, mapWithKey )
+import qualified Data.IntMap as M ( lookup, foldr )
 import LocalMeter
 
 import Debug.Trace
@@ -150,7 +150,7 @@ isSubSet :: Period -> (Time, Len) -> Period -> (Time, Len) -> Bool
 isSubSet (Period pa) (Time ta, Len la) (Period pb) (Time tb, Len lb) = 
 -- isSubSet :: LMeter -> LMeter -> Bool
 -- isSubSet (LMeter ta pa la) (LMeter tb pb lb) =
-     ta             >= tb            -- starts later
+     ta             >= tb             -- starts later
   && ta `mod` pb    == tb `mod` pb    -- has the same phase
   && ta + (la * pa) <= tb + (lb * pb) -- ends earlier
 
@@ -217,7 +217,7 @@ showMeter p (Time t, Len l) = " (onset="++ show t++ " per=" ++ show p ++ " len="
 -- Moreover, the intuition modelled in the metric weight is that longer 
 -- repetitions should contribute more weight than shorter ones.
 
-{-
+
 getMetricWeight :: Period -> [Time] -> [Weight]
 getMetricWeight phs = map snd . getMetricWeight' phs 
 
@@ -226,13 +226,21 @@ getMetricWeight' phs ons =
   let ms = getLocalMeters phs ons 
       
       getWeight :: Time -> (Time, Weight)
-      getWeight o = (o, sumPowers2 . Set.filter ( hasLocalMeter o) $ ms)
-      
-      hasLocalMeter :: Time -> LMeter -> Bool
-      hasLocalMeter o m = matchesPhase o m && o >= (start m) && o <= lMeterEnd m
+      getWeight o = (o, sumPowers2 . mapWithKey ( filterMetersPer o) $ ms)
       
   in  map getWeight ons
 
+
+filterMetersPer :: Time -> Int -> [(Time, Len)] -> [(Time, Len)]
+filterMetersPer t p = filter (partOfLMeter t p) 
+
+-- partOfLMeter :: Time -> Period -> (Time, Length) -> Bool
+-- partOfLMeter (Time o) (Period p) (Time t, Len l) = 
+partOfLMeter :: Time -> Int -> (Time, Len) -> Bool
+partOfLMeter (Time o) p (Time t, Len l) = 
+  o >= t && o <= t + (l * p) && o `mod` p == t `mod` p
+
+{-
 -- | The spectral weight is based on the extension of each local metre throughout 
 -- the entire piece.
 getSpectralWeight :: Period -> [Time] -> [Weight]
@@ -255,8 +263,12 @@ getSpectralWeight' phs ons =
     
 -- takes a set of 'LMeter's, takes of every Len the power of 2 and sums
 -- teh results
--- sumPowers2 :: Set LMeter -> Int
--- sumPowers2 = Set.foldr ((+) . (^ (2 ::Int)). mLen) 0 
+sumPowers2 :: MeterMap2 -> Int
+-- sumPowers2 = M.foldr ((+) . (^ (2 ::Int)) . len . snd ) 0 
+sumPowers2 = M.foldr ((+) . sumPower2Len ) 0 where
+
+ sumPower2Len :: [(Time, Len)] -> Int
+ sumPower2Len = sum . map ((^ (2 ::Int)) . len . snd)
 
 -- normalise :: [Weight] -> [Float]
 -- normalise ws = let mx = fromIntegral (maximum ws) 
