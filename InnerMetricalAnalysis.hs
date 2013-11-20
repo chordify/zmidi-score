@@ -31,15 +31,15 @@ module Main -- ( -- * Types for Local Meters
                              -- )
                              where
 
-import Data.List                  ( foldl' )
+import Data.List                  ( foldl', nubBy )
 import Data.IntMap                ( empty, IntMap, insert, toAscList, elems
-                                  , mapWithKey, foldrWithKey, insertWith )
-import qualified Data.IntMap as M ( lookup, foldr )
+                                  , mapWithKey, foldrWithKey, insertWith, split)
+import qualified Data.IntMap as M ( lookup, foldr, fromList )
 import Data.Vector                ( Vector, (!) )
 import qualified Data.Vector as V ( fromList, length )
 import LocalMeter
 import InnerMetricalAnalysisOld   ( getLocalMetersOld, getSpectralWeightOld, getMetricWeightOld )
-
+import Control.Arrow              ( first )
 -- import Debug.Trace
 
 type Weight = Int
@@ -118,6 +118,33 @@ isMaximal fs m p tl = and . map isMaxInMeterMap $ fs where
 isMax :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
 isMax f m  p x = and $ map (not . isSubSet p x f) m
 -- isMax f m p x =  traceShow (p,x,a) a where a = and $ map (not . isSubSet p x f) m
+
+type OnsetMap = IntMap Len
+
+
+isMax3 :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
+isMax3 f m p tl = isMax2 f (M.fromList $ map (first time) m) p tl
+
+subMap2 :: [(Time, Len)] -> (Time, Len) -> OnsetMap
+subMap2 m tl = subMap (M.fromList $ map (first time) m) tl
+
+isMax2 :: Period -> OnsetMap -> Period -> (Time, Len) -> Bool
+isMax2 (Period f) m (Period pb) tl@(Time tb, Len lb) = 
+  foldrWithKey noSubSet True (subMap m tl) -- select all meters that start earlier
+
+    where noSubSet :: Int -> Len -> Bool -> Bool
+          noSubSet ta (Len la) r = 
+             (  ta `mod` f  /= tb `mod` f    -- not in phase
+             || ta + (la * f) < tb + (lb * pb) )-- ends later
+             && r
+
+subMap :: OnsetMap -> (Time, Len) -> OnsetMap
+subMap m (Time t, Len l) = fst $ split (succ t) m
+  -- snd $ split (t + (p*l)) (fst $ split t m)
+
+pIsMax :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
+pIsMax f m p tl = let m' = nubBy (\(a,_) (b,_) -> a == b) m
+                  in  f < p || isMax f m' p tl == isMax3 f m' p tl
 
 -- returns true if the first pair is a meter that is a subset of the
 -- second meter pair
