@@ -31,8 +31,7 @@ module Main -- ( -- * Types for Local Meters
                              -- )
                              where
 
-import Prelude   hiding           ( (!) )
-import Data.List                  ( tails, foldl', replicate)
+import Data.List                  ( foldl' )
 import Data.IntMap                ( empty, IntMap, insert, toAscList, mapWithKey )
 import qualified Data.IntMap as M ( lookup, foldr )
 import Data.Vector                ( Vector, (!) )
@@ -43,6 +42,7 @@ import InnerMetricalAnalysisOld   ( getLocalMetersOld )
 -- import Debug.Trace
 
 type Weight = Int
+type MeterMap = IntMap [(Time, Len)]
 
 --------------------------------------------------------------------------------
 -- Local Meters
@@ -52,7 +52,7 @@ type Weight = Int
 -- the base of note onsets. The model considers all the pulses, called 
 -- local metres, that can overlay with each other with very different periods 
 -- and shifted at all phases.
-getLocalMeters :: Period -> [Time] -> MeterMap2
+getLocalMeters :: Period -> [Time] -> MeterMap
 getLocalMeters _   []  = empty
 getLocalMeters phs ons = foldl' onePeriod empty 
               -- todo change this into a parameter
@@ -60,13 +60,13 @@ getLocalMeters phs ons = foldl' onePeriod empty
               
    v = V.fromList $ onsetGrid [0 .. last ons] ons
    
-   onePeriod :: MeterMap2 -> Period -> MeterMap2
+   onePeriod :: MeterMap -> Period -> MeterMap
    onePeriod m p = insertMeters facts m p . foldl' oneMeter [] $ ons where
    
      facts = factors p
      
      oneMeter :: [(Time, Len)] -> Time -> [(Time, Len)]     
-     oneMeter m t = addLMeter m p t $ getLength v p t
+     oneMeter l t = addLMeter l p t $ getLength v p t
      
 -- | Creates a grid of 'Bool's where 'True' represents an onset and 'False'
 -- no onset
@@ -101,15 +101,13 @@ addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = (t,l) : m
 -- addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = trace (show m ++ ": add: " ++ show (p,t,l)) ((t,l) : m)
                   -- | otherwise                         = trace (show m ++ ": no add: " ++ show (p,t,l))        m
 
-type MeterMap2 = IntMap [(Time, Len)]
 
-
-insertMeters :: [Period] -> MeterMap2 -> Period -> [(Time, Len)] -> MeterMap2
+insertMeters :: [Period] -> MeterMap -> Period -> [(Time, Len)] -> MeterMap
 insertMeters fs m p l = case filter (isMaximal fs m p) l of 
                            [] -> m 
                            x  -> insert (period p) x m
 
-isMaximal :: [Period] -> MeterMap2 -> Period -> (Time, Len) -> Bool
+isMaximal :: [Period] -> MeterMap -> Period -> (Time, Len) -> Bool
 isMaximal fs m p tl = and . map isMaxInMeterMap $ fs where
 
   isMaxInMeterMap :: Period -> Bool
@@ -135,8 +133,8 @@ isSubSet (Period pa) (Time ta, Len la) (Period pb) (Time tb, Len lb) =
   && ta + (la * pa) <= tb + (lb * pb) -- ends earlier
 
 
-showMeterMap2 :: MeterMap2 -> String
-showMeterMap2 = concatMap showPer . toAscList
+showMeterMap :: MeterMap -> String
+showMeterMap = concatMap showPer . toAscList
 
 showPer :: (Int, [(Time, Len)]) -> String
 showPer (p, l) = "Period: " ++ show p ++ concatMap (showMeter p) l ++ "\n"
@@ -208,7 +206,7 @@ matchPhase (Time o) p (Time t, _) = o `mod` p == t `mod` p
     
 -- takes a set of 'LMeter's, takes of every Len the power of 2 and sums
 -- the results
-sumPowers2 :: MeterMap2 -> Int
+sumPowers2 :: MeterMap -> Int
 sumPowers2 = M.foldr ((+) . sumPower2Len ) 0 where
 
  sumPower2Len :: [(Time, Len)] -> Int
