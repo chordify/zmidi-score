@@ -44,12 +44,7 @@ instance Arbitrary Time where
      arbitrary = choose (1,8) >>= return . Time
      
 instance Arbitrary [Time] where
-     arbitrary = choose (1,100) >>= (\n -> vector n) 
-             >>= return . reverse . foldr step [] where
-
-        step :: Time -> [Time] -> [Time]
-        step t []     = [t]
-        step t (x:xs) = t+x : x : xs
+     arbitrary = choose (1,100) >>= genOnsets
      
 instance Arbitrary LMeter where
      arbitrary = do s <- arbitrary
@@ -57,11 +52,18 @@ instance Arbitrary LMeter where
                     l <- arbitrary
                     return (LMeter s p l)
 
-randomOnsets :: IO [Time]
-randomOnsets = do r <- newStdGen 
-                  let t = generate 1 r arbitrary
-                  print . map time $ t
-                  return t
+randomOnsets :: Int -> IO [Time]
+randomOnsets n = do r <- newStdGen 
+                    let t = generate 1 r (genOnsets n)
+                    print . map time $ t
+                    return t
+                  
+genOnsets :: Int -> Gen [Time]                      
+genOnsets n = vector n >>= return . reverse . foldr step [] where
+
+        step :: Time -> [Time] -> [Time]
+        step t []     = [t]
+        step t (x:xs) = t+x : x : xs
                       
 
 -- | returns the meter ending 'Time'
