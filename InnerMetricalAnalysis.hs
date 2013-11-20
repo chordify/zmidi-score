@@ -34,7 +34,7 @@ module Main -- ( -- * Types for Local Meters
 import Data.List                  ( foldl', nubBy )
 import Data.IntMap                ( empty, IntMap, insert, toAscList, elems
                                   , mapWithKey, foldrWithKey, insertWith, split)
-import qualified Data.IntMap as M ( lookup, foldr, fromList )
+import qualified Data.IntMap as M ( lookup, foldr, fromList, foldl, filter )
 import Data.Vector                ( Vector, (!) )
 import qualified Data.Vector as V ( fromList, length )
 import LocalMeter
@@ -43,7 +43,8 @@ import Control.Arrow              ( first )
 -- import Debug.Trace
 
 type Weight = Int
-type MeterMap = IntMap [(Time, Len)]
+-- type MeterMap = IntMap [(Time, Len)]
+type MeterMap = IntMap (IntMap Len)
 
 --------------------------------------------------------------------------------
 -- Local Meters
@@ -62,12 +63,13 @@ getLocalMeters phs ons = foldl' onePeriod empty
    v = V.fromList $ onsetGrid [0 .. last ons] ons
    
    onePeriod :: MeterMap -> Period -> MeterMap
-   onePeriod m p = insertMeters facts m p . foldl' oneMeter [] $ ons where
+   onePeriod m p = insertMeters facts m p . foldl oneMeter empty $ ons where
    
      facts = factors p
      
-     oneMeter :: [(Time, Len)] -> Time -> [(Time, Len)]     
-     oneMeter l t = addLMeter l p t $ getLength v p t
+     -- oneMeter :: [(Time, Len)] -> Time -> [(Time, Len)]     
+     oneMeter :: OnsetMap -> Time -> OnsetMap
+     oneMeter l t = addLMeter2 l p t $ getLength v p t
      
 -- | Creates a grid of 'Bool's where 'True' represents an onset and 'False'
 -- no onset
@@ -92,6 +94,10 @@ getLength v (Period p) o = pred $ project o where
   project (Time t) | t < V.length v && v ! t = 1 + project (Time (t + p))
                    | otherwise               = 0
 
+                   
+addLMeter2 :: OnsetMap -> Period -> Time -> Len -> OnsetMap
+addLMeter2 m p t l | isMax2 p m p (t,l) && (len l) >= 2 = insert (time t) l m
+                   | otherwise                         =                    m
 -- Adds a new local meter to a list of local meters with the same period
 addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
 addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = (t,l) : m
@@ -100,8 +106,9 @@ addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = (t,l) : m
                   -- | otherwise                         = trace (show m ++ ": no add: " ++ show (p,t,l))        m
 
 
-insertMeters :: [Period] -> MeterMap -> Period -> [(Time, Len)] -> MeterMap
-insertMeters fs m p l = case filter (isMaximal fs m p) l of 
+insertMeters :: [Period] -> MeterMap -> Period -> OnsetMap -> MeterMap
+-- insertMeters :: [Period] -> MeterMap -> Period -> [(Time, Len)] -> MeterMap
+insertMeters fs m p l = case M.filter (isMaximal fs m p) l of 
                            [] -> m 
                            x  -> insert (period p) x m
 
@@ -111,7 +118,7 @@ isMaximal fs m p tl = and . map isMaxInMeterMap $ fs where
   isMaxInMeterMap :: Period -> Bool
   isMaxInMeterMap f = case M.lookup (period f) m of
                          Nothing -> True
-                         Just l  -> isMax f l p tl
+                         Just l  -> isMax2 f l p tl
 
                             
 -- being maximal means not being a subset
