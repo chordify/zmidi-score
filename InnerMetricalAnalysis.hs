@@ -122,9 +122,10 @@ getLocalMeters2 phs ons = foldl' onePeriod empty
    v = V.fromList $ onsetGrid [0 .. last ons] ons
    
    onePeriod :: MeterMap2 -> Period -> MeterMap2
-   onePeriod m p = insertMeters2 m p . foldl' oneMeter [] $ ons where
+   onePeriod m p = insertMeters3 facts m p . foldl' oneMeter [] $ ons where
    -- onePeriod m p = insertMeters2 m p . filter ((>= 2) . snd) $ [(o, getLength v p o) | o <- ons]   
-          
+     facts = factors p
+     
      oneMeter :: [(Time, Len)] -> Time -> [(Time, Len)]     
      oneMeter m t = addLMeter m p t $ getLength v p t
 -- | Creates a grid of 'Bool's where 'True' represents an onset and 'False'
@@ -177,6 +178,20 @@ isMaximal m p tl = and . map (isMaxInMeterMap m) . factors $ p where
                             Nothing -> True
                             Just l  -> isMax f l p tl
 
+insertMeters3 :: [Period] -> MeterMap2 -> Period -> [(Time, Len)] -> MeterMap2
+insertMeters3 fs m p l = case filter (isMaximal2 fs m p) l of 
+                           [] -> m 
+                           x  -> insert (period p) x m
+
+isMaximal2 :: [Period] -> MeterMap2 -> Period -> (Time, Len) -> Bool
+isMaximal2 fs m p tl = and . map isMaxInMeterMap $ fs where
+
+  isMaxInMeterMap :: Period -> Bool
+  isMaxInMeterMap f = case M.lookup (period f) m of
+                         Nothing -> True
+                         Just l  -> isMax f l p tl
+
+                            
 -- being maximal means not being a subset
 isMax :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
 isMax f m  p x = and $ map (not . isSubSet p x f) m
@@ -227,7 +242,7 @@ getSpectralWeight phs ons@(h:t) = map snd $ getWeight matchPhase phs ons
 getWeight :: (Time -> Int -> (Time,Len) -> Bool)
           -> Period -> [Time] -> [Time] -> [(Time, Weight)]
 getWeight f phs ons grid = 
-  let ms = getLocalMeters phs ons 
+  let ms = getLocalMeters2 phs ons 
       
       makePair :: Time -> (Time, Weight)
       makePair o = (o, sumPowers2 . mapWithKey ( filterMetersPer (f o) ) $ ms)
