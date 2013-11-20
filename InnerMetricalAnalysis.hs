@@ -38,42 +38,10 @@ import qualified Data.IntMap as M ( lookup, foldr )
 import Data.Vector                ( Vector, (!) )
 import qualified Data.Vector as V ( fromList, length )
 import LocalMeter
+import InnerMetricalAnalysisOld   ( getLocalMetersOld )
 
-import Debug.Trace
+-- import Debug.Trace
 
---------------------------------------------------------------------------------
--- parameters
---------------------------------------------------------------------------------
-
--- | The maximum phase that can contribute to a local meter
--- maximumPhase  :: Period
--- maximumPhase  = 100
-
--- | The minimal phase step size 
--- phaseStepSize :: Period
--- phaseStepSize = 10
-
---------------------------------------------------------------------------------
--- types
---------------------------------------------------------------------------------
-
--- data LMeter = LMeter { start   :: Time
-                     -- , period  :: Period
-                     -- , mLen :: Len } deriving (Eq)
-                     
--- instance Ord LMeter where
-  -- compare a b = case compare (period a) (period b) of
-                  -- EQ -> case compare (period a) (period b) of
-                          -- EQ -> compare (start a) (start b)
-                          -- cs -> cs
-                  -- cp -> cp
-                                  
--- instance Show LMeter where
-  -- show (LMeter s p l) = '(' : show s ++ ", " ++ show p ++ ", " ++ show l ++ ")"
-
--- type Len = Int
--- type Period = Int
--- type Time   = Int
 type Weight = Int
 
 --------------------------------------------------------------------------------
@@ -88,46 +56,18 @@ getLocalMeters :: Period -> [Time] -> MeterMap2
 getLocalMeters _   []  = empty
 getLocalMeters phs ons = foldl' onePeriod empty 
               -- todo change this into a parameter
-              ([phs, (2 * phs) .. (Period (time . last $ ons) `div` 2)])    where
-  
-  onePeriod :: MeterMap2 -> Period -> MeterMap2
-  onePeriod m p = insertMeters2 m p $ foldl' (startProj p) [] (tails ons)
-  
-  startProj :: Period -> [(Time,Len)] -> [Time] -> [(Time,Len)]
-  startProj _ m []  = m
-  startProj p m tls = project p (head tls) 0 m tls
-  -- startProj p m tls = traceShow (p,a) a where a = project (head tls) 0 tls p m
-    
-  -- given a phase (IOI), projects a local meter forward
-  project :: Period -> Time -> Len -> [(Time,Len)] -> [Time] -> [(Time,Len)]
-  project p t l m []  = addLMeter m p t l
-  project p t l m [_] = addLMeter m p t l
-  project p t l m (x : y : tl)
-    -- phase is larger than the ioi, go to the next ioi
-    | ioi  < period p = project p t       l  m (x : tl) 
-    -- phase and ioi are identical, we add 1 to the Len of this local meter
-    | ioi == period p = project p t (succ l) m (y : tl)
-    -- ioi > p: phase is smaller than the ioi, we're done with this local meter
-    -- Next, if the local meter is at least projected twice (l=2) we add
-    -- an LMeter and otherwise we continue
-    | otherwise = addLMeter m p t l
-        where ioi = time (y - x)
-
-getLocalMeters2 :: Period -> [Time] -> MeterMap2
-getLocalMeters2 _   []  = empty
-getLocalMeters2 phs ons = foldl' onePeriod empty 
-              -- todo change this into a parameter
               ([phs, (2 * phs) .. (Period (time . last $ ons) `div` 2)]) where
               
    v = V.fromList $ onsetGrid [0 .. last ons] ons
    
    onePeriod :: MeterMap2 -> Period -> MeterMap2
-   onePeriod m p = insertMeters3 facts m p . foldl' oneMeter [] $ ons where
-   -- onePeriod m p = insertMeters2 m p . filter ((>= 2) . snd) $ [(o, getLength v p o) | o <- ons]   
+   onePeriod m p = insertMeters facts m p . foldl' oneMeter [] $ ons where
+   
      facts = factors p
      
      oneMeter :: [(Time, Len)] -> Time -> [(Time, Len)]     
      oneMeter m t = addLMeter m p t $ getLength v p t
+     
 -- | Creates a grid of 'Bool's where 'True' represents an onset and 'False'
 -- no onset
 --
@@ -152,7 +92,7 @@ getLength v (Period p) o = pred $ project o where
                    | otherwise               = 0
         
 pLocalMeter :: Period -> [Time] -> Bool
-pLocalMeter p ons = getLocalMeters p ons == getLocalMeters2 p ons
+pLocalMeter p ons = getLocalMetersOld p ons == getLocalMeters p ons
 
 -- Adds a new local meter to a list of local meters with the same period
 addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
@@ -160,31 +100,17 @@ addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = (t,l) : m
                   | otherwise                         =         m
 -- addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = trace (show m ++ ": add: " ++ show (p,t,l)) ((t,l) : m)
                   -- | otherwise                         = trace (show m ++ ": no add: " ++ show (p,t,l))        m
-                  
-insertMeters2 :: MeterMap2 -> Period -> [(Time, Len)] -> MeterMap2
-insertMeters2 m p l = case filter (isMaximal m p) l of 
-                        [] -> m 
-                        x  -> insert (period p) x m
-                        -- [] -> trace ("skip: " ++ show p ++ show l) m 
-                        -- x  -> trace ("insert: " ++ show p ++ show l) (insert (period p) x m)
 
 type MeterMap2 = IntMap [(Time, Len)]
 
-isMaximal :: MeterMap2 -> Period -> (Time, Len) -> Bool
-isMaximal m p tl = and . map (isMaxInMeterMap m) . factors $ p where
 
-  isMaxInMeterMap :: MeterMap2 -> Period -> Bool
-  isMaxInMeterMap m' f  = case M.lookup (period f) m' of
-                            Nothing -> True
-                            Just l  -> isMax f l p tl
-
-insertMeters3 :: [Period] -> MeterMap2 -> Period -> [(Time, Len)] -> MeterMap2
-insertMeters3 fs m p l = case filter (isMaximal2 fs m p) l of 
+insertMeters :: [Period] -> MeterMap2 -> Period -> [(Time, Len)] -> MeterMap2
+insertMeters fs m p l = case filter (isMaximal fs m p) l of 
                            [] -> m 
                            x  -> insert (period p) x m
 
-isMaximal2 :: [Period] -> MeterMap2 -> Period -> (Time, Len) -> Bool
-isMaximal2 fs m p tl = and . map isMaxInMeterMap $ fs where
+isMaximal :: [Period] -> MeterMap2 -> Period -> (Time, Len) -> Bool
+isMaximal fs m p tl = and . map isMaxInMeterMap $ fs where
 
   isMaxInMeterMap :: Period -> Bool
   isMaxInMeterMap f = case M.lookup (period f) m of
@@ -242,7 +168,7 @@ getSpectralWeight phs ons@(h:t) = map snd $ getWeight matchPhase phs ons
 getWeight :: (Time -> Int -> (Time,Len) -> Bool)
           -> Period -> [Time] -> [Time] -> [(Time, Weight)]
 getWeight f phs ons grid = 
-  let ms = getLocalMeters2 phs ons 
+  let ms = getLocalMeters phs ons 
       
       makePair :: Time -> (Time, Weight)
       makePair o = (o, sumPowers2 . mapWithKey ( filterMetersPer (f o) ) $ ms)

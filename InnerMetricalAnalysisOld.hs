@@ -12,10 +12,10 @@
 -- Summary: implements the Inner Metrical Analysis model 
 -- see: 
 --------------------------------------------------------------------------------
-module Main ( getMetricWeight
-            , getSpectralWeight 
-            , getLocalMetersOld
-            ) where
+module InnerMetricalAnalysisOld ( getMetricWeight
+                                , getSpectralWeight 
+                                , getLocalMetersOld
+                                ) where
 
 import Prelude
 import Data.List                  ( tails, foldl' )
