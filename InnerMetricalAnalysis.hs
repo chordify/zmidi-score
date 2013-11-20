@@ -38,7 +38,7 @@ import qualified Data.IntMap as M ( lookup, foldr )
 import Data.Vector                ( Vector, (!) )
 import qualified Data.Vector as V ( fromList, length )
 import LocalMeter
-import InnerMetricalAnalysisOld   ( getLocalMetersOld )
+import InnerMetricalAnalysisOld   ( getLocalMetersOld, getSpectralWeightOld, getMetricWeightOld )
 
 -- import Debug.Trace
 
@@ -151,61 +151,19 @@ showMeter p (Time t, Len l) = " (onset="++ show t++ " per=" ++ show p ++ " len="
 -- Moreover, the intuition modelled in the metric weight is that longer 
 -- repetitions should contribute more weight than shorter ones.
 getMetricWeight :: Period -> [Time] -> [Weight]
-getMetricWeight phs ons = map snd $ getWeight partOfLMeter phs ons ons
-
--- | The spectral weight is based on the extension of each local metre throughout 
--- the entire piece.
-getSpectralWeight :: Period -> [Time] -> [Weight]
-getSpectralWeight _ []          = []
-getSpectralWeight phs ons@(h:t) = map snd $ getWeight matchPhase phs ons 
-                                           [h .. (last t)]
-
-
-getWeight :: (Time -> Int -> (Time,Len) -> Bool)
-          -> Period -> [Time] -> [Time] -> [(Time, Weight)]
-getWeight f phs ons grid = 
-  let ms = getLocalMeters phs ons 
-      
-      makePair :: Time -> (Time, Weight)
-      makePair o = (o, sumPowers2 . mapWithKey ( filterMetersPer (f o) ) $ ms)
-      
-  in  map makePair grid
-
-
-filterMetersPer :: (Int -> (Time,Len) -> Bool)
-                -> Int -> [(Time, Len)] -> [(Time, Len)]
-filterMetersPer f p = filter (f p) 
-
--- partOfLMeter :: Time -> Period -> (Time, Length) -> Bool
--- partOfLMeter (Time o) (Period p) (Time t, Len l) = 
-partOfLMeter :: Time -> Int -> (Time, Len) -> Bool
-partOfLMeter (Time o) p (Time t, Len l) = 
-  o >= t &&               -- located after the meter starts
-  o <= t + (l * p) &&     -- located before the meter ends
-  o `mod` p == t `mod` p  -- matches the phase of the meter
-
-matchPhase :: Time -> Int -> (Time, Len) -> Bool
-matchPhase (Time o) p (Time t, _) = o `mod` p == t `mod` p
-    
--- takes a set of 'LMeter's, takes of every Len the power of 2 and sums
--- the results
-sumPowers2 :: MeterMap -> Int
-sumPowers2 = M.foldr ((+) . sumPower2Len ) 0 where
-
- sumPower2Len :: [(Time, Len)] -> Int
- sumPower2Len = sum . map ((^ (2 ::Int)) . len . snd)
-
-getMetricWeight2 :: Period -> [Time] -> [Weight]
-getMetricWeight2 p ons = elems $ foldr noMeter (getMetricMap p ons) ons where
+getMetricWeight p = elems . getMetricMap p where
    
    -- inserts the onsets that are not part of a meter, and have a weigth 0
    noMeter :: Time -> WeightMap -> WeightMap
-   noMeter (Time o) m''' = insertWith (+) o 0 m'''
+   noMeter (Time o) m = insertWith (+) o 0 m
  
 type WeightMap = IntMap Weight
 
 getMetricMap :: Period -> [Time] -> WeightMap
-getMetricMap mP ons = foldrWithKey onePeriod empty $ getLocalMeters mP ons where
+getMetricMap mP ons = foldrWithKey onePeriod init $ getLocalMeters mP ons where
+   
+   init :: WeightMap 
+   init = foldr (\o m -> insertWith (+) o 0 m) empty (map time ons)
    
    onePeriod :: Int -> [(Time, Len)] -> WeightMap -> WeightMap
    onePeriod p l m = foldr oneMeter m l where
@@ -214,8 +172,33 @@ getMetricMap mP ons = foldrWithKey onePeriod empty $ getLocalMeters mP ons where
      oneMeter (Time t, Len l) m' = foldr addWeight m' [t, t+p .. t + (l*p)] where
      
        addWeight :: Int -> WeightMap -> WeightMap
-       addWeight ons m'' = insertWith (+) ons ( l ^ (2 :: Int) ) m''
+       addWeight o m'' = insertWith (+) o ( l ^ (2 :: Int) ) m''
+
+-- | The spectral weight is based on the extension of each local metre throughout 
+-- the entire piece.
+getSpectralWeight :: Period -> [Time] -> [Weight]
+getSpectralWeight _ []        = []
+getSpectralWeight p ons@(h:t) = elems $ getSpectralMap p ons [h .. (last ons)]
  
+getSpectralMap :: Period -> [Time] -> [Time] -> WeightMap
+getSpectralMap mP ons grid = foldrWithKey onePeriod init $ getLocalMeters mP ons where
+   
+   intGrid :: [Int]
+   intGrid = map time grid
+   
+   init :: WeightMap 
+   init = foldr (\o m -> insertWith (+) o 0 m) empty intGrid
+   
+   onePeriod :: Int -> [(Time, Len)] -> WeightMap -> WeightMap
+   onePeriod p l m = foldr oneMeter m l where
+     
+     oneMeter :: (Time, Len) -> WeightMap -> WeightMap
+     oneMeter (Time t, Len l) m' = foldr addWeight m' intGrid where
+     
+       addWeight :: Int -> WeightMap -> WeightMap
+       addWeight o m'' 
+         | o `mod` p == t `mod` p = insertWith (+) o ( l ^ (2 :: Int) ) m''
+         | otherwise              = m''
  
 -- testing
 main :: IO ()
@@ -223,12 +206,15 @@ main :: IO ()
 -- main = print $ getMetricWeight 1 [0..500]
 main = do ons <- randomOnsets 2000 
           print (map time ons)
-          print (getMetricWeight2 1 ons)
+          print (getMetricWeight 1 ons)
                
 --------------------------------------------------------------------------------
 -- property testing
+pSpectralWeight :: [Time] -> Bool
+pSpectralWeight ons = getSpectralWeightOld 1 ons == getSpectralWeight 1 ons
+
 pMetricWeight :: [Time] -> Bool
-pMetricWeight ons = getMetricWeight2 1 ons == getMetricWeight 1 ons
+pMetricWeight ons = getMetricWeightOld 1 ons == getMetricWeight 1 ons
         
 pLocalMeter :: Period -> [Time] -> Bool
 pLocalMeter p ons = getLocalMetersOld p ons == getLocalMeters p ons

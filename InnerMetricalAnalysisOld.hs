@@ -12,8 +12,8 @@
 -- Summary: implements the Inner Metrical Analysis model 
 -- see: 
 --------------------------------------------------------------------------------
-module InnerMetricalAnalysisOld ( getMetricWeight
-                                , getSpectralWeight 
+module InnerMetricalAnalysisOld ( getMetricWeightOld
+                                , getSpectralWeightOld 
                                 , getLocalMetersOld
                                 ) where
 
@@ -113,14 +113,14 @@ isSubSet (Period pa) (Time ta, Len la) (Period pb) (Time tb, Len lb) =
 -- pulses coincide get a greater weight than onsets where fewer pulses coincide. 
 -- Moreover, the intuition modelled in the metric weight is that longer 
 -- repetitions should contribute more weight than shorter ones.
-getMetricWeight :: Period -> [Time] -> [Weight]
-getMetricWeight phs ons = map snd $ getWeight partOfLMeter phs ons ons
+getMetricWeightOld :: Period -> [Time] -> [Weight]
+getMetricWeightOld phs ons = map snd $ getWeight partOfLMeter phs ons ons
 
 -- | The spectral weight is based on the extension of each local metre throughout 
 -- the entire piece.
-getSpectralWeight :: Period -> [Time] -> [Weight]
-getSpectralWeight _ []          = []
-getSpectralWeight phs ons@(h:t) = map snd $ getWeight matchPhase phs ons 
+getSpectralWeightOld :: Period -> [Time] -> [Weight]
+getSpectralWeightOld _ []          = []
+getSpectralWeightOld phs ons@(h:t) = map snd $ getWeight matchPhase phs ons 
                                            [h .. (last t)]
 
 
