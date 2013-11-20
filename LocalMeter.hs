@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE OverlappingInstances       #-}
 module LocalMeter where
 
 import Data.List                  ( intercalate )
@@ -86,6 +88,13 @@ instance Arbitrary Period where
 
 instance Arbitrary Time where
      arbitrary = choose (1,8) >>= return . Time
+     
+instance Arbitrary [Time] where
+     arbitrary = arbitrary >>= (\n -> vector n) >>= return . reverse . foldr step [] where
+
+        step :: Time -> [Time] -> [Time]
+        step t []     = [t]
+        step t (x:xs) = t+x : x : xs
      
 instance Arbitrary LMeter where
      arbitrary = do s <- arbitrary
