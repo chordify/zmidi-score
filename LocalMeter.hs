@@ -38,7 +38,7 @@ instance Arbitrary Len where
      arbitrary = choose (2,10) >>= return . Len
 
 instance Arbitrary Period where
-     arbitrary = choose (1,3) >>= return . Period
+     arbitrary = choose (1,20) >>= return . Period
 
 instance Arbitrary Time where
      arbitrary = choose (1,8) >>= return . Time
