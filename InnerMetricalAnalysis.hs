@@ -70,7 +70,7 @@ getLocalMeters phs ons = foldl' onePeriod empty
      
      -- oneMeter :: [(Time, Len)] -> Time -> [(Time, Len)]     
      oneMeter :: OnsetMap -> Time -> OnsetMap
-     oneMeter l t = addLMeter2 l p t $ getLength v p t
+     oneMeter l t = addLMeter l p t $ getLength v p t
      
 -- | Creates a grid of 'Bool's where 'True' represents an onset and 'False'
 -- no onset
@@ -96,19 +96,10 @@ getLength v (Period p) o = pred $ project o where
                    | otherwise               = 0
 
                    
-addLMeter2 :: OnsetMap -> Period -> Time -> Len -> OnsetMap
-addLMeter2 m p t l 
+addLMeter :: OnsetMap -> Period -> Time -> Len -> OnsetMap
+addLMeter m p t l 
   | (len l) >= 2 && isMax2 p m p (time t) l = insert (time t) l m
   | otherwise                               =                   m
-
-  
--- Adds a new local meter to a list of local meters with the same period
-addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
-addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = (t,l) : m
-                  | otherwise                         =         m
--- addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = trace (show m ++ ": add: " ++ show (p,t,l)) ((t,l) : m)
-                  -- | otherwise                         = trace (show m ++ ": no add: " ++ show (p,t,l))        m
-
 
 insertMeters :: [Period] -> MeterMap -> Period -> OnsetMap -> MeterMap
 -- insertMeters :: [Period] -> MeterMap -> Period -> [(Time, Len)] -> MeterMap
