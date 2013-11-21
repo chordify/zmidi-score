@@ -33,10 +33,9 @@ module Main -- ( -- * Types for Local Meters
 
 import Data.List                  ( foldl', nubBy )
 import Data.IntMap                ( empty, IntMap, insert, toAscList, elems
-                                  , mapWithKey, foldrWithKey, insertWith, split
+                                  , foldrWithKey, insertWith, split
                                   , filterWithKey )
-import qualified Data.IntMap as M ( lookup, foldr, fromList, foldl, filter
-                                  , null, map )
+import qualified Data.IntMap as M ( lookup, fromList, null, map )
 import Data.Vector                ( Vector, (!) )
 import qualified Data.Vector as V ( fromList, length )
 import LocalMeter
@@ -191,18 +190,14 @@ showMeter p (t, Len l) = " (onset="++ show t++ " per=" ++ show p ++ " len="++ sh
 -- repetitions should contribute more weight than shorter ones.
 getMetricWeight :: Period -> [Time] -> [Weight]
 getMetricWeight p = elems . getMetricMap p where
-   
-   -- inserts the onsets that are not part of a meter, and have a weigth 0
-   noMeter :: Time -> WeightMap -> WeightMap
-   noMeter (Time o) m = insertWith (+) o 0 m
  
 type WeightMap = IntMap Weight
 
 getMetricMap :: Period -> [Time] -> WeightMap
-getMetricMap mP ons = foldrWithKey onePeriod init $ getLocalMeters mP ons where
+getMetricMap mP ons = foldrWithKey onePeriod initMap $ getLocalMeters mP ons where
    
-   init :: WeightMap 
-   init = foldr (\o m -> insertWith (+) o 0 m) empty (map time ons)
+   initMap :: WeightMap 
+   initMap = foldr (\o m -> insertWith (+) o 0 m) empty (map time ons)
    
    onePeriod :: Int -> OnsetMap -> WeightMap -> WeightMap
    onePeriod p o w = foldrWithKey oneMeter w o where
@@ -220,13 +215,13 @@ getSpectralWeight _ []        = []
 getSpectralWeight p ons@(h:t) = elems $ getSpectralMap p ons [h .. (last ons)]
  
 getSpectralMap :: Period -> [Time] -> [Time] -> WeightMap
-getSpectralMap mP ons grid = foldrWithKey onePeriod init $ getLocalMeters mP ons where
+getSpectralMap mP ons grid = foldrWithKey onePeriod initMap $ getLocalMeters mP ons where
    
    intGrid :: [Int]
    intGrid = map time grid
    
-   init :: WeightMap 
-   init = foldr (\o m -> insertWith (+) o 0 m) empty intGrid
+   initMap :: WeightMap 
+   initMap = foldr (\o m -> insertWith (+) o 0 m) empty intGrid
    
    onePeriod :: Int -> OnsetMap -> WeightMap -> WeightMap
    onePeriod p o w = foldrWithKey oneMeter w o where
