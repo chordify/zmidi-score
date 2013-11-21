@@ -100,6 +100,8 @@ addLMeter2 :: OnsetMap -> Period -> Time -> Len -> OnsetMap
 addLMeter2 m p t l 
   | isMax2 p m p (time t) l && (len l) >= 2 = insert (time t) l m
   | otherwise                               =                   m
+
+  
 -- Adds a new local meter to a list of local meters with the same period
 addLMeter :: [(Time, Len)] -> Period -> Time -> Len -> [(Time,Len)]
 addLMeter m p t l | isMax p m p (t,l) && (len l) >= 2 = (t,l) : m
@@ -121,7 +123,7 @@ isMaximal fs m p t l = and . map isMaxInMeterMap $ fs where
   isMaxInMeterMap :: Period -> Bool
   isMaxInMeterMap f = case M.lookup (period f) m of
                          Nothing -> True
-                         Just om  -> isMax2 f om p t l
+                         Just om -> isMax2 f om p t l
 
                             
 -- being maximal means not being a subset
