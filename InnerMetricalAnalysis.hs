@@ -31,7 +31,7 @@ module Main -- ( -- * Types for Local Meters
                              -- )
                              where
 
-import Data.List                  ( foldl', nubBy )
+import Data.List                  ( foldl' )
 import Data.IntMap                ( empty, IntMap, insert, toAscList, elems
                                   , foldrWithKey, insertWith, split
                                   , filterWithKey )
@@ -41,11 +41,10 @@ import qualified Data.Vector as V ( fromList, length )
 import LocalMeter
 import InnerMetricalAnalysisOld   ( getLocalMetersOld, getSpectralWeightOld, getMetricWeightOld )
 import Control.Arrow              ( first )
--- import Debug.Trace
 
 type Weight = Int
--- type MeterMap = IntMap [(Time, Len)]
 type MeterMap = IntMap (IntMap Len)
+type OnsetMap = IntMap Len
 
 --------------------------------------------------------------------------------
 -- Local Meters
@@ -102,34 +101,34 @@ addLMeter m p t l
   | otherwise                               =                   m
 
 insertMeters :: [Period] -> MeterMap -> Period -> OnsetMap -> MeterMap
--- insertMeters :: [Period] -> MeterMap -> Period -> [(Time, Len)] -> MeterMap
 insertMeters fs mm p om 
   | M.null om' = mm
   | otherwise  = insert (period p) om' mm
       where om' = filterWithKey (isMaximal fs mm p) om
 
 isMaximal :: [Period] -> MeterMap -> Period -> Int -> Len -> Bool
-isMaximal fs m p t l = and . map isMaxInMeterMap $ fs where
+isMaximal fs m p t l = foldr isMaxInMeterMap True fs where
 
-  isMaxInMeterMap :: Period -> Bool
-  isMaxInMeterMap f = case M.lookup (period f) m of
-                         Nothing -> True
-                         Just om -> isMax2 f om p t l
+  isMaxInMeterMap :: Period -> Bool -> Bool
+  isMaxInMeterMap f r = case M.lookup (period f) m of
+                           Nothing -> r
+                           Just om -> isMax2 f om p t l && r
 
                             
 -- being maximal means not being a subset
-isMax :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
-isMax f m  p x = and $ map (not . isSubSet p x f) m
--- isMax f m p x =  traceShow (p,x,a) a where a = and $ map (not . isSubSet p x f) m
+-- isMax :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
+-- isMax f m  p x = and $ map (not . isSubSet p x f) m
 
-type OnsetMap = IntMap Len
+-- isMax3 :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
+-- isMax3 f m p (Time t, l) = isMax2 f (M.fromList $ map (first time) m) p t l
 
+-- subMap2 :: [(Time, Len)] -> (Time, Len) -> OnsetMap
+-- subMap2 m (Time t, _l) = subMap (M.fromList $ map (first time) m) t
 
-isMax3 :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
-isMax3 f m p (Time t, l) = isMax2 f (M.fromList $ map (first time) m) p t l
+-- pIsMax :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
+-- pIsMax f m p tl = let m' = nubBy (\(a,_) (b,_) -> a == b) m
+                  -- in  f < p || isMax f m' p tl == isMax3 f m' p tl
 
-subMap2 :: [(Time, Len)] -> (Time, Len) -> OnsetMap
-subMap2 m (Time t, _l) = subMap (M.fromList $ map (first time) m) t
 
 isMax2 :: Period -> OnsetMap -> Period -> Int -> Len -> Bool
 isMax2 (Period f) m (Period pb) tb (Len lb) = 
@@ -137,17 +136,12 @@ isMax2 (Period f) m (Period pb) tb (Len lb) =
 
     where noSubSet :: Int -> Len -> Bool -> Bool
           noSubSet ta (Len la) r = 
-             (  ta `mod` f  /= tb `mod` f    -- not in phase
-             || ta + (la * f) < tb + (lb * pb) )-- ends later
+             (  ta `mod` f    /= tb `mod` f       -- not in phase
+             || ta + (la * f)  < tb + (lb * pb) ) -- ends later
              && r
 
 subMap :: OnsetMap -> Int -> OnsetMap
 subMap m t = fst $ split (succ t) m
-  -- snd $ split (t + (p*l)) (fst $ split t m)
-
-pIsMax :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
-pIsMax f m p tl = let m' = nubBy (\(a,_) (b,_) -> a == b) m
-                  in  f < p || isMax f m' p tl == isMax3 f m' p tl
 
 -- returns true if the first pair is a meter that is a subset of the
 -- second meter pair
