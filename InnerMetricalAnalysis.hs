@@ -138,11 +138,11 @@ isMax3 :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
 isMax3 f m p (Time t, l) = isMax2 f (M.fromList $ map (first time) m) p t l
 
 subMap2 :: [(Time, Len)] -> (Time, Len) -> OnsetMap
-subMap2 m (Time t, l) = subMap (M.fromList $ map (first time) m) t l
+subMap2 m (Time t, _l) = subMap (M.fromList $ map (first time) m) t
 
 isMax2 :: Period -> OnsetMap -> Period -> Int -> Len -> Bool
-isMax2 (Period f) m (Period pb) tb l@(Len lb) = 
-  foldrWithKey noSubSet True (subMap m tb l) -- select all meters that start earlier
+isMax2 (Period f) m (Period pb) tb (Len lb) = 
+  foldrWithKey noSubSet True (subMap m tb) -- select all meters that start earlier
 
     where noSubSet :: Int -> Len -> Bool -> Bool
           noSubSet ta (Len la) r = 
@@ -150,8 +150,8 @@ isMax2 (Period f) m (Period pb) tb l@(Len lb) =
              || ta + (la * f) < tb + (lb * pb) )-- ends later
              && r
 
-subMap :: OnsetMap -> Int -> Len -> OnsetMap
-subMap m t (Len l) = fst $ split (succ t) m
+subMap :: OnsetMap -> Int -> OnsetMap
+subMap m t = fst $ split (succ t) m
   -- snd $ split (t + (p*l)) (fst $ split t m)
 
 pIsMax :: Period -> [(Time, Len)] -> Period -> (Time, Len) -> Bool
@@ -202,7 +202,7 @@ getMetricMap mP ons = foldrWithKey onePeriod initMap $ getLocalMeters mP ons whe
    initMap = foldr (\o m -> insertWith (+) o 0 m) empty (map time ons)
    
    onePeriod :: Int -> OnsetMap -> WeightMap -> WeightMap
-   onePeriod p o w = foldrWithKey oneMeter w o where
+   onePeriod p om w = foldrWithKey oneMeter w om where
      
      oneMeter :: Int -> Len -> WeightMap -> WeightMap
      oneMeter t (Len l) m' = foldr addWeight m' [t, t+p .. t + (l*p)] where
@@ -213,8 +213,8 @@ getMetricMap mP ons = foldrWithKey onePeriod initMap $ getLocalMeters mP ons whe
 -- | The spectral weight is based on the extension of each local metre throughout 
 -- the entire piece.
 getSpectralWeight :: Period -> [Time] -> [Weight]
-getSpectralWeight _ []        = []
-getSpectralWeight p ons@(h:t) = elems $ getSpectralMap p ons [h .. (last ons)]
+getSpectralWeight _ []  = []
+getSpectralWeight p os = elems $ getSpectralMap p os [(head os) .. (last os)]
  
 getSpectralMap :: Period -> [Time] -> [Time] -> WeightMap
 getSpectralMap mP ons grid = foldrWithKey onePeriod initMap $ getLocalMeters mP ons where
@@ -226,7 +226,7 @@ getSpectralMap mP ons grid = foldrWithKey onePeriod initMap $ getLocalMeters mP 
    initMap = foldr (\o m -> insertWith (+) o 0 m) empty intGrid
    
    onePeriod :: Int -> OnsetMap -> WeightMap -> WeightMap
-   onePeriod p o w = foldrWithKey oneMeter w o where
+   onePeriod p om w = foldrWithKey oneMeter w om where
      
      oneMeter :: Int -> Len -> WeightMap -> WeightMap
      oneMeter t (Len l) m' = foldr addWeight m' intGrid where
