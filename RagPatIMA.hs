@@ -22,7 +22,13 @@ matchIMA q ms =
 preProcessMidi :: ShortestNote -> MidiScore -> [Time]
 preProcessMidi q ms = map Time . toOnsets . getAccompQuant q $ ms
 
-
+-- normalise :: (Num a, Fractional b) => [a] -> [b]
+normalise :: [Int] -> [Double]
+normalise l = let m = fromIntegral $ maximum l 
+              in map ((/ m) . fromIntegral) (l :: [Int])
+             
+              
+              
 genPat :: Int -> TimeSig -> (Int -> Float)
 genPat t ts = case ts of
         (TimeSig 2 2 _ _) -> project t 2 1 1
@@ -39,6 +45,16 @@ project t prim sec trt x = case x `mod` (prim * t) of
                                     _ -> case x `mod` (trt * t) of 
                                           0 -> 0.2 
                                           _ -> 0.0
+
+printWeight :: [Double] -> IO ()
+printWeight = undefined
+
+match :: [Int] -> [Int] -> [Double] -> [(Int, Bool, Double)]
+match grid ons = undefined -- zipWith (\g o -> (g 
+
+toStar :: (Int, Bool, Double) -> String
+toStar (g,o,d) = show g ++ (if o then "x" else " ") 
+                        ++ replicate (round (10 * d)) '*'
                                           
 main :: IO ()
 main = do arg <- getArgs 
@@ -46,5 +62,5 @@ main = do arg <- getArgs
             [fp] -> do ms <- readMidiScore fp 
                        print . map time . preProcessMidi Sixteenth $ ms
                        print . getMinDur . buildTickMap $ [getAccompQuant Sixteenth ms]
-                       print . matchIMA Sixteenth $ ms
+                       print . normalise . matchIMA Sixteenth $ ms
             _    -> error "Please provide a path to a midifile"
