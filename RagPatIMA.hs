@@ -44,6 +44,7 @@ main :: IO ()
 main = do arg <- getArgs 
           case arg of
             [fp] -> do ms <- readMidiScore fp 
-                       print . preProcessMidi Sixteenth $ ms
+                       print . map time . preProcessMidi Sixteenth $ ms
+                       print . getMinDur . buildTickMap $ [getAccompQuant Sixteenth ms]
                        print . matchIMA Sixteenth $ ms
             _    -> error "Please provide a path to a midifile"

@@ -202,7 +202,8 @@ getMetricMap mP ons = foldrWithKey onePeriod initMap $ getLocalMeters mP ons whe
 -- the entire piece.
 getSpectralWeight :: Period -> [Time] -> [Weight]
 getSpectralWeight _ []  = []
-getSpectralWeight p os = elems $ getSpectralMap p os [(head os) .. (last os)]
+getSpectralWeight p os = elems $ getSpectralMap p os 
+                      [(head os), ((Time $ period p) + head os) .. (last os)]
  
 getSpectralMap :: Period -> [Time] -> [Time] -> WeightMap
 getSpectralMap mP ons grid = foldrWithKey onePeriod initMap $ getLocalMeters mP ons where
