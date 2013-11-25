@@ -23,7 +23,7 @@ import Data.List          ( intercalate )
 import Control.Monad      ( filterM, void )
 import System.Directory   ( getDirectoryContents, canonicalizePath
                           , doesDirectoryExist )
-import System.IO          ( stderr, hPutStr )
+import System.IO          ( stderr, hPutStrLn )
 import System.FilePath    ( (</>) )
 
 --------------------------------------------------------------------------------

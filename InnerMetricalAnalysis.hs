@@ -12,7 +12,8 @@
 -- Summary: implements the Inner Metrical Analysis model 
 -- see: 
 --------------------------------------------------------------------------------
-module Main -- ( -- * Types for Local Meters
+module InnerMetricalAnalysis -- ( -- * Types for Local Meters
+-- module Main -- ( -- * Types for Local Meters
                                -- LMeter (..)
                              -- , Time
                              -- , Weight
