@@ -34,7 +34,7 @@ module InnerMetricalAnalysis -- ( -- * Types for Local Meters
 
 import Data.List                  ( foldl' )
 import Data.IntMap                ( empty, IntMap, insert, toAscList, elems
-                                  , foldrWithKey, insertWith, split
+                                  , foldrWithKey, insertWith, split, assocs
                                   , filterWithKey )
 import qualified Data.IntMap as M ( lookup, fromList, null, map )
 import Data.Vector                ( Vector, (!) )
@@ -200,9 +200,9 @@ getMetricMap mP ons = foldrWithKey onePeriod initMap $ getLocalMeters mP ons whe
 
 -- | The spectral weight is based on the extension of each local metre throughout 
 -- the entire piece.
-getSpectralWeight :: Period -> [Time] -> [Weight]
+getSpectralWeight :: Period -> [Time] -> [(Int, Weight)]
 getSpectralWeight _ []  = []
-getSpectralWeight p os = elems $ getSpectralMap p os 
+getSpectralWeight p os = assocs $ getSpectralMap p os 
                       [(head os), ((Time $ period p) + head os) .. (last os)]
  
 getSpectralMap :: Period -> [Time] -> [Time] -> WeightMap
@@ -242,7 +242,7 @@ main = print $ getMetricWeight 1 [8,14,22,28,29,30,37,39,46,48,52,54,59,64,67,68
 -- property testing
 --------------------------------------------------------------------------------
 pSpectralWeight :: [Time] -> Bool
-pSpectralWeight ons = getSpectralWeightOld 1 ons == getSpectralWeight 1 ons
+pSpectralWeight ons = getSpectralWeightOld 1 ons == map snd (getSpectralWeight 1 ons)
 
 pMetricWeight :: [Time] -> Bool
 pMetricWeight ons = getMetricWeightOld 1 ons == getMetricWeight 1 ons
