@@ -71,4 +71,5 @@ meterEnd' :: Period -> Len -> Time -> Time
 meterEnd' (Period p) (Len l) (Time t) = Time (t + (p * l))
 
 factors :: Period -> [Period]
-factors p = filter (\x -> p `mod` x == 0) [1 .. p]
+-- factors p = filter (\x -> p `mod` x == 0) [1 .. p]
+factors p = 1 : [x | x <- [2 .. p], p `mod` x == 0] 

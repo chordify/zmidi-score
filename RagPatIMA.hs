@@ -66,7 +66,7 @@ project t prim sec trt x = case x `mod` (prim * t) of
 
 toStar :: (Int, Bool, Double) -> IO ()
 toStar (g,o,d) = putStrLn (show g ++ (if o then " x " else "   ") 
-                                  ++ replicate (round (10 * d)) '*' )
+                                  ++ replicate (round (20 * d)) '*' )
                                           
 main :: IO ()
 main = do arg <- getArgs 
