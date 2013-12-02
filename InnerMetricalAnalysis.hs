@@ -87,7 +87,9 @@ onsetGrid (g:gs) (o:os) | g == o = True  : onsetGrid gs    os
 onsetGrid _      _     = error "onsetGrid: non-monotone onsets"
 
 
-        
+-- | Calculates the length of a local meter by projecting it forward. The
+-- first argument is a vector of 'Bool's that represents the metrical grid,
+-- where True represents an onset
 getLength :: Vector Bool -> Period -> Time -> Len
 getLength v (Period p) o = pred $ project o where
 
@@ -256,6 +258,9 @@ toNewMeterMap = M.map convert where
   convert :: [(Time, Len)] -> OnsetMap
   convert = M.fromList . map (first time)
 
-jmrEx :: [Time]
+jmrEx, testRes3 :: [Time]
 jmrEx = [0,1,2,6,8,9,10,14,16,17,18,22,24,25,26,30]
 -- metric weight should be: [17,13,65,57,25,21,65,57,33,21,65,57,25,13,65,57]
+
+testRes3 = [12,21,36,48,60,78,81,93,99,117,129,135,147,150,153,156,162,171,189,204,216,237,243,261,273,282,291,312,324,345,360,378,390,408,411,417,435,453,459,474,495,498,516,522,543,558,567,573,576,582]
+-- metric weight should be: [25,40,16,33,20,21,70,8,52,57,36,73,42,53,61,29,61,72,82,42,40,48,55,44,40,61,41,58,41,57,45,30,28,42,49,41,29,62,32,45,33,37,34,12,37,41,16,37,12,8]

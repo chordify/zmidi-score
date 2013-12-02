@@ -4,7 +4,7 @@ module Main where
 import MidiCommonIO 
 
 import ZMidiBasic            hiding ( Time )
-import MelFind                      ( getAccompQuant )
+import MelFind                      ( getAccompQuant, findMelodyQuant )
 import InnerMetricalAnalysis hiding ( main )
 import LocalMeter           
 -- import Math.Statistics              ( pearson )
@@ -15,7 +15,8 @@ type Pattern  = (Int, Float)
 
 matchIMA :: ShortestNote -> MidiScore -> [(Int, Bool, Double)]
 matchIMA q ms = 
-  let acc = getAccompQuant q ms 
+  -- let acc = getAccompQuant q ms 
+  let acc = findMelodyQuant q ms
       ons = toOnsets acc
       ws  = getSpectralWeight (Period . getMinDur . buildTickMap $ [acc]) 
            . map Time $ ons
@@ -28,8 +29,7 @@ match m ((g, w):t) [] =              (g, False, fromIntegral w / m) : match m t 
 match m ((g, w):t) (o:os) | g <  o = (g, False, fromIntegral w / m) : match m t (o:os)
                           | g == o = (g, True , fromIntegral w / m) : match m t os
                           | otherwise = error "unmatched onset"
-match _ _ _ = error "list of unequal lengths"
-                          
+match _ _ _ = error "list of unequal lengths"             
 
 preProcessMidi :: ShortestNote -> MidiScore -> [Time]
 preProcessMidi q ms = map Time . toOnsets . getAccompQuant q $ ms

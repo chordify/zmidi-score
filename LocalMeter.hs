@@ -39,9 +39,11 @@ instance Arbitrary Len where
 
 instance Arbitrary Period where
      arbitrary = choose (1,20) >>= return . Period
+     -- arbitrary = choose (3,30) >>= return . Period
 
 instance Arbitrary Time where
      arbitrary = choose (1,8) >>= return . Time
+     -- arbitrary = elements [3, 6 .. 21] >>= return . Time
      
 instance Arbitrary [Time] where
      arbitrary = choose (1,100) >>= genOnsets
