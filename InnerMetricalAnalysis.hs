@@ -55,22 +55,32 @@ type OnsetMap = IntMap Len
 -- the base of note onsets. The model considers all the pulses, called 
 -- local metres, that can overlay with each other with very different periods 
 -- and shifted at all phases.
-getLocalMeters :: Period -> [Time] -> MeterMap
-getLocalMeters _   []  = empty
-getLocalMeters phs ons = foldl' onePeriod empty 
-              -- todo change this into a parameter
-              ([phs, (2 * phs) .. (Period (time . last $ ons) `div` 2)]) where
-              
-   v = V.fromList $ onsetGrid [0 .. last ons] ons
+getLocalMeters :: Period -> Period -> [Time] -> MeterMap
+getLocalMeters _  _   []  = empty
+getLocalMeters ml mxP ons = foldl' onePeriod empty [1, 2 .. (mxP `div` ml)] where
+   
+   -- normalise the onset times by dividing them by the minimum length
+   ons' = divideByMinLength ml ons 
+   -- preprocess onsets for fast lookup
+   v    = V.fromList $ onsetGrid [0 .. last ons'] ons'
    
    onePeriod :: MeterMap -> Period -> MeterMap
-   onePeriod m p = insertMeters facts m p . foldl oneMeter empty $ ons where
+   onePeriod m p = insertMeters facts m p . foldl oneMeter empty $ ons' where
    
      facts = factors p
      
      -- oneMeter :: [(Time, Len)] -> Time -> [(Time, Len)]     
      oneMeter :: OnsetMap -> Time -> OnsetMap
      oneMeter l t = addLMeter l p t $ getLength v p t
+
+divideByMinLength :: Period -> [Time] -> [Time]
+divideByMinLength (Period l) = map divErr  where
+
+  divErr :: Time -> Time
+  divErr (Time t) = case t `divMod` l of
+                      (t',0) -> Time t'
+                      _      -> error ("cannot normailse onset: " ++ show t ++
+                                       " cannot be divided by "   ++ show l)
      
 -- | Creates a grid of 'Bool's where 'True' represents an onset and 'False'
 -- no onset
@@ -181,12 +191,13 @@ showMeter p (t, Len l) = " (onset="++ show t++ " per=" ++ show p ++ " len="++ sh
 -- Moreover, the intuition modelled in the metric weight is that longer 
 -- repetitions should contribute more weight than shorter ones.
 getMetricWeight :: Period -> [Time] -> [Weight]
-getMetricWeight p = elems . getMetricMap p where
+getMetricWeight p ons = elems . getMetricMap p (maxPeriod ons) $ ons
  
 type WeightMap = IntMap Weight
 
-getMetricMap :: Period -> [Time] -> WeightMap
-getMetricMap mP ons = foldrWithKey onePeriod initMap $ getLocalMeters mP ons where
+getMetricMap :: Period -> Period -> [Time] -> WeightMap
+getMetricMap ml mP ons = foldrWithKey onePeriod initMap 
+                       $ getLocalMeters ml mP ons where
    
    initMap :: WeightMap 
    initMap = foldr (\o m -> insertWith (+) o 0 m) empty (map time ons)
@@ -204,11 +215,12 @@ getMetricMap mP ons = foldrWithKey onePeriod initMap $ getLocalMeters mP ons whe
 -- the entire piece.
 getSpectralWeight :: Period -> [Time] -> [(Int, Weight)]
 getSpectralWeight _ []  = []
-getSpectralWeight p os = assocs $ getSpectralMap p os 
+getSpectralWeight p os = assocs $ getSpectralMap p (maxPeriod os) os 
                       [(head os), ((Time $ period p) + head os) .. (last os)]
  
-getSpectralMap :: Period -> [Time] -> [Time] -> WeightMap
-getSpectralMap mP ons grid = foldrWithKey onePeriod initMap $ getLocalMeters mP ons where
+getSpectralMap :: Period -> Period -> [Time] -> [Time] -> WeightMap
+getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap 
+                              $ getLocalMeters ml mP ons where
    
    intGrid :: [Int]
    intGrid = map time grid
@@ -226,6 +238,9 @@ getSpectralMap mP ons grid = foldrWithKey onePeriod initMap $ getLocalMeters mP 
        addWeight o m'' 
          | o `mod` p == t `mod` p = insertWith (+) o ( l ^ (2 :: Int) ) m''
          | otherwise              = m''
+ 
+maxPeriod :: [Time] -> Period
+maxPeriod ts = Period ((time . last $ ts) `div` 2)
  
 -- testing
 main :: IO ()
@@ -250,7 +265,9 @@ pMetricWeight :: [Time] -> Bool
 pMetricWeight ons = getMetricWeightOld 1 ons == getMetricWeight 1 ons
         
 pLocalMeter :: Period -> [Time] -> Bool
-pLocalMeter p o = toNewMeterMap (getLocalMetersOld p o) == getLocalMeters p o
+pLocalMeter l@(Period p) o = 
+  let o' = map (* Time p) o in  toNewMeterMap (getLocalMetersOld l o') 
+                        == getLocalMeters l (maxPeriod o') o'
                
 toNewMeterMap :: IntMap [(Time, Len)] -> MeterMap
 toNewMeterMap = M.map convert where
