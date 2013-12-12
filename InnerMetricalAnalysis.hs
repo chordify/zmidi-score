@@ -288,7 +288,8 @@ testRes3 = [12,21,36,48,60,78,81,93,99,117,129,135,147,150,153,156,162,171,189,2
 -- metric weight should be: [25,40,16,33,20,21,70,8,52,57,36,73,42,53,61,29,61,72,82,42,40,48,55,44,40,61,41,58,41,57,45,30,28,42,49,41,29,62,32,45,33,37,34,12,37,41,16,37,12,8]
 
 {-
-important test case to test with java version
+important test case to test with java version:
+[4,8,24,36,48,52,72,88,120,128,144,156,164,168,188,192,208,236,240,264,268,280,304,332,364,376] 
 *InnerMetricalAnalysis Test.QuickCheck> let t = [4,8,24,36,48,52,72,88,120,128,164,168]  :: [Time]
 *InnerMetricalAnalysis Test.QuickCheck> putStrLn . showMeterMap . toNewMeterMap $ getLocalMetersOld 4 t
 Period: 12 (onset=24 per=12 len=2)

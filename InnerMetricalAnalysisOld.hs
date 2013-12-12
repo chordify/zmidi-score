@@ -16,6 +16,7 @@ module InnerMetricalAnalysisOld ( getMetricWeightOld
                                 , getSpectralWeightOld 
                                 , getLocalMetersOld
                                 , showMeterMap2
+                                , startProj
                                 ) where
 
 import Prelude
@@ -42,11 +43,11 @@ getLocalMetersOld phs ons = foldl' onePeriod empty
   
   onePeriod :: MeterMap2 -> Period -> MeterMap2
   onePeriod m p = insertMeters2 m p $ foldl' (startProj p) [] (tails ons)
-  
-  startProj :: Period -> [(Time,Len)] -> [Time] -> [(Time,Len)]
-  startProj _ m []  = m
-  startProj p m tls = project p (head tls) 0 m tls
-  -- startProj p m tls = traceShow (p,a) a where a = project (head tls) 0 tls p m
+
+startProj :: Period -> [(Time,Len)] -> [Time] -> [(Time,Len)]
+startProj _ m []  = m
+startProj p m tls = project p (head tls) 0 m tls where
+-- startProj p m tls = traceShow (p,a) a where a = project (head tls) 0 tls p m
     
   -- given a phase (IOI), projects a local meter forward
   project :: Period -> Time -> Len -> [(Time,Len)] -> [Time] -> [(Time,Len)]
