@@ -40,7 +40,7 @@ import qualified Data.IntMap as M ( lookup, fromList, null, map )
 import Data.Vector                ( Vector, (!) )
 import qualified Data.Vector as V ( fromList, length )
 import LocalMeter
-import InnerMetricalAnalysisOld   ( getLocalMetersOld, getSpectralWeightOld, getMetricWeightOld )
+import InnerMetricalAnalysisOld
 import Control.Arrow              ( first )
 
 import Debug.Trace
@@ -65,15 +65,16 @@ getLocalMeters ml mxP ons = foldl' onePeriod empty [1, 2 .. (mxP `div` ml)] wher
    ons' = divideByMinLength ml ons 
    -- preprocess onsets for fast lookup
    v    = V.fromList $ onsetGrid [0 .. last ons'] ons'
+   ml'  = period ml
    
    onePeriod :: MeterMap -> Period -> MeterMap
-   onePeriod m p = insertMeters facts m p . foldl oneMeter empty $ ons' where
+   onePeriod m p = insertMeters facts m  (p * ml) . foldl oneMeter empty $ ons' where
    
      facts = factors p
      
      -- oneMeter :: [(Time, Len)] -> Time -> [(Time, Len)]     
      oneMeter :: OnsetMap -> Time -> OnsetMap
-     oneMeter l t = addLMeter l p t $ getLength v p t
+     oneMeter l t = addLMeter l (p * ml) (t * Time ml') (getLength v p t)
 
 divideByMinLength :: Period -> [Time] -> [Time]
 divideByMinLength (Period l) = map divErr  where
@@ -81,7 +82,7 @@ divideByMinLength (Period l) = map divErr  where
   divErr :: Time -> Time
   divErr (Time t) = case t `divMod` l of
                       (t',0) -> Time t'
-                      _      -> error ("cannot normailse onset: " ++ show t ++
+                      _      -> error ("cannot normalise onset: " ++ show t ++
                                        " cannot be divided by "   ++ show l)
      
 -- | Creates a grid of 'Bool's where 'True' represents an onset and 'False'
@@ -285,3 +286,20 @@ jmrEx = [0,1,2,6,8,9,10,14,16,17,18,22,24,25,26,30]
 
 testRes3 = [12,21,36,48,60,78,81,93,99,117,129,135,147,150,153,156,162,171,189,204,216,237,243,261,273,282,291,312,324,345,360,378,390,408,411,417,435,453,459,474,495,498,516,522,543,558,567,573,576,582]
 -- metric weight should be: [25,40,16,33,20,21,70,8,52,57,36,73,42,53,61,29,61,72,82,42,40,48,55,44,40,61,41,58,41,57,45,30,28,42,49,41,29,62,32,45,33,37,34,12,37,41,16,37,12,8]
+
+{-
+important test case to test with java version
+*InnerMetricalAnalysis Test.QuickCheck> let t = [4,8,24,36,48,52,72,88,120,128,164,168]  :: [Time]
+*InnerMetricalAnalysis Test.QuickCheck> putStrLn . showMeterMap . toNewMeterMap $ getLocalMetersOld 4 t
+Period: 12 (onset=24 per=12 len=2)
+Period: 24 (onset=24 per=24 len=2)
+Period: 40 (onset=8 per=40 len=4)
+Period: 48 (onset=24 per=48 len=3)
+
+*InnerMetricalAnalysis Test.QuickCheck> putStrLn . showMeterMap $ getLocalMeters 4 (maxPeriod t) t
+Period: 12 (onset=24 per=12 len=2)
+Period: 24 (onset=24 per=24 len=2)
+Period: 40 (onset=8 per=40 len=4)
+Period: 48 (onset=24 per=48 len=3)
+Period: 80 (onset=8 per=80 len=2)
+-}

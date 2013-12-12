@@ -15,11 +15,12 @@
 module InnerMetricalAnalysisOld ( getMetricWeightOld
                                 , getSpectralWeightOld 
                                 , getLocalMetersOld
+                                , showMeterMap2
                                 ) where
 
 import Prelude
 import Data.List                  ( tails, foldl' )
-import Data.IntMap                ( empty, IntMap, insert, mapWithKey )
+import Data.IntMap                ( empty, IntMap, insert, mapWithKey, toAscList )
 import qualified Data.IntMap as M ( lookup, foldr )
 import LocalMeter
 
@@ -77,6 +78,16 @@ insertMeters2 m p l = case filter (isMaximal m p) l of
                         -- x  -> trace ("insert: " ++ show p ++ show l) (insert (period p) x m)
 
 type MeterMap2 = IntMap [(Time, Len)]
+
+showMeterMap2 :: MeterMap2 -> String
+showMeterMap2 = concatMap showPer . toAscList
+
+showPer :: (Int, [(Time,Len)]) -> String
+showPer (p, l) =  "Period: " ++ show p 
+               ++ concatMap (showMeter p) l ++ "\n"
+
+showMeter :: Int -> (Time, Len) -> String
+showMeter p (t, Len l) = " (onset="++ show t++ " per=" ++ show p ++ " len="++ show l ++ ")"
 
 isMaximal :: MeterMap2 -> Period -> (Time, Len) -> Bool
 isMaximal m p tl = and . map (isMaxInMeterMap m) . factors $ p where
