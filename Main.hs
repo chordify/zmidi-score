@@ -7,7 +7,7 @@ import MidiCommonIO       ( mapDirInDir, mapDir' )
 
 -- other libraries
 import System.Console.ParseArgs
-import Control.Monad      ( void, when )
+import Control.Monad      ( void )
 import RTCParser          ( readRTC, RTC (..) )
 import MatchFile          ( readRTCMidis, matchAll, copyRTCMidi, printMatch )
 import RagPat             ( printFileSubDiv, printSubDiv -- , hasValidTimeSig
@@ -90,7 +90,8 @@ showFileStats fp = do mf <- readMidi fp
                         Left  err -> putStrLn (fp ++ '\t' : show err)
                         Right mid -> 
                           do let m  = quantise FourtyEighth . midiFileToMidiScore $ mid
-                             when (hasValidGridSize m) (putStrLn fp)
+                             putStrLn fp
+                             putStrLn (showMidiScore m)
 
 showDirStats :: FilePath -> [RTC] -> IO ()
 showDirStats dir c = do m <- readRTCMidis FourtyEighth dir
