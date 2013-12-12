@@ -43,6 +43,8 @@ import LocalMeter
 import InnerMetricalAnalysisOld   ( getLocalMetersOld, getSpectralWeightOld, getMetricWeightOld )
 import Control.Arrow              ( first )
 
+import Debug.Trace
+
 type Weight = Int
 type MeterMap = IntMap (IntMap Len)
 type OnsetMap = IntMap Len
@@ -266,9 +268,11 @@ pMetricWeight ons = getMetricWeightOld 1 ons == getMetricWeight 1 ons
         
 pLocalMeter :: Period -> [Time] -> Bool
 pLocalMeter l@(Period p) o = 
-  let o' = map (* Time p) o in  toNewMeterMap (getLocalMetersOld l o') 
-                        == getLocalMeters l (maxPeriod o') o'
-               
+  let o'   = map (* Time p) o 
+      test = toNewMeterMap (getLocalMetersOld l o') 
+           == getLocalMeters l (maxPeriod o') o'
+  in traceShow (map ((* p) . time) o) test
+  
 toNewMeterMap :: IntMap [(Time, Len)] -> MeterMap
 toNewMeterMap = M.map convert where
   
