@@ -32,8 +32,7 @@ module InnerMetricalAnalysis -- ( -- * Types for Local Meters
                              -- )
                              where
 
-import Data.List                  ( foldl', nubBy )
-import Data.Function              ( on )
+import Data.List                  ( foldl' )
 import Data.IntMap                ( empty, IntMap, insert, toAscList, elems
                                   , foldrWithKey, insertWith, split, assocs
                                   , filterWithKey, mapKeysMonotonic )
@@ -67,7 +66,6 @@ getLocalMeters ml mxP ons = scaleMeterMap ml
    ons' = divideByMinLength ml ons 
    -- preprocess onsets for fast lookup
    v    = V.fromList $ onsetGrid [0 .. last ons'] ons'
-   ml'  = period ml
    
    onePeriod :: MeterMap -> Period -> MeterMap
    onePeriod m p = insertMeters facts m  p . foldl oneMeter empty $ ons' where
@@ -242,32 +240,19 @@ getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap
    initMap = foldr (\o m -> insertWith (+) o 0 m) empty grid
    
    onePeriod :: Int -> OnsetMap -> WeightMap -> WeightMap
-   onePeriod p om w = foldrWithKey oneMeter w om where
+   onePeriod p om wm = foldrWithKey oneMeter wm om where
      
      oneMeter :: Int -> Len -> WeightMap -> WeightMap
      oneMeter t (Len l) m' = foldr addWeight m' grid where
        
+       -- addWeigth is executed very often, hence we precompute some values
        tp = t `mod` p
+       w  = l ^ (2 :: Int)
      
        addWeight :: Int -> WeightMap -> WeightMap
        addWeight o m'' 
-         | o `mod` p == tp = insertWith (+) o ( l ^ (2 :: Int) ) m''
+         | o `mod` p == tp = insertWith (+) o w m''
          | otherwise       = m''
- 
--- slower than getSpectralMap 
-getSpectralMap2 :: Period -> Period -> [Time] -> [Int] -> [Weight]
-getSpectralMap2 ml mP ons grid = map (oneOnset (getLocalMeters ml mP ons)) grid where
-
-   oneOnset :: MeterMap -> Int -> Int
-   oneOnset m o = foldrWithKey onePeriod 0 m where
-
-     onePeriod :: Int -> IntMap Len -> Int -> Int 
-     onePeriod p pm w = foldrWithKey oneMeter w pm where
-       
-       oneMeter :: Int -> Len -> Int -> Int
-       oneMeter t l w' 
-         | o `mod` p == t `mod` p = w' + ( len l ^ (2 :: Int) )
-         | otherwise              = w'
 
 maxPeriod :: [Time] -> Period
 maxPeriod [] = error "maxPeriod: empty list"
@@ -308,12 +293,6 @@ toNewMeterMap = M.map convert where
   convert :: [(Time, Len)] -> OnsetMap
   convert = M.fromList . map (first time)
 
-pIsMax :: Period -> [(Time, Len)] -> Period -> Time -> Len -> Bool
-pIsMax pa dat pb t l = 
-  let  dat' = dat -- nubBy ((==) `on` fst) dat
-  in   isMax2 pa (M.fromList . map (first time) $ dat') pb (time t) l
-    == isMax pa dat' pb (t, l)
-  
 jmrEx, testRes3 :: [Time]
 jmrEx = [0,1,2,6,8,9,10,14,16,17,18,22,24,25,26,30]
 -- metric weight should be: [17,13,65,57,25,21,65,57,33,21,65,57,25,13,65,57]
@@ -321,20 +300,3 @@ jmrEx = [0,1,2,6,8,9,10,14,16,17,18,22,24,25,26,30]
 testRes3 = [12,21,36,48,60,78,81,93,99,117,129,135,147,150,153,156,162,171,189,204,216,237,243,261,273,282,291,312,324,345,360,378,390,408,411,417,435,453,459,474,495,498,516,522,543,558,567,573,576,582]
 -- metric weight should be: [25,40,16,33,20,21,70,8,52,57,36,73,42,53,61,29,61,72,82,42,40,48,55,44,40,61,41,58,41,57,45,30,28,42,49,41,29,62,32,45,33,37,34,12,37,41,16,37,12,8]
 
-{-
-important test case to test with java version:
-[4,8,24,36,48,52,72,88,120,128,144,156,164,168,188,192,208,236,240,264,268,280,304,332,364,376] 
-*InnerMetricalAnalysis Test.QuickCheck> let t = [4,8,24,36,48,52,72,88,120,128,164,168]  :: [Time]
-*InnerMetricalAnalysis Test.QuickCheck> putStrLn . showMeterMap . toNewMeterMap $ getLocalMetersOld 4 t
-Period: 12 (onset=24 per=12 len=2)
-Period: 24 (onset=24 per=24 len=2)
-Period: 40 (onset=8 per=40 len=4)
-Period: 48 (onset=24 per=48 len=3)
-
-*InnerMetricalAnalysis Test.QuickCheck> putStrLn . showMeterMap $ getLocalMeters 4 (maxPeriod t) t
-Period: 12 (onset=24 per=12 len=2)
-Period: 24 (onset=24 per=24 len=2)
-Period: 40 (onset=8 per=40 len=4)
-Period: 48 (onset=24 per=48 len=3)
-Period: 80 (onset=8 per=80 len=2)
--}
