@@ -224,26 +224,28 @@ getMetricMap ml mP ons = foldrWithKey onePeriod initMap
 getSpectralWeight :: Period -> [Time] -> [(Int, Weight)]
 getSpectralWeight _ []  = []
 getSpectralWeight p os = assocs $ getSpectralMap p (maxPeriod os) os (createGrid p os)
-                     
-createGrid :: Period -> [Time] -> [Time] 
+          
+-- | Creates a grid that to align the spectral weights to
+-- 
+-- >>> createGrid 2 [2,6,8,12,16]
+-- >>> [2,4,6,8,10,12,14,16]
+--
+createGrid :: Period -> [Time] -> [Int] 
 createGrid _          []     = []
-createGrid (Period p) os = [head os, (Time p + head os) .. (last os)]
+createGrid (Period p) os = [time (head os), (p + time (head os)) .. time (last os)]
  
-getSpectralMap :: Period -> Period -> [Time] -> [Time] -> WeightMap
+getSpectralMap :: Period -> Period -> [Time] -> [Int] -> WeightMap
 getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap 
                               $ getLocalMeters ml mP ons where
    
-   intGrid :: [Int]
-   intGrid = map time grid
-   
    initMap :: WeightMap 
-   initMap = foldr (\o m -> insertWith (+) o 0 m) empty intGrid
+   initMap = foldr (\o m -> insertWith (+) o 0 m) empty grid
    
    onePeriod :: Int -> OnsetMap -> WeightMap -> WeightMap
    onePeriod p om w = foldrWithKey oneMeter w om where
      
      oneMeter :: Int -> Len -> WeightMap -> WeightMap
-     oneMeter t (Len l) m' = foldr addWeight m' intGrid where
+     oneMeter t (Len l) m' = foldr addWeight m' grid where
      
        addWeight :: Int -> WeightMap -> WeightMap
        addWeight o m'' 
