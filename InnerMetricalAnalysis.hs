@@ -32,10 +32,11 @@ module InnerMetricalAnalysis -- ( -- * Types for Local Meters
                              -- )
                              where
 
-import Data.List                  ( foldl' )
+import Data.List                  ( foldl', nubBy )
+import Data.Function              ( on )
 import Data.IntMap                ( empty, IntMap, insert, toAscList, elems
                                   , foldrWithKey, insertWith, split, assocs
-                                  , filterWithKey )
+                                  , filterWithKey, mapKeysMonotonic )
 import qualified Data.IntMap as M ( lookup, fromList, null, map )
 import Data.Vector                ( Vector, (!) )
 import qualified Data.Vector as V ( fromList, length )
@@ -59,7 +60,8 @@ type OnsetMap = IntMap Len
 -- and shifted at all phases.
 getLocalMeters :: Period -> Period -> [Time] -> MeterMap
 getLocalMeters _  _   []  = empty
-getLocalMeters ml mxP ons = foldl' onePeriod empty [1, 2 .. (mxP `div` ml)] where
+getLocalMeters ml mxP ons = scaleMeterMap ml 
+                          $ foldl' onePeriod empty [1, 2 .. (mxP `div` ml)] where
    
    -- normalise the onset times by dividing them by the minimum length
    ons' = divideByMinLength ml ons 
@@ -68,13 +70,14 @@ getLocalMeters ml mxP ons = foldl' onePeriod empty [1, 2 .. (mxP `div` ml)] wher
    ml'  = period ml
    
    onePeriod :: MeterMap -> Period -> MeterMap
-   onePeriod m p = insertMeters facts m  (p * ml) . foldl oneMeter empty $ ons' where
+   onePeriod m p = insertMeters facts m  p . foldl oneMeter empty $ ons' where
    
      facts = factors p
      
      -- oneMeter :: [(Time, Len)] -> Time -> [(Time, Len)]     
      oneMeter :: OnsetMap -> Time -> OnsetMap
-     oneMeter l t = addLMeter l (p * ml) (t * Time ml') (getLength v p t)
+     -- oneMeter l t = addLMeter l (p * ml) (t * Time ml') (getLength v p t)
+     oneMeter l t = addLMeter l p t (getLength v p t)
 
 divideByMinLength :: Period -> [Time] -> [Time]
 divideByMinLength (Period l) = map divErr  where
@@ -84,6 +87,9 @@ divideByMinLength (Period l) = map divErr  where
                       (t',0) -> Time t'
                       _      -> error ("cannot normalise onset: " ++ show t ++
                                        " cannot be divided by "   ++ show l)
+     
+scaleMeterMap :: Period -> MeterMap -> MeterMap
+scaleMeterMap (Period p) = f . M.map f where f = mapKeysMonotonic (* p)
      
 -- | Creates a grid of 'Bool's where 'True' represents an onset and 'False'
 -- no onset
@@ -280,6 +286,12 @@ toNewMeterMap = M.map convert where
   convert :: [(Time, Len)] -> OnsetMap
   convert = M.fromList . map (first time)
 
+pIsMax :: Period -> [(Time, Len)] -> Period -> Time -> Len -> Bool
+pIsMax pa dat pb t l = 
+  let  dat' = dat -- nubBy ((==) `on` fst) dat
+  in   isMax2 pa (M.fromList . map (first time) $ dat') pb (time t) l
+    == isMax pa dat' pb (t, l)
+  
 jmrEx, testRes3 :: [Time]
 jmrEx = [0,1,2,6,8,9,10,14,16,17,18,22,24,25,26,30]
 -- metric weight should be: [17,13,65,57,25,21,65,57,33,21,65,57,25,13,65,57]
