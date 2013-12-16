@@ -223,9 +223,7 @@ getMetricMap ml mP ons = foldrWithKey onePeriod initMap
 -- the entire piece.
 getSpectralWeight :: Period -> [Time] -> [(Int, Weight)]
 getSpectralWeight _ []  = []
-getSpectralWeight p os = let grid = createGrid p os 
-                         in zip grid (getSpectralMap2 p (maxPeriod os) os grid)
--- getSpectralWeight p os = assocs $ getSpectralMap p (maxPeriod os) os (createGrid p os)
+getSpectralWeight p os = assocs $ getSpectralMap p (maxPeriod os) os (createGrid p os)
           
 -- | Creates a grid that to align the spectral weights to:
 -- 
@@ -248,11 +246,13 @@ getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap
      
      oneMeter :: Int -> Len -> WeightMap -> WeightMap
      oneMeter t (Len l) m' = foldr addWeight m' grid where
+       
+       tp = t `mod` p
      
        addWeight :: Int -> WeightMap -> WeightMap
        addWeight o m'' 
-         | o `mod` p == t `mod` p = insertWith (+) o ( l ^ (2 :: Int) ) m''
-         | otherwise              = m''
+         | o `mod` p == tp = insertWith (+) o ( l ^ (2 :: Int) ) m''
+         | otherwise       = m''
  
 -- slower than getSpectralMap 
 getSpectralMap2 :: Period -> Period -> [Time] -> [Int] -> [Weight]
