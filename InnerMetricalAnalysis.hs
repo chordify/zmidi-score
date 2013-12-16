@@ -76,7 +76,6 @@ getLocalMeters ml mxP ons = scaleMeterMap ml
      
      -- oneMeter :: [(Time, Len)] -> Time -> [(Time, Len)]     
      oneMeter :: OnsetMap -> Time -> OnsetMap
-     -- oneMeter l t = addLMeter l (p * ml) (t * Time ml') (getLength v p t)
      oneMeter l t = addLMeter l p t (getLength v p t)
 
 divideByMinLength :: Period -> [Time] -> [Time]
@@ -224,8 +223,11 @@ getMetricMap ml mP ons = foldrWithKey onePeriod initMap
 -- the entire piece.
 getSpectralWeight :: Period -> [Time] -> [(Int, Weight)]
 getSpectralWeight _ []  = []
-getSpectralWeight p os = assocs $ getSpectralMap p (maxPeriod os) os 
-                      [(head os), ((Time $ period p) + head os) .. (last os)]
+getSpectralWeight p os = assocs $ getSpectralMap p (maxPeriod os) os (createGrid p os)
+                     
+createGrid :: Period -> [Time] -> [Time] 
+createGrid _          []     = []
+createGrid (Period p) os = [head os, (Time p + head os) .. (last os)]
  
 getSpectralMap :: Period -> Period -> [Time] -> [Time] -> WeightMap
 getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap 
@@ -249,6 +251,7 @@ getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap
          | otherwise              = m''
  
 maxPeriod :: [Time] -> Period
+maxPeriod [] = error "maxPeriod: empty list"
 maxPeriod ts = Period ((time . last $ ts) `div` 2)
  
 -- testing
