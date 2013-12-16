@@ -223,9 +223,11 @@ getMetricMap ml mP ons = foldrWithKey onePeriod initMap
 -- the entire piece.
 getSpectralWeight :: Period -> [Time] -> [(Int, Weight)]
 getSpectralWeight _ []  = []
-getSpectralWeight p os = assocs $ getSpectralMap p (maxPeriod os) os (createGrid p os)
+getSpectralWeight p os = let grid = createGrid p os 
+                         in zip grid (getSpectralMap2 p (maxPeriod os) os grid)
+-- getSpectralWeight p os = assocs $ getSpectralMap p (maxPeriod os) os (createGrid p os)
           
--- | Creates a grid that to align the spectral weights to
+-- | Creates a grid that to align the spectral weights to:
 -- 
 -- >>> createGrid 2 [2,6,8,12,16]
 -- >>> [2,4,6,8,10,12,14,16]
@@ -252,6 +254,21 @@ getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap
          | o `mod` p == t `mod` p = insertWith (+) o ( l ^ (2 :: Int) ) m''
          | otherwise              = m''
  
+-- slower than getSpectralMap 
+getSpectralMap2 :: Period -> Period -> [Time] -> [Int] -> [Weight]
+getSpectralMap2 ml mP ons grid = map (oneOnset (getLocalMeters ml mP ons)) grid where
+
+   oneOnset :: MeterMap -> Int -> Int
+   oneOnset m o = foldrWithKey onePeriod 0 m where
+
+     onePeriod :: Int -> IntMap Len -> Int -> Int 
+     onePeriod p pm w = foldrWithKey oneMeter w pm where
+       
+       oneMeter :: Int -> Len -> Int -> Int
+       oneMeter t l w' 
+         | o `mod` p == t `mod` p = w' + ( len l ^ (2 :: Int) )
+         | otherwise              = w'
+
 maxPeriod :: [Time] -> Period
 maxPeriod [] = error "maxPeriod: empty list"
 maxPeriod ts = Period ((time . last $ ts) `div` 2)
