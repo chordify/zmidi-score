@@ -134,7 +134,7 @@ getMetricWeightOld phs ons = map snd $ getWeight partOfLMeter phs ons ons
 getSpectralWeightOld :: Period -> [Time] -> [Weight]
 getSpectralWeightOld _ []          = []
 getSpectralWeightOld phs ons@(h:t) = map snd $ getWeight matchPhase phs ons 
-                                           [h .. (last ons)]
+                                           [h, (h + Time (period phs)) .. (last ons)]
 
 
 getWeight :: (Time -> Int -> (Time,Len) -> Bool)

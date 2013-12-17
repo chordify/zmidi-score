@@ -284,8 +284,11 @@ main = print $ getMetricWeight 1 [8,14,22,28,29,30,37,39,46,48,52,54,59,64,67,68
 --------------------------------------------------------------------------------
 -- property testing
 --------------------------------------------------------------------------------
-pSpectralWeight :: [Time] -> Bool
-pSpectralWeight ons = traceShow (map time ons) $ getSpectralWeightOld 1 ons == map snd (getSpectralWeight 1 ons)
+pSpectralWeight :: Period -> [Time] -> Bool
+pSpectralWeight l@(Period p) o = 
+  let o'   = map (* Time p) o  
+      test  = getSpectralWeightOld l o' == map snd (getSpectralWeight l o')
+  in traceShow (map ((* p) . time) o) test
 
 pMetricWeight :: [Time] -> Bool
 pMetricWeight ons = getMetricWeightOld 1 ons == getMetricWeight 1 ons
