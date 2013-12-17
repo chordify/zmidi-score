@@ -35,13 +35,15 @@ module InnerMetricalAnalysis -- ( -- * Types for Local Meters
 import Data.List                  ( foldl' )
 import Data.IntMap                ( empty, IntMap, insert, toAscList, elems
                                   , foldrWithKey, insertWith, split, assocs
-                                  , filterWithKey )
+                                  , filterWithKey, mapKeysMonotonic )
 import qualified Data.IntMap as M ( lookup, fromList, null, map )
 import Data.Vector                ( Vector, (!) )
 import qualified Data.Vector as V ( fromList, length )
 import LocalMeter
-import InnerMetricalAnalysisOld   ( getLocalMetersOld, getSpectralWeightOld, getMetricWeightOld )
+import InnerMetricalAnalysisOld
 import Control.Arrow              ( first )
+
+import Debug.Trace
 
 type Weight = Int
 type MeterMap = IntMap (IntMap Len)
@@ -55,22 +57,36 @@ type OnsetMap = IntMap Len
 -- the base of note onsets. The model considers all the pulses, called 
 -- local metres, that can overlay with each other with very different periods 
 -- and shifted at all phases.
-getLocalMeters :: Period -> [Time] -> MeterMap
-getLocalMeters _   []  = empty
-getLocalMeters phs ons = foldl' onePeriod empty 
-              -- todo change this into a parameter
-              ([phs, (2 * phs) .. (Period (time . last $ ons) `div` 2)]) where
-              
-   v = V.fromList $ onsetGrid [0 .. last ons] ons
+getLocalMeters :: Period -> Period -> [Time] -> MeterMap
+getLocalMeters _  _   []  = empty
+getLocalMeters ml mxP ons = scaleMeterMap ml 
+                          $ foldl' onePeriod empty [1, 2 .. (mxP `div` ml)] where
+   
+   -- normalise the onset times by dividing them by the minimum length
+   ons' = divideByMinLength ml ons 
+   -- preprocess onsets for fast lookup
+   v    = V.fromList $ onsetGrid [0 .. last ons'] ons'
    
    onePeriod :: MeterMap -> Period -> MeterMap
-   onePeriod m p = insertMeters facts m p . foldl oneMeter empty $ ons where
+   onePeriod m p = insertMeters facts m  p . foldl oneMeter empty $ ons' where
    
      facts = factors p
      
      -- oneMeter :: [(Time, Len)] -> Time -> [(Time, Len)]     
      oneMeter :: OnsetMap -> Time -> OnsetMap
-     oneMeter l t = addLMeter l p t $ getLength v p t
+     oneMeter l t = addLMeter l p t (getLength v p t)
+
+divideByMinLength :: Period -> [Time] -> [Time]
+divideByMinLength (Period l) = map divErr  where
+
+  divErr :: Time -> Time
+  divErr (Time t) = case t `divMod` l of
+                      (t',0) -> Time t'
+                      _      -> error ("cannot normalise onset: " ++ show t ++
+                                       " cannot be divided by "   ++ show l)
+     
+scaleMeterMap :: Period -> MeterMap -> MeterMap
+scaleMeterMap (Period p) = f . M.map f where f = mapKeysMonotonic (* p)
      
 -- | Creates a grid of 'Bool's where 'True' represents an onset and 'False'
 -- no onset
@@ -181,12 +197,13 @@ showMeter p (t, Len l) = " (onset="++ show t++ " per=" ++ show p ++ " len="++ sh
 -- Moreover, the intuition modelled in the metric weight is that longer 
 -- repetitions should contribute more weight than shorter ones.
 getMetricWeight :: Period -> [Time] -> [Weight]
-getMetricWeight p = elems . getMetricMap p where
+getMetricWeight p ons = elems . getMetricMap p (maxPeriod ons) $ ons
  
 type WeightMap = IntMap Weight
 
-getMetricMap :: Period -> [Time] -> WeightMap
-getMetricMap mP ons = foldrWithKey onePeriod initMap $ getLocalMeters mP ons where
+getMetricMap :: Period -> Period -> [Time] -> WeightMap
+getMetricMap ml mP ons = foldrWithKey onePeriod initMap 
+                       $ getLocalMeters ml mP ons where
    
    initMap :: WeightMap 
    initMap = foldr (\o m -> insertWith (+) o 0 m) empty (map time ons)
@@ -204,28 +221,51 @@ getMetricMap mP ons = foldrWithKey onePeriod initMap $ getLocalMeters mP ons whe
 -- the entire piece.
 getSpectralWeight :: Period -> [Time] -> [(Int, Weight)]
 getSpectralWeight _ []  = []
-getSpectralWeight p os = assocs $ getSpectralMap p os 
-                      [(head os), ((Time $ period p) + head os) .. (last os)]
+getSpectralWeight p os = assocs $ getSpectralMap p (maxPeriod os) os (createGrid p os)
+          
+-- | Creates a grid that to align the spectral weights to:
+-- 
+-- >>> createGrid 2 [2,6,8,12,16]
+-- >>> [2,4,6,8,10,12,14,16]
+--
+createGrid :: Period -> [Time] -> [Int] 
+createGrid _          []     = []
+createGrid (Period p) os = [time (head os), (p + time (head os)) .. time (last os)]
  
-getSpectralMap :: Period -> [Time] -> [Time] -> WeightMap
-getSpectralMap mP ons grid = foldrWithKey onePeriod initMap $ getLocalMeters mP ons where
-   
-   intGrid :: [Int]
-   intGrid = map time grid
+getSpectralMap :: Period -> Period -> [Time] -> [Int] -> WeightMap
+getSpectralMap _  _  _   []   = empty
+getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap 
+                              $ getLocalMeters ml mP ons where
    
    initMap :: WeightMap 
-   initMap = foldr (\o m -> insertWith (+) o 0 m) empty intGrid
+   initMap = foldr (\o m -> insertWith (+) o 0 m) empty grid
+   
+   start = head grid 
+   end   = last grid  
+   
+   -- calculate the spectral onsets that belong to a local meter
+   spectralGrid :: Int -> Int -> [Int]
+   spectralGrid ms p = let rm = ms `mod` p
+                       in dropWhile (< start) [ rm, (rm + p) .. end ]
    
    onePeriod :: Int -> OnsetMap -> WeightMap -> WeightMap
-   onePeriod p om w = foldrWithKey oneMeter w om where
+   onePeriod p om wm = foldrWithKey oneMeter wm om where
      
      oneMeter :: Int -> Len -> WeightMap -> WeightMap
-     oneMeter t (Len l) m' = foldr addWeight m' intGrid where
+     oneMeter t (Len l) m' = foldr addWeight m' $ spectralGrid t p where
+       
+       -- addWeigth is executed very often, hence we pre-compute some values
+       -- tp = t `mod` p
+       w  = l ^ (2 :: Int)
      
+       -- adds the spectral onsets to the weight map
        addWeight :: Int -> WeightMap -> WeightMap
-       addWeight o m'' 
-         | o `mod` p == t `mod` p = insertWith (+) o ( l ^ (2 :: Int) ) m''
-         | otherwise              = m''
+       addWeight o m'' = insertWith (+) o w m''
+
+           
+maxPeriod :: [Time] -> Period
+maxPeriod [] = error "maxPeriod: empty list"
+maxPeriod ts = Period ((time . last $ ts) `div` 2)
  
 -- testing
 main :: IO ()
@@ -243,15 +283,22 @@ main = print $ getMetricWeight 1 [8,14,22,28,29,30,37,39,46,48,52,54,59,64,67,68
 --------------------------------------------------------------------------------
 -- property testing
 --------------------------------------------------------------------------------
-pSpectralWeight :: [Time] -> Bool
-pSpectralWeight ons = getSpectralWeightOld 1 ons == map snd (getSpectralWeight 1 ons)
+pSpectralWeight :: Period -> [Time] -> Bool
+pSpectralWeight l@(Period p) o = 
+  let o'   = map (* Time p) o  
+      test  = getSpectralWeightOld l o' == map snd (getSpectralWeight l o')
+  in traceShow (map ((* p) . time) o) test
 
 pMetricWeight :: [Time] -> Bool
 pMetricWeight ons = getMetricWeightOld 1 ons == getMetricWeight 1 ons
         
 pLocalMeter :: Period -> [Time] -> Bool
-pLocalMeter p o = toNewMeterMap (getLocalMetersOld p o) == getLocalMeters p o
-               
+pLocalMeter l@(Period p) o = 
+  let o'   = map (* Time p) o 
+      test = toNewMeterMap (getLocalMetersOld l o') 
+           == getLocalMeters l (maxPeriod o') o'
+  in traceShow (map ((* p) . time) o) test
+  
 toNewMeterMap :: IntMap [(Time, Len)] -> MeterMap
 toNewMeterMap = M.map convert where
   
@@ -264,3 +311,4 @@ jmrEx = [0,1,2,6,8,9,10,14,16,17,18,22,24,25,26,30]
 
 testRes3 = [12,21,36,48,60,78,81,93,99,117,129,135,147,150,153,156,162,171,189,204,216,237,243,261,273,282,291,312,324,345,360,378,390,408,411,417,435,453,459,474,495,498,516,522,543,558,567,573,576,582]
 -- metric weight should be: [25,40,16,33,20,21,70,8,52,57,36,73,42,53,61,29,61,72,82,42,40,48,55,44,40,61,41,58,41,57,45,30,28,42,49,41,29,62,32,45,33,37,34,12,37,41,16,37,12,8]
+-- spectral weight should be: [67,0,0,18,0,0,41,0,0,61,0,0,33,0,0,94,0,0,42,0,0,30,0,0,41,0,0,33,0,0,17,0,0,61,0,0,80,0,0,17,0,0,58,0,0,21,0,0,41,0,0,89,0,0,46,0,0,9,0,0,33,0,0,50,0,0,38,0,0,116,0,0,33,0,0,25,0,0,33,0,0,42,0,0,30,0,0,73,0,0,21,0,0,21,0,0,53,0,0,17,0,0,26,0,0,95,0,0,33,0,0,17,0,0,33,0,0,61,0,0,25,0,0,90,0,0,67,0,0,9,0,0,29,0,0,67,0,0,53,0,0,69,0,0,45,0,0,22,0,0,78,0,0,29,0,0,25,0,0,89,0,0,25,0,0,13,0,0,51,0,0,38,0,0,21,0,0,103,0,0,29,0,0,21,0,0,25,0,0,42,0,0,63,0,0,61,0,0,25,0,0,26,0,0,73,0,0,29,0,0,30,0,0,57,0,0,38,0,0,17,0,0,37,0,0,65,0,0,17,0,0,129,0,0,30,0,0,13,0,0,33,0,0,29,0,0,21,0,0,101,0,0,46,0,0,13,0,0,41,0,0,70,0,0,25,0,0,62,0,0,78,0,0,26,0,0,41,0,0,58,0,0,17,0,0,82,0,0,29,0,0,25,0,0,50,0,0,17,0,0,79,0,0,61,0,0,38,0,0,21,0,0,86,0,0,34,0,0,17,0,0,65,0,0,25,0,0,21,0,0,25,0,0,78,0,0,42,0,0,94,0,0,29,0,0,13,0,0,78,0,0,38,0,0,13,0,0,70,0,0,29,0,0,13,0,0,79,0,0,21,0,0,17,0,0,65,0,0,62,0,0,17,0,0,33,0,0,29,0,0,29,0,0,95,0,0,67,0,0,75,0,0,29,0,0,54,0,0,25,0,0,65,0,0,29,0,0,13,0,0,58,0,0,50,0,0,25,0,0,61,0,0,38,0,0,9,0,0,29,0,0,83,0,0,25,0,0,114,0,0,25,0,0,22,0,0,41,0,0,21,0,0,58,0,0,78,0,0,33,0,0,17,0,0,54,0,0,29,0,0,29,0,0,90,0,0,58,0,0,13,0,0,37,0,0,41,0,0,22,0,0,82,0,0,67,0,0,9,0,0,33,0,0,25,0,0,29,0,0,77,0,0,33,0,0,26,0,0,53,0,0,63,0,0,29,0,0,73,0,0,43,0,0,17,0,0,71,0,0,53,0,0,25,0,0,107,0,0,33,0,0,46,0,0,46,0,0,42,0,0,21]

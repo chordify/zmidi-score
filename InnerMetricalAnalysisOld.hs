@@ -15,11 +15,14 @@
 module InnerMetricalAnalysisOld ( getMetricWeightOld
                                 , getSpectralWeightOld 
                                 , getLocalMetersOld
+                                , showMeterMap2
+                                , startProj
+                                , isMax
                                 ) where
 
 import Prelude
 import Data.List                  ( tails, foldl' )
-import Data.IntMap                ( empty, IntMap, insert, mapWithKey )
+import Data.IntMap                ( empty, IntMap, insert, mapWithKey, toAscList )
 import qualified Data.IntMap as M ( lookup, foldr )
 import LocalMeter
 
@@ -41,11 +44,11 @@ getLocalMetersOld phs ons = foldl' onePeriod empty
   
   onePeriod :: MeterMap2 -> Period -> MeterMap2
   onePeriod m p = insertMeters2 m p $ foldl' (startProj p) [] (tails ons)
-  
-  startProj :: Period -> [(Time,Len)] -> [Time] -> [(Time,Len)]
-  startProj _ m []  = m
-  startProj p m tls = project p (head tls) 0 m tls
-  -- startProj p m tls = traceShow (p,a) a where a = project (head tls) 0 tls p m
+
+startProj :: Period -> [(Time,Len)] -> [Time] -> [(Time,Len)]
+startProj _ m []  = m
+startProj p m tls = project p (head tls) 0 m tls where
+-- startProj p m tls = traceShow (p,a) a where a = project (head tls) 0 tls p m
     
   -- given a phase (IOI), projects a local meter forward
   project :: Period -> Time -> Len -> [(Time,Len)] -> [Time] -> [(Time,Len)]
@@ -77,6 +80,16 @@ insertMeters2 m p l = case filter (isMaximal m p) l of
                         -- x  -> trace ("insert: " ++ show p ++ show l) (insert (period p) x m)
 
 type MeterMap2 = IntMap [(Time, Len)]
+
+showMeterMap2 :: MeterMap2 -> String
+showMeterMap2 = concatMap showPer . toAscList
+
+showPer :: (Int, [(Time,Len)]) -> String
+showPer (p, l) =  "Period: " ++ show p 
+               ++ concatMap (showMeter p) l ++ "\n"
+
+showMeter :: Int -> (Time, Len) -> String
+showMeter p (t, Len l) = " (onset="++ show t++ " per=" ++ show p ++ " len="++ show l ++ ")"
 
 isMaximal :: MeterMap2 -> Period -> (Time, Len) -> Bool
 isMaximal m p tl = and . map (isMaxInMeterMap m) . factors $ p where
@@ -121,7 +134,7 @@ getMetricWeightOld phs ons = map snd $ getWeight partOfLMeter phs ons ons
 getSpectralWeightOld :: Period -> [Time] -> [Weight]
 getSpectralWeightOld _ []          = []
 getSpectralWeightOld phs ons@(h:t) = map snd $ getWeight matchPhase phs ons 
-                                           [h .. (last t)]
+                                           [h, (h + Time (period phs)) .. (last ons)]
 
 
 getWeight :: (Time -> Int -> (Time,Len) -> Bool)
