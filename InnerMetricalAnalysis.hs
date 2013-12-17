@@ -240,29 +240,28 @@ getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap
    initMap :: WeightMap 
    initMap = foldr (\o m -> insertWith (+) o 0 m) empty grid
    
-   start = head grid
+   start = head grid 
    end   = last grid  
+   
+   -- calculate the spectral onsets that belong to a local meter
+   spectralGrid :: Int -> Int -> [Int]
+   spectralGrid ms p = let rm = ms `mod` p
+                       in dropWhile (< start) [ rm, (rm + p) .. end ]
    
    onePeriod :: Int -> OnsetMap -> WeightMap -> WeightMap
    onePeriod p om wm = foldrWithKey oneMeter wm om where
      
      oneMeter :: Int -> Len -> WeightMap -> WeightMap
-     oneMeter t (Len l) m' = foldr addWeight m' 
-                           $ spectralGrid start end t p where
+     oneMeter t (Len l) m' = foldr addWeight m' $ spectralGrid t p where
        
-       -- addWeigth is executed very often, hence we precompute some values
+       -- addWeigth is executed very often, hence we pre-compute some values
        -- tp = t `mod` p
        w  = l ^ (2 :: Int)
      
+       -- adds the spectral onsets to the weight map
        addWeight :: Int -> WeightMap -> WeightMap
        addWeight o m'' = insertWith (+) o w m''
-         -- | o `mod` p == tp = insertWith (+) o w m''
-         -- | otherwise       = m''
 
-              
-spectralGrid :: Int -> Int -> Int -> Int -> [Int]
-spectralGrid srt stp ms p = let rm = ms `mod` p
-                            in dropWhile (< srt) [ rm, (rm + p) .. stp ]
            
 maxPeriod :: [Time] -> Period
 maxPeriod [] = error "maxPeriod: empty list"
