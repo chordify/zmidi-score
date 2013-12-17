@@ -15,15 +15,15 @@ type Pattern  = (Int, Float)
 
 matchIMA :: ShortestNote -> MidiScore -> [(Int, Bool, Double)]
 matchIMA q ms = 
-  -- let acc = getAccompQuant q ms 
-  let acc = findMelodyQuant q ms
+  let acc = getAccompQuant q ms 
+  -- let acc = findMelodyQuant q ms
       ons = toOnsets acc
       ws  = getSpectralWeight (Period . getMinDur . buildTickMap $ [acc]) 
            . map Time $ ons
       mx  = fromIntegral . maximum . map snd $ ws
   in  match mx ws ons
   
-match :: Double -> [(Int, Weight)] -> [Int] -> [(Int, Bool, Double)]
+match :: Double -> [(Int, SWeight)] -> [Int] -> [(Int, Bool, Double)]
 match _ [] [] = []
 match m ((g, w):t) [] =              (g, False, fromIntegral w / m) : match m t []
 match m ((g, w):t) (o:os) | g <  o = (g, False, fromIntegral w / m) : match m t (o:os)

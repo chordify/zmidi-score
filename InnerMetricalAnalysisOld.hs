@@ -17,7 +17,7 @@ module InnerMetricalAnalysisOld ( getMetricWeightOld
                                 , getLocalMetersOld
                                 , showMeterMap2
                                 , startProj
-                                , isMax
+                                -- , isMax
                                 ) where
 
 import Prelude
