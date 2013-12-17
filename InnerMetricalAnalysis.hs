@@ -233,27 +233,37 @@ createGrid _          []     = []
 createGrid (Period p) os = [time (head os), (p + time (head os)) .. time (last os)]
  
 getSpectralMap :: Period -> Period -> [Time] -> [Int] -> WeightMap
+getSpectralMap _  _  _   []   = empty
 getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap 
                               $ getLocalMeters ml mP ons where
    
    initMap :: WeightMap 
    initMap = foldr (\o m -> insertWith (+) o 0 m) empty grid
    
+   start = head grid
+   end   = last grid  
+   
    onePeriod :: Int -> OnsetMap -> WeightMap -> WeightMap
    onePeriod p om wm = foldrWithKey oneMeter wm om where
      
      oneMeter :: Int -> Len -> WeightMap -> WeightMap
-     oneMeter t (Len l) m' = foldr addWeight m' grid where
+     oneMeter t (Len l) m' = foldr addWeight m' 
+                           $ spectralGrid start end t p where
        
        -- addWeigth is executed very often, hence we precompute some values
-       tp = t `mod` p
+       -- tp = t `mod` p
        w  = l ^ (2 :: Int)
      
        addWeight :: Int -> WeightMap -> WeightMap
-       addWeight o m'' 
-         | o `mod` p == tp = insertWith (+) o w m''
-         | otherwise       = m''
+       addWeight o m'' = insertWith (+) o w m''
+         -- | o `mod` p == tp = insertWith (+) o w m''
+         -- | otherwise       = m''
 
+              
+spectralGrid :: Int -> Int -> Int -> Int -> [Int]
+spectralGrid srt stp ms p = let rm = ms `mod` p
+                            in dropWhile (< srt) [ rm, (rm + p) .. stp ]
+           
 maxPeriod :: [Time] -> Period
 maxPeriod [] = error "maxPeriod: empty list"
 maxPeriod ts = Period ((time . last $ ts) `div` 2)
@@ -275,7 +285,7 @@ main = print $ getMetricWeight 1 [8,14,22,28,29,30,37,39,46,48,52,54,59,64,67,68
 -- property testing
 --------------------------------------------------------------------------------
 pSpectralWeight :: [Time] -> Bool
-pSpectralWeight ons = getSpectralWeightOld 1 ons == map snd (getSpectralWeight 1 ons)
+pSpectralWeight ons = traceShow (map time ons) $ getSpectralWeightOld 1 ons == map snd (getSpectralWeight 1 ons)
 
 pMetricWeight :: [Time] -> Bool
 pMetricWeight ons = getMetricWeightOld 1 ons == getMetricWeight 1 ons
