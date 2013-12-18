@@ -9,6 +9,8 @@ import InnerMetricalAnalysis hiding ( main, Time )
 import qualified InnerMetricalAnalysis as IMA ( Time (..) )        
 -- import Math.Statistics              ( pearson )
 import System.Environment           ( getArgs )
+import Data.List.Ordered            ( nub )
+import Data.Maybe                   ( isJust )
 
 type IMAMatch = Float
 type Pattern  = (Int, Float)
@@ -18,7 +20,7 @@ type Pattern  = (Int, Float)
 matchIMA :: ShortestNote -> MidiScore -> [(Int, Bool, Double)]
 matchIMA q ms = 
   let acc = getAccompQuant q ms 
-  -- let acc = findMelodyQuant q ms
+      ts  = getTimeSig ms
       ons = toOnsets acc
       ws  = getSpectralWeight (Period . getMinDur . buildTickMap $ [acc]) 
            . map IMA.Time $ ons
@@ -60,21 +62,24 @@ project t prim sec trt x = case x `mod` (prim * t) of
                                           0 -> 0.2 
                                           _ -> 0.0
 
--- printWeight :: [Double] -> IO ()
--- printWeight = undefined
+testBeatBar :: FilePath -> IO ()
+testBeatBar fp = do ms <- readMidiScore fp
+                    -- let acc = getAccompQuant Sixteenth ms
+                    let acc = findMelodyQuant Sixteenth ms
+                    mapM_ print . map (getBeatInBar (getEvent . head $ getTimeSig ms) (ticksPerBeat ms))
+                                . nub . map onset $ acc
 
--- match :: [Int] -> [Int] -> [Double] -> [(Int, Bool, Double)]
--- match grid ons = undefined -- zipWith (\g o -> (g 
-
-toStar :: (Int, Bool, Double) -> IO ()
-toStar (g,o,d) = putStrLn (show g ++ (if o then " x " else "   ") 
-                                  ++ replicate (round (20 * d)) '*' )
-                                          
+toStar :: TimeSig -> Time -> (Int, Bool, Double) -> IO ()
+toStar ts tpb (g,o,d) = putStrLn (show g ++ " " 
+                              ++ (maybe " " show (getBeatInBar ts tpb g))
+                              ++ (if o then " x " else "   ") 
+                              ++ replicate (round (20 * d)) '*' )
+                    
 main :: IO ()
 main = do arg <- getArgs 
           case arg of
             [fp] -> do ms <- readMidiScore fp 
                        print . map IMA.time . preProcessMidi Sixteenth $ ms
                        print . getMinDur . buildTickMap $ [getAccompQuant Sixteenth ms]
-                       mapM_ toStar . matchIMA Sixteenth $ ms
+                       mapM_ (toStar (getEvent . head . getTimeSig $ ms) (ticksPerBeat ms)) . matchIMA Sixteenth $ ms
             _    -> error "Please provide a path to a midifile"

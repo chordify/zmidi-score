@@ -40,6 +40,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , pitchClass
                   , hasTimeSigs
                   , getMinGridSize
+                  , getBeatInBar
                   -- * MidiFile Utilities
                   , hasNotes 
                   , isNoteOnEvent
@@ -59,6 +60,7 @@ import Control.Monad.State ( State, modify, get, gets, put
                            , evalState, execState )
 import Control.Monad       ( mapAndUnzipM )
 import Control.Arrow       ( first, second )
+import Data.Ratio          ( Ratio, (%) )
 import Data.Word           ( Word8 )
 import Data.Int            ( Int8 )
 import Data.Char           ( toLower )
@@ -338,7 +340,7 @@ removeOverlap = foldr step [] where
 -- | takes the quantisation granularity parameter 'ShortestNote' and returns
 -- a the 'Int' that the beat length should be divided by. The resulting 
 -- value we name 'GridUnit'; it describes the minimal length of an event.
-toGridUnit :: ShortestNote -> Int
+toGridUnit :: ShortestNote -> GridUnit
 toGridUnit Eighth       = 2
 toGridUnit Sixteenth    = 4
 toGridUnit ThirtySecond = 8
@@ -670,6 +672,16 @@ getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
                         (d,0) -> d
                         _     -> error "getMinGridSize: invalid quantisation"
 
+getBeatInBar :: TimeSig -> Time -> Time -> Maybe Int
+getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
+getBeatInBar (TimeSig _ den _ _) tpb o = 
+  case o `divMod` tpb of
+    (bt, 0) -> Just (succ (bt `mod` den))
+              -- case bt `mod` den of
+                 -- 0   -> Just (bt, den % den)
+                 -- bib -> Just (bt, bib % den)
+    _       -> Nothing
+                        
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities
 --------------------------------------------------------------------------------
