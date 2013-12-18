@@ -13,25 +13,17 @@
 -- Summary: implements the Inner Metrical Analysis model 
 -- see: 
 --------------------------------------------------------------------------------
-module InnerMetricalAnalysis -- ( -- * Types for Local Meters
--- module Main -- ( -- * Types for Local Meters
-                               -- LMeter (..)
-                             -- , Time
-                             -- , Weight
-                             -- , Period
-                             -- , Len
-                               -- -- * The Inner Metrical Analysis
-                             -- , getLocalMeters
-                             -- , getMetricWeight
-                             -- , getSpectralWeight
-                             -- , normalise
-                               -- -- * parameters
-                             -- -- , maximumPhase
-                             -- -- , phaseStepSize
-                             -- , main
-                             -- , toList
-                             -- )
-                             where
+module InnerMetricalAnalysis ( -- * Types for Local Meters
+                               Time    (..)
+                             , Period  (..)
+                             , Len     (..)
+                             , MWeight (..)
+                             , SWeight (..)
+                             -- * The Inner Metrical Analysis
+                             , getLocalMeters
+                             , getMetricWeight
+                             , getSpectralWeight
+                             ) where
 
 import Data.List                  ( foldl' )
 import Data.IntMap                ( empty, IntMap, insert, toAscList, elems

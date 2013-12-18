@@ -3,15 +3,17 @@ module Main where
 
 import MidiCommonIO 
 
-import ZMidiBasic            hiding ( Time )
+import ZMidiBasic            
 import MelFind                      ( getAccompQuant, findMelodyQuant )
-import InnerMetricalAnalysis hiding ( main )
-import LocalMeter           
+import InnerMetricalAnalysis hiding ( main, Time )
+import qualified InnerMetricalAnalysis as IMA ( Time (..) )        
 -- import Math.Statistics              ( pearson )
 import System.Environment           ( getArgs )
 
 type IMAMatch = Float
 type Pattern  = (Int, Float)
+
+
 
 matchIMA :: ShortestNote -> MidiScore -> [(Int, Bool, Double)]
 matchIMA q ms = 
@@ -19,7 +21,7 @@ matchIMA q ms =
   -- let acc = findMelodyQuant q ms
       ons = toOnsets acc
       ws  = getSpectralWeight (Period . getMinDur . buildTickMap $ [acc]) 
-           . map Time $ ons
+           . map IMA.Time $ ons
       mx  = fromIntegral . maximum . map snd $ ws
   in  match mx ws ons
   
@@ -31,8 +33,8 @@ match m ((g, w):t) (o:os) | g <  o = (g, False, fromIntegral w / m) : match m t 
                           | otherwise = error "unmatched onset"
 match _ _ _ = error "list of unequal lengths"             
 
-preProcessMidi :: ShortestNote -> MidiScore -> [Time]
-preProcessMidi q ms = map Time . toOnsets . getAccompQuant q $ ms
+preProcessMidi :: ShortestNote -> MidiScore -> [IMA.Time]
+preProcessMidi q ms = map IMA.Time . toOnsets . getAccompQuant q $ ms
 
 -- normalise :: (Num a, Fractional b) => [a] -> [b]
 normalise :: [Int] -> [Double]
@@ -72,7 +74,7 @@ main :: IO ()
 main = do arg <- getArgs 
           case arg of
             [fp] -> do ms <- readMidiScore fp 
-                       print . map time . preProcessMidi Sixteenth $ ms
+                       print . map IMA.time . preProcessMidi Sixteenth $ ms
                        print . getMinDur . buildTickMap $ [getAccompQuant Sixteenth ms]
                        mapM_ toStar . matchIMA Sixteenth $ ms
             _    -> error "Please provide a path to a midifile"

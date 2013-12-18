@@ -2,30 +2,17 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE OverlappingInstances       #-}
-module LocalMeter where
+module LocalMeter ( Time   (..)
+                  , Period (..)
+                  , Len    (..)
+                  , randomOnsets
+                  , factors
+                  ) where
 
 import Data.List                  ( intercalate )
 
 import Test.QuickCheck
 import System.Random
-
-data LMeter = LMeter { mStart  :: Time
-                     , mPeriod :: Period
-                     , mLen    :: Len } deriving (Eq)
-
-instance Show LMeter where
-  show (LMeter s p l) = "(O: "  ++ show (time s) ++ 
-                        ", P: " ++ show (period p) ++ 
-                        ", L: " ++ show (len l) ++ ")"
-
-  showList a b = (intercalate "\n" . map show $ a) ++ b
-
-instance Ord LMeter where
-  compare a b = case compare (mPeriod a) (mPeriod b) of
-                  EQ -> case compare (mLen a) (mLen b) of
-                          EQ -> compare (mStart a) (mStart b)
-                          cs -> cs
-                  cp -> cp
   
 newtype Len    = Len    { len    :: Int } 
                         deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
@@ -47,12 +34,6 @@ instance Arbitrary Time where
      
 instance Arbitrary [Time] where
      arbitrary = choose (1,100) >>= genOnsets
-     
-instance Arbitrary LMeter where
-     arbitrary = do s <- arbitrary
-                    p <- arbitrary
-                    l <- arbitrary
-                    return (LMeter s p l)
 
 randomOnsets :: Int -> IO [Time]
 randomOnsets n = do r <- newStdGen 
