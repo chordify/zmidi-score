@@ -62,12 +62,12 @@ project t prim sec trt x = case x `mod` (prim * t) of
                                           0 -> 0.2 
                                           _ -> 0.0
 
-testBeatBar :: FilePath -> IO ()
-testBeatBar fp = do ms <- readMidiScore fp
-                    -- let acc = getAccompQuant Sixteenth ms
-                    let acc = findMelodyQuant Sixteenth ms
-                    mapM_ print . map (getBeatInBar (getEvent . head $ getTimeSig ms) (ticksPerBeat ms))
-                                . nub . map onset $ acc
+-- testBeatBar :: FilePath -> IO ()
+-- testBeatBar fp = do ms <- readMidiScore fp
+                    -- -- let acc = getAccompQuant Sixteenth ms
+                    -- let acc = findMelodyQuant Sixteenth ms
+                    -- mapM_ print . map (getBeatInBar (getEvent . head $ getTimeSig ms) (ticksPerBeat ms))
+                                -- . nub . map onset $ acc
 
 toStar :: TimeSig -> Time -> (Int, Bool, Double) -> IO ()
 toStar ts tpb (g,o,d) = putStrLn (show g ++ " " 

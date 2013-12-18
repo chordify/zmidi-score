@@ -674,12 +674,9 @@ getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
 
 getBeatInBar :: TimeSig -> Time -> Time -> Maybe Int
 getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
-getBeatInBar (TimeSig _ den _ _) tpb o = 
+getBeatInBar (TimeSig num _den _ _) tpb o = 
   case o `divMod` tpb of
-    (bt, 0) -> Just (succ (bt `mod` den))
-              -- case bt `mod` den of
-                 -- 0   -> Just (bt, den % den)
-                 -- bib -> Just (bt, bib % den)
+    (bt, 0) -> Just (succ (bt `mod` num))
     _       -> Nothing
                         
 --------------------------------------------------------------------------------
