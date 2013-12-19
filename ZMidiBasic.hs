@@ -41,6 +41,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , hasTimeSigs
                   , getMinGridSize
                   , getBeatInBar
+                  , updTimeSigTime
                   -- * MidiFile Utilities
                   , hasNotes 
                   , isNoteOnEvent
@@ -67,7 +68,7 @@ import Data.Char           ( toLower )
 import Data.Maybe          ( catMaybes, mapMaybe, isJust )
 import Data.Ord            ( comparing )
 import Data.List           ( partition, intersperse, sortBy, sort, nub
-                           , genericLength, find )
+                           , genericLength, find, foldl' )
 import qualified Data.List.Ordered as Sort ( nub )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( insertWith, IntMap, findMin, keys, delete )
@@ -386,7 +387,7 @@ midiFileToMidiScore mf = MidiScore (select isKeyChange keyChange NoKey meta)
                                    (select isTempoChange tempChange 500000 meta)
                                    (getMinDur . buildTickMap $ trks)
                                    (filter (not . null) trks) where
-                         
+  
   (trks, meta) = second concat . -- merge all meta data into one list
                  -- separate meta data from note data
                  unzip . map (partition isNoteEvent . midiTrackToVoice)
@@ -672,13 +673,31 @@ getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
                         (d,0) -> d
                         _     -> error "getMinGridSize: invalid quantisation"
 
-getBeatInBar :: TimeSig -> Time -> Time -> Maybe Int
+getBeatInBar :: TimeSig -> Time -> Time -> (Int, Maybe Int)
 getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
 getBeatInBar (TimeSig num _den _ _) tpb o = 
   case o `divMod` tpb of
-    (bt, 0) -> Just (succ (bt `mod` num))
-    _       -> Nothing
-                        
+    (t, 0) -> let (bar, bt) = t `divMod` num in (bar, Just (succ bt))
+    (t, _) -> (t `div` num, Nothing)
+
+-- | The time stamp that accompanies a time signature in the MIDI file should
+-- become effective the /next bar/. This function corrects the time stamps
+-- such that the time stamp reflects the first tick that the new time signature
+-- is effective.
+updTimeSigTime :: Time -> [Timed TimeSig] -> [Timed TimeSig]
+updTimeSigTime tpb = foldl' step [] where
+          
+  step :: [Timed TimeSig] -> Timed TimeSig -> [Timed TimeSig]
+  step [] (Timed 0 ts)  = [Timed 0 ts]
+  -- step (Timed t ts) [] = [Timed 0 NoTimeSig, Timed t ts]
+  step [] (Timed t ts) = error "no time signature at t=0"
+  step x t = x ++ [Timed (timeSigChange (onset t) (getEvent . head $ x)) (getEvent t)]
+                   
+  timeSigChange :: Time -> TimeSig -> Time
+  timeSigChange os (TimeSig bpb _ _ _) = 
+    (succ ((os `div` tpb) `div` bpb)) * tpb * bpb -- tpb: ticks per bet
+                                                  -- bpb: beats per bar
+                                   
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities
 --------------------------------------------------------------------------------

@@ -5,6 +5,7 @@ import MidiCommonIO
 
 import ZMidiBasic            
 import MelFind                      ( getAccompQuant, findMelodyQuant )
+import TimeSigSeg
 import InnerMetricalAnalysis hiding ( main, Time )
 import qualified InnerMetricalAnalysis as IMA ( Time (..) )        
 -- import Math.Statistics              ( pearson )
@@ -62,16 +63,25 @@ project t prim sec trt x = case x `mod` (prim * t) of
                                           0 -> 0.2 
                                           _ -> 0.0
 
--- testBeatBar :: FilePath -> IO ()
--- testBeatBar fp = do ms <- readMidiScore fp
-                    -- -- let acc = getAccompQuant Sixteenth ms
-                    -- let acc = findMelodyQuant Sixteenth ms
-                    -- mapM_ print . map (getBeatInBar (getEvent . head $ getTimeSig ms) (ticksPerBeat ms))
-                                -- . nub . map onset $ acc
+testBeatBar :: FilePath -> IO ()
+testBeatBar fp = do ms <- readMidiScore fp
+                    let ts  = getTimeSig ms
+                        tpb = ticksPerBeat ms
+                    print ts
+                    print . map (updTimeSig tpb) $ ts
+                    -- print tpb
+                    -- mapM_ print . map (timeSigChange tpb) $ ts
+                    -- _ <- sequence $ zipWith writeMidiScore (segByTimeSig ms) (map (: ".mid") "1234567890")
+                    putStrLn "Done"
 
+updTimeSig :: Time -> Timed TimeSig -> Timed TimeSig
+updTimeSig tpb (Timed 0  ts) = Timed 0 ts
+updTimeSig tpb (Timed os ts) = Timed (os +( 4 * tpb )) ts
+                    
 toStar :: TimeSig -> Time -> (Int, Bool, Double) -> IO ()
-toStar ts tpb (g,o,d) = putStrLn (show g ++ " " 
-                              ++ (maybe " " show (getBeatInBar ts tpb g))
+toStar ts tpb (g,o,d) = let (bar, bt) = getBeatInBar ts tpb g
+                        in  putStrLn (show g ++ " " ++ show bar ++ " "
+                              ++ (maybe " " show bt)
                               ++ (if o then " x " else "   ") 
                               ++ replicate (round (20 * d)) '*' )
                     
