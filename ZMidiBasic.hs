@@ -381,13 +381,15 @@ buildTickMap = foldr oneVoice M.empty where
 -- | Transforms a 'MidiFile' into a 'MidiScore'
 midiFileToMidiScore :: MidiFile -> MidiScore
 midiFileToMidiScore mf = MidiScore (select isKeyChange keyChange NoKey meta) 
+                                   -- (map (updTimeSig tpb) . nub $ select isTimeSig tsChange NoTimeSig meta) 
                                    (nub $ select isTimeSig tsChange NoTimeSig meta) 
-                                   (getDivision . mf_header $ mf)
+                                   tpb
                                    (hdr_format  . mf_header $ mf)
                                    (select isTempoChange tempChange 500000 meta)
                                    (getMinDur . buildTickMap $ trks)
                                    (filter (not . null) trks) where
   
+  tpb          = getDivision . mf_header $ mf
   (trks, meta) = second concat . -- merge all meta data into one list
                  -- separate meta data from note data
                  unzip . map (partition isNoteEvent . midiTrackToVoice)
@@ -531,7 +533,8 @@ midiScoreToMidiFile (MidiScore ks ts dv mf tp _ vs) = MidiFile hdr trks where
     -- a MidiTrack containing only MetaEvents
     metaToMidiEvent :: MidiTrack
     metaToMidiEvent = mkMidiTrack MetaEvent (   mapMaybe keyToMidiEvent   ks 
-                                             ++ mapMaybe tsToMidiEvent    ts
+                                             -- ++ (mapMaybe tsToMidiEvent . map (revTimeSig dv) $ ts)
+                                             ++ (mapMaybe tsToMidiEvent ts)
                                              ++ map      tempoToMidiEvent tp)
       
     -- transforms a Key into a MetaEvent
@@ -697,7 +700,15 @@ updTimeSigTime tpb = foldl' step [] where
   timeSigChange os (TimeSig bpb _ _ _) = 
     (succ ((os `div` tpb) `div` bpb)) * tpb * bpb -- tpb: ticks per bet
                                                   -- bpb: beats per bar
-                                   
+
+updTimeSig :: Time -> Timed TimeSig -> Timed TimeSig
+updTimeSig tpb (Timed 0  ts) = Timed 0 ts
+updTimeSig tpb (Timed os ts) = Timed (os +( 4 * tpb )) ts
+
+revTimeSig :: Time -> Timed TimeSig -> Timed TimeSig
+revTimeSig tpb (Timed 0  ts) = Timed 0 ts
+revTimeSig tpb (Timed os ts) = Timed (os - ( 4 * tpb )) ts
+
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities
 --------------------------------------------------------------------------------

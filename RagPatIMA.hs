@@ -68,15 +68,12 @@ testBeatBar fp = do ms <- readMidiScore fp
                     let ts  = getTimeSig ms
                         tpb = ticksPerBeat ms
                     print ts
-                    print . map (updTimeSig tpb) $ ts
+                    -- print . map (updTimeSig tpb) $ ts
                     -- print tpb
                     -- mapM_ print . map (timeSigChange tpb) $ ts
-                    -- _ <- sequence $ zipWith writeMidiScore (segByTimeSig ms) (map (: ".mid") "1234567890")
+                    _ <- sequence $ zipWith writeMidiScore (segByTimeSig ms) (map (: ".mid") "1234567890")
                     putStrLn "Done"
 
-updTimeSig :: Time -> Timed TimeSig -> Timed TimeSig
-updTimeSig tpb (Timed 0  ts) = Timed 0 ts
-updTimeSig tpb (Timed os ts) = Timed (os +( 4 * tpb )) ts
                     
 toStar :: TimeSig -> Time -> (Int, Bool, Double) -> IO ()
 toStar ts tpb (g,o,d) = let (bar, bt) = getBeatInBar ts tpb g
