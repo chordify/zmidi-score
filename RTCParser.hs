@@ -14,7 +14,7 @@ import Text.ParserCombinators.UU.Core           ( (<$>), (<$), (<*>), (*>), (<*)
                                                 , (<|>), P )
 import Text.ParserCombinators.UU.BasicInstances ( Parser, pSym, Str, LineColPos )
 import Text.ParserCombinators.UU.Utils          ( pInteger, lexeme, pUpper )
-import HarmTrace.Base.Parsing                   ( pString, parseDataSafe
+import HarmTrace.Base.Parse                     ( pString, parseDataSafe
                                                 , parseDataWithErrors, pMaybe )
 import Data.Maybe                               ( catMaybes ) 
 import Data.List                                ( intercalate, find )

@@ -14,8 +14,8 @@ import RTCParser          ( RTC (..), getRTCMeta, approxYear )
 import Data.List          ( intercalate )
 import Control.Arrow      ( first, second )
 import Control.Monad      ( when )
-import Evaluation
 import MelFind            ( findMelodyQuant )
+import Evaluation
 
 
 -- import Debug.Trace
