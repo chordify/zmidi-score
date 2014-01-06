@@ -9,7 +9,7 @@ module MidiCommonIO (-- * Mapping
                     , readMidiScore
                     , writeMidiScore
                     -- * Utilities
-                    , printMidiToFile
+                    -- , printMidiToFile
                     , logDuplicates
                     , removeTrackLabels
                     , putErrStrLn
@@ -70,15 +70,15 @@ writeMidiScore mf f = writeMidi f . midiScoreToMidiFile $ mf
 
                       
 --------------------------------------------------------------------------------
--- Utitilities
+-- Utilities
 --------------------------------------------------------------------------------
 
 -- | Writes the contents of a 'MidiFile' to a file.
-printMidiToFile :: MidiFile -> FilePath -> IO ()
-printMidiToFile mf fp = 
-  let hd = printMidiHeader . mf_header $ mf
-      ts = concatMap printMidiTrack . mf_tracks $ mf
-  in  writeFile fp . intercalate "\n" $ (hd ++ ts)
+-- printMidiToFile :: MidiFile -> FilePath -> IO ()
+-- printMidiToFile mf fp = 
+  -- let hd = printMidiHeader mf
+      -- ts = concatMap printMidiTrack . mf_tracks $ mf
+  -- in  writeFile fp . intercalate "\n" $ (hd ++ ts)
   
 -- | Reads all midifiles at a specific location and compares all files to 
 -- all files, printing the paths of the files with the same MIDI content 
