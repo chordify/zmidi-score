@@ -6,22 +6,30 @@ import MidiCommonIO
 import ZMidiBasic            
 import MelFind                      ( getAccompQuant, findMelodyQuant )
 import TimeSigSeg
-import InnerMetricalAnalysis hiding ( main, Time )
+import InnerMetricalAnalysis hiding ( Time )
 import qualified InnerMetricalAnalysis as IMA ( Time (..) )        
 -- import Math.Statistics              ( pearson )
 import System.Environment           ( getArgs )
-import Data.List.Ordered            ( nub )
+-- import Data.List.Ordered            ( nub )
 import Data.Maybe                   ( isJust )
 
 type IMAMatch = Float
 type Pattern  = (Int, Float)
 
-
+matchMeterIMA :: ShortestNote -> MidiScore -> [(Int, Bool, Double)]
+matchMeterIMA q ms = 
+  let acc = getAccompQuant q ms 
+      -- ts  = getTimeSig ms
+      ons = toOnsets acc
+      ws  = getSpectralWeight (Period . getMinDur . buildTickMap $ [acc]) 
+           . map IMA.Time $ ons
+      mx  = fromIntegral . maximum . map snd $ ws
+  in  match mx ws ons
 
 matchIMA :: ShortestNote -> MidiScore -> [(Int, Bool, Double)]
 matchIMA q ms = 
   let acc = getAccompQuant q ms 
-      ts  = getTimeSig ms
+      -- ts  = getTimeSig ms
       ons = toOnsets acc
       ws  = getSpectralWeight (Period . getMinDur . buildTickMap $ [acc]) 
            . map IMA.Time $ ons

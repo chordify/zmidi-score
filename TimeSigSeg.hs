@@ -5,7 +5,8 @@ import MidiCommonIO
 import Data.List    ( sort, cycle )
 import Data.Maybe   ( catMaybes )
 
-type TimeSigSeg   = TimedSeg TimeSig ScoreEvent
+type TimeSigSeg   = (Timed TimeSig, [[Timed ScoreEvent]])
+type TimeSigTrack = TimedSeg TimeSig  ScoreEvent
 type TimedSeg a b = (Timed a, [Timed b])
 
 -- TODO : two bugs: 1) the timesignature midi event can be set to immediate
@@ -13,15 +14,23 @@ type TimedSeg a b = (Timed a, [Timed b])
 -- 2) 2/4 is not always translated correctly to 4/4 when writing midi files
 
 segByTimeSig :: MidiScore -> [MidiScore]
-segByTimeSig ms = map toSeg . toTimeSigSegs $ ms where
+segByTimeSig ms = map toMS . toTimeSigSegs $ ms where
 
-  toSeg :: [TimeSigSeg] -> MidiScore
-  toSeg tss = let (ts, vs) = unzip tss
-              in  ms { getTimeSig = [head ts] -- all TimeSig are the same
-                     , getVoices = vs}
+  toMS :: TimeSigSeg -> MidiScore
+  toMS (ts, vs) = ms { getTimeSig = [ts] 
+                     , getVoices  = vs
+                     }
   
-toTimeSigSegs :: MidiScore -> [[TimeSigSeg]]
-toTimeSigSegs ms = columns $ map (segment (getTimeSig ms)) (getVoices ms)
+toTimeSigSegs :: MidiScore -> [TimeSigSeg]
+toTimeSigSegs ms = map mergeTracks . columns 
+                 $ map (segment (getTimeSig ms)) (getVoices ms)
+
+
+mergeTracks :: [TimeSigTrack] -> TimeSigSeg
+mergeTracks tss = let (ts, vs) = unzip tss
+                  in  (head ts, vs) -- all TimeSig are the same
+                         
+
 
 -- | Converts a row matrix to a column matrix
 --
@@ -44,7 +53,9 @@ columns l = let (col, rows) = unzip $ map saveHead l
                  [] -> []
                  c  -> c : columns rows
 
+-- | Segments the second list at the time stamps of the first list
 segment :: Ord a => [Timed a] -> [Timed b] -> [TimedSeg a b]
+segment [] _ = error "TimeSigSeg.segment: no segment boundaries found"
 segment ts v = toTimeSigSeg v (toSegments ts)
 
 -- | Takes a list of 'Timed' values and a list of segment boundaries created
