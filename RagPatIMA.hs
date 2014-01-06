@@ -17,7 +17,7 @@ import Control.Arrow                ( second )
 type IMAMatch = Float
 type Pattern  = (Int, Float)
 
-matchMeterIMA :: ShortestNote -> MidiScore -> [(Timed TimeSig, [(Int, Bool, Double)])]
+matchMeterIMA :: ShortestNote -> MidiScore -> [TimedSeg [(Int, Bool, Double)]]
 matchMeterIMA q ms = 
   let -- quantise the merge all tracks
       msq = mergeTracks . quantise q $ ms
@@ -30,7 +30,7 @@ matchMeterIMA q ms =
       -- calculate the maximum weight
       mx  = fromIntegral . maximum . map snd $ ws
       -- split the midi file per 
-  in map (second (match mx ws . ons)) . toTimeSigSegs $ msq
+  in map (fmap (match mx ws . ons)) . toTimeSigSegs $ msq
 
 matchIMA :: ShortestNote -> MidiScore -> [(Int, Bool, Double)]
 matchIMA q ms = 
@@ -88,8 +88,8 @@ testBeatBar fp = do ms <- readMidiScore fp
                     _ <- sequence $ zipWith writeMidiScore (segByTimeSig ms) (map (: ".mid") "1234567890")
                     putStrLn "Done"
 
-starMeter :: Time -> (Timed TimeSig, [(Int, Bool, Double)]) -> IO ()
-starMeter tpb (Timed _ ts, s) = 
+starMeter :: Time -> (TimedSeg [(Int, Bool, Double)]) -> IO ()
+starMeter tpb (TimedSeg (Timed _ ts) s) = 
   do putStrLn ("================== " ++ show ts ++ " ==================" )
      mapM_ (toStar ts tpb) s
                     
