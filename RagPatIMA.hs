@@ -4,33 +4,39 @@ module Main where
 import MidiCommonIO 
 
 import ZMidiBasic            
-import MelFind                      ( getAccompQuant, findMelodyQuant )
+import MelFind                      ( getAccompQuant, findMelodyQuant, mergeTracks )
 import TimeSigSeg
 import InnerMetricalAnalysis hiding ( Time )
 import qualified InnerMetricalAnalysis as IMA ( Time (..) )        
 -- import Math.Statistics              ( pearson )
 import System.Environment           ( getArgs )
--- import Data.List.Ordered            ( nub )
+import Data.List.Ordered            ( nub )
 import Data.Maybe                   ( isJust )
+import Control.Arrow                ( second )
 
 type IMAMatch = Float
 type Pattern  = (Int, Float)
 
-matchMeterIMA :: ShortestNote -> MidiScore -> [(Int, Bool, Double)]
+matchMeterIMA :: ShortestNote -> MidiScore -> [(Timed TimeSig, [(Int, Bool, Double)])]
 matchMeterIMA q ms = 
-  let acc = getAccompQuant q ms 
-      -- ts  = getTimeSig ms
-      ons = toOnsets acc
-      ws  = getSpectralWeight (Period . getMinDur . buildTickMap $ [acc]) 
-           . map IMA.Time $ ons
+  let -- quantise the merge all tracks
+      msq = mergeTracks . quantise q $ ms
+      -- calculate the onset times and remove duplicates
+      ons :: [Voice] -> [Int]
+      ons = nub . toOnsets . head 
+      -- calculate the spectral weights
+      ws  = getSpectralWeight (Period . getMinDur . buildTickMap . getVoices $ msq) 
+          . map IMA.Time . ons . getVoices $ msq
+      -- calculate the maximum weight
       mx  = fromIntegral . maximum . map snd $ ws
-  in  match mx ws ons
+      -- split the midi file per 
+  in map (second (match mx ws . ons)) . toTimeSigSegs $ msq
 
 matchIMA :: ShortestNote -> MidiScore -> [(Int, Bool, Double)]
 matchIMA q ms = 
   let acc = getAccompQuant q ms 
       -- ts  = getTimeSig ms
-      ons = toOnsets acc
+      ons = nub $ toOnsets acc
       ws  = getSpectralWeight (Period . getMinDur . buildTickMap $ [acc]) 
            . map IMA.Time $ ons
       mx  = fromIntegral . maximum . map snd $ ws
@@ -45,7 +51,7 @@ match m ((g, w):t) (o:os) | g <  o = (g, False, fromIntegral w / m) : match m t 
 match _ _ _ = error "list of unequal lengths"             
 
 preProcessMidi :: ShortestNote -> MidiScore -> [IMA.Time]
-preProcessMidi q ms = map IMA.Time . toOnsets . getAccompQuant q $ ms
+preProcessMidi q ms = nub . map IMA.Time . toOnsets . getAccompQuant q $ ms
 
 -- normalise :: (Num a, Fractional b) => [a] -> [b]
 normalise :: [Int] -> [Double]
@@ -82,6 +88,10 @@ testBeatBar fp = do ms <- readMidiScore fp
                     _ <- sequence $ zipWith writeMidiScore (segByTimeSig ms) (map (: ".mid") "1234567890")
                     putStrLn "Done"
 
+starMeter :: Time -> (Timed TimeSig, [(Int, Bool, Double)]) -> IO ()
+starMeter tpb (Timed _ ts, s) = 
+  do putStrLn ("================== " ++ show ts ++ " ==================" )
+     mapM_ (toStar ts tpb) s
                     
 toStar :: TimeSig -> Time -> (Int, Bool, Double) -> IO ()
 toStar ts tpb (g,o,d) = let (bar, bt) = getBeatInBar ts tpb g
@@ -96,5 +106,5 @@ main = do arg <- getArgs
             [fp] -> do ms <- readMidiScore fp 
                        print . map IMA.time . preProcessMidi Sixteenth $ ms
                        print . getMinDur . buildTickMap $ [getAccompQuant Sixteenth ms]
-                       mapM_ (toStar (getEvent . head . getTimeSig $ ms) (ticksPerBeat ms)) . matchIMA Sixteenth $ ms
+                       mapM_ (starMeter (ticksPerBeat ms)) . matchMeterIMA Sixteenth $ ms
             _    -> error "Please provide a path to a midifile"
