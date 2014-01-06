@@ -41,7 +41,6 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , hasTimeSigs
                   , getMinGridSize
                   , getBeatInBar
-                  , updTimeSigTime
                   -- * MidiFile Utilities
                   , hasNotes 
                   , isNoteOnEvent
@@ -683,6 +682,7 @@ getBeatInBar (TimeSig num _den _ _) tpb o =
     (t, 0) -> let (bar, bt) = t `divMod` num in (bar, Just (succ bt))
     (t, _) -> (t `div` num, Nothing)
 
+    {-
 -- | The time stamp that accompanies a time signature in the MIDI file should
 -- become effective the /next bar/. This function corrects the time stamps
 -- such that the time stamp reflects the first tick that the new time signature
@@ -708,6 +708,7 @@ updTimeSig tpb (Timed os ts) = Timed (os +( 4 * tpb )) ts
 revTimeSig :: Time -> Timed TimeSig -> Timed TimeSig
 revTimeSig tpb (Timed 0  ts) = Timed 0 ts
 revTimeSig tpb (Timed os ts) = Timed (os - ( 4 * tpb )) ts
+-}
 
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities
