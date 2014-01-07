@@ -5,6 +5,7 @@ module TimeSigSeg ( TimedSeg (..)
                   , TimeSigTrack
                   , segByTimeSig
                   , toTimeSigSegs
+                  , segment
                   ) where
 
 import ZMidiBasic
@@ -63,15 +64,14 @@ columns l = let (col, rows) = unzip $ map saveHead l
                  c  -> c : columns rows
 
 -- | Segments the second list at the time stamps of the first list
-segment :: Ord a => [Timed TimeSig] -> [Timed a] -> [TimedSeg TimeSig [Timed a]]
+segment :: (Ord a, Ord b) => [Timed a] -> [Timed b] -> [TimedSeg a [Timed b]]
 segment [] _ = error "TimeSigSeg.segment: no segment boundaries found"
 segment ts v = toTimeSigSeg v (toSegments ts)
 
 -- | Takes a list of 'Timed' values and a list of segment boundaries created
 -- by 'toSegments'. This second list will slice the first list up and return
 -- the 'TimedSeg'ments. 
-toTimeSigSeg :: [Timed a] -> [(Timed TimeSig, Maybe Time)] 
-             -> [TimedSeg TimeSig [Timed a]]
+toTimeSigSeg :: [Timed a] -> [(Timed b, Maybe Time)] -> [TimedSeg b [Timed a]]
 toTimeSigSeg v = map toSeg where
 
   -- toSeg :: (Timed a, Maybe Time) -> TimedSeg a

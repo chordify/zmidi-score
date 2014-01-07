@@ -41,7 +41,7 @@ getMelody ms = case getVoices ms of
   [r,_l] -> r
   _   -> error "getMelody: Found a MIDI file with more or less than 2 tracks"
 
--- | Merges all tracks into one track
+-- | Merges all tracks into one track. This track is guaranteed to be sorted.
 mergeTracks :: MidiScore -> MidiScore
 mergeTracks ms = 
   ms {getVoices = [sortVoice . setChans 0 . concat . getVoices $ ms]} 
