@@ -60,14 +60,13 @@ import Control.Monad.State ( State, modify, get, gets, put
                            , evalState, execState )
 import Control.Monad       ( mapAndUnzipM )
 import Control.Arrow       ( first, second )
-import Data.Ratio          ( Ratio, (%) )
 import Data.Word           ( Word8 )
 import Data.Int            ( Int8 )
 import Data.Char           ( toLower )
 import Data.Maybe          ( catMaybes, mapMaybe, isJust )
 import Data.Ord            ( comparing )
 import Data.List           ( partition, intersperse, sortBy, sort, nub
-                           , genericLength, find, foldl' )
+                           , genericLength, find )
 import qualified Data.List.Ordered as Sort ( nub )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( insertWith, IntMap, findMin, keys, delete )
@@ -674,7 +673,7 @@ getMinGridSize :: ShortestNote -> MidiScore -> Time
 getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
                         (d,0) -> d
                         _     -> error "getMinGridSize: invalid quantisation"
-
+                        
 getBeatInBar :: TimeSig -> Time -> Time -> (Int, Maybe Int)
 getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
 getBeatInBar (TimeSig num _den _ _) tpb o = 

@@ -1,19 +1,16 @@
 {-# OPTIONS_GHC -Wall #-}
 module Main where
 
-import MidiCommonIO 
-
 import ZMidiBasic            
-import MelFind                      ( getAccompQuant, findMelodyQuant, mergeTracks )
+import MidiCommonIO                 ( readMidiScore )
+import MelFind                      ( getAccompQuant, mergeTracks )
 import TimeSigSeg
 import InnerMetricalAnalysis hiding ( Time )
 import qualified InnerMetricalAnalysis as IMA ( Time (..) )        
 -- import Math.Statistics              ( pearson )
 import System.Environment           ( getArgs )
 import Data.List            ( nubBy )
-import Data.Maybe                   ( isJust )
 import Data.Function                ( on )
-import Control.Arrow                ( second )
 
 type IMAMatch = Float
 type Pattern  = (Int, Float)
@@ -33,14 +30,16 @@ matchMeterIMA q ms =
       -- split the midi file per 
   in map normaliseTime $ segment (getTimeSig ms) (match mx ws v) 
 
+-- | matches a grid with spectral weights with the onsets that created the
+-- weights. The first argument is the maximum 'Weight' found among the weights
 match :: Double -> [(Int, SWeight)] -> Voice -> [Timed (Maybe ScoreEvent, Double)]
-match _ [] [] = []
-match m ((g, w):ws) [] =              addWeight m w (Left g) : match m ws []
+match _ [] []              = []
+match m ((g, w):ws) []     =          addWeight m w (Left g) : match m ws []
 match m ((g, w):ws) (t:ts) | g <  o = addWeight m w (Left g) : match m ws (t:ts)
                            | g == o = addWeight m w (Right t): match m ws ts
                            | otherwise = error "unmatched onset"
                                where o = onset t
-match _ _ _ = error "list of unequal lengths"             
+match _ _ _                = error "list of unequal lengths"             
 
 addWeight :: Double -> SWeight -> Either Int (Timed ScoreEvent) 
           -> Timed (Maybe ScoreEvent, Double)
@@ -53,8 +52,7 @@ normalise :: [Int] -> [Double]
 normalise l = let m = fromIntegral $ maximum l 
               in map ((/ m) . fromIntegral) (l :: [Int])
              
-              
-              
+{-                            
 genPat :: Int -> TimeSig -> (Int -> Float)
 genPat t ts = case ts of
         (TimeSig 2 2 _ _) -> project t 2 1 1
@@ -72,6 +70,7 @@ project t prim sec trt x = case x `mod` (prim * t) of
                                           0 -> 0.2 
                                           _ -> 0.0
 
+                                          
 testBeatBar :: FilePath -> IO ()
 testBeatBar fp = do ms <- readMidiScore fp
                     let ts  = getTimeSig ms
@@ -82,20 +81,23 @@ testBeatBar fp = do ms <- readMidiScore fp
                     -- mapM_ print . map (timeSigChange tpb) $ ts
                     _ <- sequence $ zipWith writeMidiScore (segByTimeSig ms) (map (: ".mid") "1234567890")
                     putStrLn "Done"
+-}
 
+--
 starMeter :: Time -> (TimedSeg TimeSig [Timed (Maybe ScoreEvent, Double)]) -> IO ()
 starMeter tpb (TimedSeg (Timed t ts) s) = 
   do putStrLn (show t ++ " ================== " ++ show ts ++ " ==================" )
-     mapM_ (toStar t ts tpb) s
+     mapM_ (toStar t ts) s where
                     
-toStar :: Time -> TimeSig -> Time -> Timed (Maybe ScoreEvent, Double) -> IO ()
-toStar os ts tpb (Timed g (se,w)) = let (bar, bt) = getBeatInBar ts tpb g
-                                 in  putStrLn (show (g+os)               ++ " " 
-                                      ++ show bar                        ++ " "
-                                      ++ (maybe " "  show bt)            ++ " "
-                                      ++ (maybe "   " (show . pitch) se) ++ " "
-                                      ++ replicate (round (20 * w)) '*' )
-                    
+  -- prints one line e.g. "1152 1 3 1C  ***************"
+  toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, Double) -> IO ()
+  toStar os x (Timed g (se,w)) = 
+    let (bar, bt) = getBeatInBar x tpb g
+    in  putStrLn (show (g+os) ++ " " ++ show bar ++ " " ++ (maybe " "  show bt)
+                              ++ " " ++ (maybe "   " (show . pitch) se)
+                              ++ " " ++ replicate (round (20 * w)) '*' )
+
+-- testing
 main :: IO ()
 main = do arg <- getArgs 
           case arg of

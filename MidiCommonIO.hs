@@ -15,11 +15,9 @@ module MidiCommonIO (-- * Mapping
                     , putErrStrLn
                     )where
                     
-import ZMidi.Core         ( printMidiHeader, printMidiTrack, MidiFile (..)
-                          , readMidi, writeMidi )
+import ZMidi.Core         ( MidiFile (..), readMidi, writeMidi )
 import ZMidiBasic         ( MidiScore (..), midiFileToMidiScore
                           , midiScoreToMidiFile, removeLabels )
-import Data.List          ( intercalate )
 import Control.Monad      ( filterM, void )
 import System.Directory   ( getDirectoryContents, canonicalizePath
                           , doesDirectoryExist )
