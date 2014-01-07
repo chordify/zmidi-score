@@ -31,7 +31,7 @@ matchMeterIMA q ms =
       -- calculate the maximum weight
       mx  = fromIntegral . maximum . map snd $ ws
       -- split the midi file per 
-  in segment (getTimeSig ms) (match mx ws v) 
+  in map normaliseTime $ segment (getTimeSig ms) (match mx ws v) 
 
 match :: Double -> [(Int, SWeight)] -> Voice -> [Timed (Maybe ScoreEvent, Double)]
 match _ [] [] = []
@@ -84,13 +84,14 @@ testBeatBar fp = do ms <- readMidiScore fp
                     putStrLn "Done"
 
 starMeter :: Time -> (TimedSeg TimeSig [Timed (Maybe ScoreEvent, Double)]) -> IO ()
-starMeter tpb (TimedSeg (Timed _ ts) s) = 
-  do putStrLn ("================== " ++ show ts ++ " ==================" )
-     mapM_ (toStar ts tpb) s
+starMeter tpb (TimedSeg (Timed t ts) s) = 
+  do putStrLn (show t ++ " ================== " ++ show ts ++ " ==================" )
+     mapM_ (toStar t ts tpb) s
                     
-toStar :: TimeSig -> Time -> Timed (Maybe ScoreEvent, Double) -> IO ()
-toStar ts tpb (Timed g (se,w)) = let (bar, bt) = getBeatInBar ts tpb g
-                                 in  putStrLn (show g ++ " " ++ show bar ++ " "
+toStar :: Time -> TimeSig -> Time -> Timed (Maybe ScoreEvent, Double) -> IO ()
+toStar os ts tpb (Timed g (se,w)) = let (bar, bt) = getBeatInBar ts tpb g
+                                 in  putStrLn (show (g+os)               ++ " " 
+                                      ++ show bar                        ++ " "
                                       ++ (maybe " "  show bt)            ++ " "
                                       ++ (maybe "   " (show . pitch) se) ++ " "
                                       ++ replicate (round (20 * w)) '*' )

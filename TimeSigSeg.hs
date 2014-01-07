@@ -6,6 +6,8 @@ module TimeSigSeg ( TimedSeg (..)
                   , segByTimeSig
                   , toTimeSigSegs
                   , segment
+                  -- | * Utilities
+                  , normaliseTime
                   ) where
 
 import ZMidiBasic
@@ -89,6 +91,10 @@ toSegments = foldr step [] . sort where
   step ts  []   = [(ts , Nothing)] 
   step srt rest =  (srt, Just . onset . fst . head $ rest) : rest
 
+normaliseTime :: Ord b => TimedSeg a [Timed b] -> TimedSeg a [Timed b]
+normaliseTime (TimedSeg t ts) = TimedSeg t (map f ts) where
+  f x = x { onset = onset x - onset t }
+  
 -- some tests
 -- testData = take 20 $ zipWith Timed [0..] (cycle ['a'..'z'])
 -- readMidiScore "mid\\Coontown Review, De - Pitt-Payne.mid" >>= mapM showMidiScore . segByTimeSig 

@@ -682,34 +682,6 @@ getBeatInBar (TimeSig num _den _ _) tpb o =
     (t, 0) -> let (bar, bt) = t `divMod` num in (bar, Just (succ bt))
     (t, _) -> (t `div` num, Nothing)
 
-    {-
--- | The time stamp that accompanies a time signature in the MIDI file should
--- become effective the /next bar/. This function corrects the time stamps
--- such that the time stamp reflects the first tick that the new time signature
--- is effective.
-updTimeSigTime :: Time -> [Timed TimeSig] -> [Timed TimeSig]
-updTimeSigTime tpb = foldl' step [] where
-          
-  step :: [Timed TimeSig] -> Timed TimeSig -> [Timed TimeSig]
-  step [] (Timed 0 ts)  = [Timed 0 ts]
-  -- step (Timed t ts) [] = [Timed 0 NoTimeSig, Timed t ts]
-  step [] (Timed t ts) = error "no time signature at t=0"
-  step x t = x ++ [Timed (timeSigChange (onset t) (getEvent . head $ x)) (getEvent t)]
-                   
-  timeSigChange :: Time -> TimeSig -> Time
-  timeSigChange os (TimeSig bpb _ _ _) = 
-    (succ ((os `div` tpb) `div` bpb)) * tpb * bpb -- tpb: ticks per bet
-                                                  -- bpb: beats per bar
-
-updTimeSig :: Time -> Timed TimeSig -> Timed TimeSig
-updTimeSig tpb (Timed 0  ts) = Timed 0 ts
-updTimeSig tpb (Timed os ts) = Timed (os +( 4 * tpb )) ts
-
-revTimeSig :: Time -> Timed TimeSig -> Timed TimeSig
-revTimeSig tpb (Timed 0  ts) = Timed 0 ts
-revTimeSig tpb (Timed os ts) = Timed (os - ( 4 * tpb )) ts
--}
-
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities
 --------------------------------------------------------------------------------
