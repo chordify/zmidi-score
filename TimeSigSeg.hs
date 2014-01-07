@@ -9,16 +9,16 @@ module TimeSigSeg ( TimedSeg (..)
 
 import ZMidiBasic
 import MidiCommonIO
-import Data.List    ( sort, cycle )
+import Data.List    ( sort )
 import Data.Maybe   ( catMaybes )
 
 -- type TimeSigSeg   = (Timed TimeSig, [[Timed ScoreEvent]])
-type TimeSigSeg   = TimedSeg [[Timed ScoreEvent]]
-type TimeSigTrack = TimedSeg  [Timed ScoreEvent]
+type TimeSigSeg   = TimedSeg TimeSig [[Timed ScoreEvent]]
+type TimeSigTrack = TimedSeg TimeSig  [Timed ScoreEvent]
 -- type TimedSeg a b = (Timed a, [Timed b])
-data TimedSeg a = TimedSeg { timeSig :: Timed TimeSig
-                           , seg     :: a 
-                           } deriving (Show, Eq, Functor)
+data TimedSeg a b = TimedSeg { boundary :: Timed a
+                             , seg      :: b 
+                             } deriving (Show, Eq, Functor)
 
 -- TODO : 2/4 is not always translated correctly to 4/4 when writing midi files
 
@@ -37,7 +37,7 @@ toTimeSigSegs ms = map mergeTracks . columns
 
 mergeTracks :: [TimeSigTrack] -> TimeSigSeg
 mergeTracks [] = error "mergeTracks: emptyList"
-mergeTracks t  = TimedSeg (timeSig (head t)) (map seg t) -- all TimeSig are the same
+mergeTracks t  = TimedSeg (boundary (head t)) (map seg t) -- all TimeSig are the same
                          
 
 
@@ -63,14 +63,15 @@ columns l = let (col, rows) = unzip $ map saveHead l
                  c  -> c : columns rows
 
 -- | Segments the second list at the time stamps of the first list
-segment :: Ord a => [Timed TimeSig] -> [Timed a] -> [TimedSeg [Timed a]]
+segment :: Ord a => [Timed TimeSig] -> [Timed a] -> [TimedSeg TimeSig [Timed a]]
 segment [] _ = error "TimeSigSeg.segment: no segment boundaries found"
 segment ts v = toTimeSigSeg v (toSegments ts)
 
 -- | Takes a list of 'Timed' values and a list of segment boundaries created
 -- by 'toSegments'. This second list will slice the first list up and return
 -- the 'TimedSeg'ments. 
-toTimeSigSeg :: [Timed a] -> [(Timed TimeSig, Maybe Time)] -> [TimedSeg [Timed a]]
+toTimeSigSeg :: [Timed a] -> [(Timed TimeSig, Maybe Time)] 
+             -> [TimedSeg TimeSig [Timed a]]
 toTimeSigSeg v = map toSeg where
 
   -- toSeg :: (Timed a, Maybe Time) -> TimedSeg a
