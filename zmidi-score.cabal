@@ -18,7 +18,7 @@ library
   exposed-modules:     ZMidiBasic
   -- other-modules:       
   build-depends:       base >= 4.4 && < 4.7, 
-                       zmidi-core ==0.6.*, 
+                       zmidi-core ==0.7.*, 
                        mtl ==2.1.*, 
                        containers >= 0.5.0.0,
                        directory ==1.2.*, 
@@ -31,7 +31,7 @@ executable melfind
   main-is:             MelFindMain.hs
   -- other-modules:       
   build-depends:       base >= 4.4 && < 4.7, 
-                       zmidi-core ==0.6.*, 
+                       zmidi-core ==0.7.*, 
                        mtl ==2.1.*, 
                        containers >= 0.5.0.0,
                        directory ==1.2.*, 
@@ -43,7 +43,7 @@ executable RagPat
   main-is:             Main.hs
   -- other-modules:       
   build-depends:       base >= 4.4 && < 4.7, 
-                       zmidi-core ==0.6.*, 
+                       zmidi-core ==0.7.*, 
                        mtl ==2.1.*, 
                        containers >= 0.5.0.0,
                        directory ==1.2.*, 
@@ -58,5 +58,4 @@ executable RagPat
                        transformers >= 0.3, 
                        data-ordlist >= 0.4.5
   ghc-options:         -Wall -O2 -rtsopts -with-rtsopts=-K128M
-  
-  
+
