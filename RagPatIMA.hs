@@ -12,6 +12,7 @@ import qualified InnerMetricalAnalysis as IMA ( Time (..) )
 import System.Environment           ( getArgs )
 import Data.List            ( nubBy )
 import Data.Function                ( on )
+import Data.IntMap.Lazy             ( empty, IntMap, insertWith )
 
 -- type Pattern  = (Int, Float)
 
@@ -57,37 +58,6 @@ addWeight m w e = either ((flip Timed) (Nothing, w')) f e
 normalise :: [Int] -> [Double]
 normalise l = let m = fromIntegral $ maximum l 
               in map ((/ m) . fromIntegral) (l :: [Int])
-             
-{-                            
-genPat :: Int -> TimeSig -> (Int -> Float)
-genPat t ts = case ts of
-        (TimeSig 2 2 _ _) -> project t 2 1 1
-        (TimeSig 2 4 _ _) -> project t 2 1 1
-        (TimeSig 4 4 _ _) -> project t 4 2 1
-        _                 -> error "unexpected pattern"
-
--- project :: Time -> Time -> Time -> Time -> (Time -> Float)
-project :: Int -> Int -> Int -> Int -> (Int -> Float)
-project t prim sec trt x = case x `mod` (prim * t) of
-                             0 -> 1.0
-                             _ -> case x `mod` (sec * t) of 
-                                    0 -> 0.5 
-                                    _ -> case x `mod` (trt * t) of 
-                                          0 -> 0.2 
-                                          _ -> 0.0
-
-                                          
-testBeatBar :: FilePath -> IO ()
-testBeatBar fp = do ms <- readMidiScore fp
-                    let ts  = getTimeSig ms
-                        tpb = ticksPerBeat ms
-                    print ts
-                    -- print . map (updTimeSig tpb) $ ts
-                    -- print tpb
-                    -- mapM_ print . map (timeSigChange tpb) $ ts
-                    _ <- sequence $ zipWith writeMidiScore (segByTimeSig ms) (map (: ".mid") "1234567890")
-                    putStrLn "Done"
--}
 
 --
 starMeter :: Time -> NSWMeterSeg -> IO ()
@@ -107,10 +77,24 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
 -- IMA profiles
 --------------------------------------------------------------------------------
 
-data NSWProf = NSWProf { pTimeSig :: TimeSig 
-                       , pWeights :: [SWeight]
-                       } deriving (Show, Eq)
+-- data NSWProf = NSWProf { pTimeSig :: TimeSig 
+                       -- , pWeights :: [(Int, NSWeigth)]
+                       -- } deriving (Show, Eq)
                        
+type NSWProf = TimedSeg TimeSig [(Int, NSWeigth)]
+                       
+toNSWProf :: Time ->  NSWMeterSeg -> TimedSeg TimeSig (Int, IntMap NSWeigth)
+toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldr toProf (0,empty) s) where
+
+  toProf :: Timed (Maybe ScoreEvent, NSWeigth) -> (Int, IntMap NSWeigth)
+         -> (Int, IntMap NSWeigth)
+  toProf (Timed g (_se,w)) (b, m) = 
+    let (bar, bt) = getBeatInBar (getEvent ts) tpb g
+    in case bt of 
+         Just b  -> (bar, insertWith (+) b w m)
+         Nothing -> (b, m)
+                               
+                               
                        
 -- testing
 main :: IO ()
