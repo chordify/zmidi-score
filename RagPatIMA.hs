@@ -3,7 +3,7 @@
 module Main where
 
 import ZMidiBasic            
-import MidiCommonIO                 ( readMidiScore, readMidiScoreSafe, mapDirInDir, mapDir )
+import MidiCommonIO                 ( readMidiScore, readMidiScoreSafe, mapDirInDir, mapDir, foldrDir )
 import MelFind                      ( getAccompQuant, mergeTracks )
 import TimeSigSeg
 import InnerMetricalAnalysis hiding ( Time )
@@ -13,7 +13,7 @@ import System.Environment           ( getArgs )
 import Data.List            ( nubBy, intercalate, foldl' )
 import Data.Function                ( on )
 import Data.Maybe                   ( catMaybes )
-import Data.Map.Lazy             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
+import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
 
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
@@ -108,11 +108,11 @@ showNSWProf (ts, (bars, m)) = intercalate "\n" ( show ts : foldrWithKey shw [] m
         shw bt w r = (show bt ++ ": " ++ stars (w / fromIntegral bars)) : r
 
 -- | Collects all profiles sorted by time signature in one map
-collectNSWProf :: [NSWProfSeg] -> Map TimeSig NSWProf
-collectNSWProf = foldr doSeg empty where
+collectNSWProf :: [NSWProfSeg] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
+collectNSWProf s m = foldr doSeg m s where
 
   doSeg :: NSWProfSeg -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-  doSeg (TimedSeg ts p) m = insertWith mergeNSWProf (getEvent ts) p m
+  doSeg (TimedSeg ts p) m = insertWith mergeNSWProf (getEvent ts) p $! m
   
 -- | merges two 'NSWProf's by summing its values
 mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
@@ -129,8 +129,18 @@ main =
                         let s   =  matchMeterIMA Sixteenth ms
                             tpb = ticksPerBeat ms
                         mapM_ (starMeter tpb) s
-                        mapM_ (putStrLn . showNSWProf) . toList . collectNSWProf . map (toNSWProf tpb) $ s
-       ["-d", fp] -> do let f x = print x >> readMidiScoreSafe x >>= return . fmap toNSWProfSegs
-                        mapDirInDir (\d -> mapDir f d >>= return . concat . catMaybes) fp
-                        >>= mapM_ (putStrLn . showNSWProf) . toList . collectNSWProf . concat
+                        mapM_ (putStrLn . showNSWProf) . toList 
+                            . collectNSWProf (map (toNSWProf tpb) s) $ empty
+                            
+       ["-d", fp] -> do foldrDir readProf empty fp 
+                            >>= mapM_ (putStrLn . showNSWProf) . toList 
+                        
        _    -> error "Please use -f <file> or -d <ragtime directory>"
+       
+       
+readProf :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
+readProf fp m = do ms <- readMidiScoreSafe fp
+                   putStrLn fp
+                   case ms of
+                     Just x  -> return . collectNSWProf (toNSWProfSegs x) $ m 
+                     Nothing -> return m

@@ -3,7 +3,10 @@
 module MidiCommonIO (-- * Mapping
                       mapDirInDir
                     , mapDir
-                    , mapDir'
+                    , mapDir_
+                    -- * Folding
+                    , foldrDirInDir
+                    , foldrDir
                     -- * Reading and Writing
                     , readMidiFile
                     , readMidiScoreSafe
@@ -24,6 +27,7 @@ import System.Directory   ( getDirectoryContents, canonicalizePath
                           , doesDirectoryExist )
 import System.IO          ( stderr, hPutStrLn )
 import System.FilePath    ( (</>) )
+import Data.Foldable      ( foldrM )
 
 --------------------------------------------------------------------------------
 -- Mapping
@@ -38,8 +42,8 @@ mapDirInDir f fp = do fs  <- getDirectoryContents fp
 
 -- | Applies a function to every file/dir in a directory, similar to 'mapDir',
 -- but it discards the result of the evaluation
-mapDir' :: (FilePath -> IO a) ->  FilePath -> IO ()
-mapDir' f = void . mapDir f
+mapDir_ :: (FilePath -> IO a) ->  FilePath -> IO ()
+mapDir_ f = void . mapDir f
 
 -- | Applies a function to every file/dir in a directory
 mapDir :: (FilePath -> IO a) ->  FilePath -> IO [a]
@@ -48,6 +52,19 @@ mapDir f fp = do fs  <- getCurDirectoryContents fp
                  putErrStrLn cin
                  mapM (f . (cin </>)) fs 
 
+foldrDirInDir :: (FilePath -> b -> IO b) -> b -> FilePath -> IO b
+foldrDirInDir f b fp = 
+  do fs  <- getDirectoryContents fp 
+              >>= return . filter (\x -> x /= "." && x /= "..") 
+     cfp <- canonicalizePath fp
+     filterM doesDirectoryExist fs >>= foldrM (\x y -> f (cfp </> x) y) b 
+                 
+-- | Applies a function to every file/dir in a directory
+foldrDir :: (FilePath -> b -> IO b) -> b -> FilePath -> IO b
+foldrDir f b fp = do fs  <- getCurDirectoryContents fp
+                     cin <- canonicalizePath fp
+                     putErrStrLn cin
+                     foldrM (\x y -> f (cin </> x) $! y) b fs 
 
 --------------------------------------------------------------------------------
 -- Reading & Writing
