@@ -26,6 +26,8 @@ type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeigth)]
 matchMeterIMA :: ShortestNote -> MidiScore -> [NSWMeterSeg]
 matchMeterIMA q ms = 
   let -- quantise the merge all tracks and remove nub notes with the same onset
+      -- TODO : we should be able to use Data.List.Ordered, but this nub give
+      -- other results, this must be investigated
       v   = nubBy ((==) `on` onset) 
           . head . getVoices . mergeTracks . quantise q $ ms
       -- calculate the minimal beat duration
@@ -81,21 +83,24 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
                        -- , pWeights :: [(Int, NSWeigth)]
                        -- } deriving (Show, Eq)
                        
-type NSWProf = TimedSeg TimeSig [(Int, NSWeigth)]
+type NSWProf     = TimedSeg TimeSig [(NrOfBars, NSWeigth)]
+newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
                        
-toNSWProf :: Time ->  NSWMeterSeg -> TimedSeg TimeSig (Int, IntMap NSWeigth)
+toNSWProf :: Time ->  NSWMeterSeg -> TimedSeg TimeSig (NrOfBars, IntMap NSWeigth)
 toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldr toProf (0,empty) s) where
 
-  toProf :: Timed (Maybe ScoreEvent, NSWeigth) -> (Int, IntMap NSWeigth)
-         -> (Int, IntMap NSWeigth)
+  toProf :: Timed (Maybe ScoreEvent, NSWeigth) -> (NrOfBars, IntMap NSWeigth)
+         -> (NrOfBars, IntMap NSWeigth)
   toProf (Timed g (_se,w)) (b, m) = 
-    let (bar, bt) = getBeatInBar (getEvent ts) tpb g
-    in case bt of 
-         Just b  -> (bar, insertWith (+) b w m)
-         Nothing -> (b, m)
-                               
-                               
-                       
+    let (bar, jbt) = getBeatInBar (getEvent ts) tpb g
+    in case jbt of 
+         Just bt -> (NrOfBars bar, insertWith (+) bt w m)
+         Nothing -> (b , m)
+
+
+
+
 -- testing
 main :: IO ()
 main = do arg <- getArgs 
