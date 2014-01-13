@@ -678,7 +678,7 @@ getBeatInBar :: TimeSig -> Time -> Time -> (Int, Maybe Int)
 getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
 getBeatInBar (TimeSig num _den _ _) tpb o = 
   case o `divMod` tpb of
-    (t, 0) -> let (bar, bt) = t `divMod` num in (bar, Just (succ bt))
+    (t, 0) -> let (bar, bt) = t `divMod` num in (succ bar, Just (succ bt))
     (t, _) -> (t `div` num, Nothing)
 
 --------------------------------------------------------------------------------

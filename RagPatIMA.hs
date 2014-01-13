@@ -10,10 +10,12 @@ import InnerMetricalAnalysis hiding ( Time )
 import qualified InnerMetricalAnalysis as IMA ( Time (..) )        
 -- import Math.Statistics              ( pearson )
 import System.Environment           ( getArgs )
-import Data.List            ( nubBy )
+import Data.List            ( nubBy, intercalate, foldl' )
 import Data.Function                ( on )
-import Data.IntMap.Lazy             ( empty, IntMap, insertWith )
+import Data.IntMap.Lazy             ( empty, IntMap, insertWith, foldrWithKey )
+import qualified Data.IntMap.Lazy  as M ( Key )
 
+import Debug.Trace
 -- type Pattern  = (Int, Float)
 
 -- | Normalised spectral weights (value between 0 and 1)
@@ -73,8 +75,10 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
     let (bar, bt) = getBeatInBar x tpb g
     in  putStrLn (show (g+os) ++ " " ++ show bar ++ " " ++ (maybe " "  show bt)
                               ++ " " ++ (maybe "   " (show . pitch) se)
-                              ++ " " ++ replicate (round (20 * w)) '*' )
+                              ++ " " ++ stars w)
 
+stars :: NSWeigth -> String
+stars w = replicate (round (20 * w)) '*' 
 --------------------------------------------------------------------------------
 -- IMA profiles
 --------------------------------------------------------------------------------
@@ -83,22 +87,28 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
                        -- , pWeights :: [(Int, NSWeigth)]
                        -- } deriving (Show, Eq)
                        
-type NSWProf     = TimedSeg TimeSig [(NrOfBars, NSWeigth)]
+type NSWProf     = TimedSeg TimeSig (NrOfBars, IntMap NSWeigth)
 newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
                        
-toNSWProf :: Time ->  NSWMeterSeg -> TimedSeg TimeSig (NrOfBars, IntMap NSWeigth)
-toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldr toProf (0,empty) s) where
+toNSWProf :: Time ->  NSWMeterSeg -> NSWProf
+toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldl' toProf (1,empty) s) where
 
-  toProf :: Timed (Maybe ScoreEvent, NSWeigth) -> (NrOfBars, IntMap NSWeigth)
+  toProf :: (NrOfBars, IntMap NSWeigth) -> Timed (Maybe ScoreEvent, NSWeigth)
          -> (NrOfBars, IntMap NSWeigth)
-  toProf (Timed g (_se,w)) (b, m) = 
+  toProf (b, m) (Timed g (_se,w)) = 
     let (bar, jbt) = getBeatInBar (getEvent ts) tpb g
     in case jbt of 
          Just bt -> (NrOfBars bar, insertWith (+) bt w m)
          Nothing -> (b , m)
 
+showNSWProf :: NSWProf -> String
+showNSWProf (TimedSeg ts (bars, m)) = intercalate "\n" ( hdr : foldrWithKey shw [] m )
 
+  where shw :: M.Key -> NSWeigth -> [String] -> [String]
+        shw bt w r = (show bt ++ ": " ++ stars (w / fromIntegral bars)) : r
+        
+        hdr = "\n" ++ show ts ++ "\n"
 
 
 -- testing
@@ -108,5 +118,8 @@ main = do arg <- getArgs
             [fp] -> do ms <- readMidiScore fp 
                        -- print . map IMA.time . preProcessMidi Sixteenth $ ms
                        print . getMinDur . buildTickMap $ [getAccompQuant Sixteenth ms]
-                       mapM_ (starMeter (ticksPerBeat ms)) . matchMeterIMA Sixteenth $ ms
+                       let seg =  matchMeterIMA Sixteenth ms
+                           tpb = ticksPerBeat ms
+                       mapM_ (starMeter tpb) seg
+                       mapM_ (putStrLn . showNSWProf . toNSWProf tpb) seg
             _    -> error "Please provide a path to a midifile"
