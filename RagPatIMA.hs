@@ -12,7 +12,7 @@ import qualified InnerMetricalAnalysis as IMA ( Time (..) )
 import System.Environment           ( getArgs )
 import Data.List            ( nubBy, intercalate, foldl' )
 import Data.Function                ( on )
-import Data.Map.Lazy             ( empty, Map, insertWith, foldrWithKey )
+import Data.Map.Lazy             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
 
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
@@ -96,17 +96,24 @@ toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldl' toProf (1,empty) s) where
      (bar, Just bt) -> (NrOfBars bar, insertWith (+) bt w m)
      (_  , Nothing) -> (b , m)
 
--- Plots an 'NSWProf'ile by calculating the average profile
-showNSWProf :: NSWProfSeg -> String
-showNSWProf (TimedSeg ts (bars, m)) = intercalate "\n" ( hdr : foldrWithKey shw [] m )
+-- | Plots an 'NSWProf'ile by calculating the average profile
+showNSWProf :: (TimeSig, NSWProf) -> String
+showNSWProf (ts, (bars, m)) = intercalate "\n" ( show ts : foldrWithKey shw [] m )
 
   where shw :: Int -> NSWeight -> [String] -> [String]
         shw bt w r = (show bt ++ ": " ++ stars (w / fromIntegral bars)) : r
-        
-        hdr = "\n" ++ show ts ++ "\n"
 
+-- | Collects all profiles sorted by time signature in one map
 collectNSWProf :: [NSWProfSeg] -> Map TimeSig NSWProf
-collectNSWProf = undefined
+collectNSWProf = foldr doSeg empty where
+
+  doSeg :: NSWProfSeg -> Map TimeSig NSWProf -> Map TimeSig NSWProf
+  doSeg (TimedSeg ts p) m = insertWith mergeNSWProf (getEvent ts) p m
+  
+-- | merges two 'NSWProf's by summing its values
+mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
+mergeNSWProf (a, ma) (b, mb) = (a + b, unionWith (+) ma mb)
+  
 
 -- testing
 main :: IO ()
@@ -118,5 +125,5 @@ main = do arg <- getArgs
                        let s   =  matchMeterIMA Sixteenth ms
                            tpb = ticksPerBeat ms
                        mapM_ (starMeter tpb) s
-                       mapM_ (putStrLn . showNSWProf . toNSWProf tpb) s
+                       mapM_ (putStrLn . showNSWProf) . toList . collectNSWProf . map (toNSWProf tpb) $ s
             _    -> error "Please provide a path to a midifile"
