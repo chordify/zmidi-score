@@ -3,7 +3,7 @@
 module Main where
 
 import ZMidiBasic            
-import MidiCommonIO                 ( readMidiScore )
+import MidiCommonIO                 ( readMidiScore, readMidiScoreSafe, mapDirInDir, mapDir )
 import MelFind                      ( getAccompQuant, mergeTracks )
 import TimeSigSeg
 import InnerMetricalAnalysis hiding ( Time )
@@ -12,6 +12,7 @@ import qualified InnerMetricalAnalysis as IMA ( Time (..) )
 import System.Environment           ( getArgs )
 import Data.List            ( nubBy, intercalate, foldl' )
 import Data.Function                ( on )
+import Data.Maybe                   ( catMaybes )
 import Data.Map.Lazy             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
 
 -- | Normalised spectral weights (value between 0 and 1)
@@ -86,7 +87,10 @@ type NSWProf     = (NrOfBars, Map Int NSWeight)
 -- | Stores the number of bars
 newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
-                    
+
+toNSWProfSegs :: MidiScore -> [NSWProfSeg]
+toNSWProfSegs m = map (toNSWProf (ticksPerBeat m)) . matchMeterIMA Sixteenth $ m
+
 -- | Calculates sums the NSW profiles for a meter section
 toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
 toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldl' toProf (1,empty) s) where
@@ -112,18 +116,21 @@ collectNSWProf = foldr doSeg empty where
   
 -- | merges two 'NSWProf's by summing its values
 mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
-mergeNSWProf (a, ma) (b, mb) = (a + b, unionWith (+) ma mb)
-  
+mergeNSWProf (a, ma) (b, mb) = (a + b, unionWith (+) ma mb)  
 
+  
 -- testing
 main :: IO ()
-main = do arg <- getArgs 
-          case arg of
-            [fp] -> do ms <- readMidiScore fp 
-                       -- print . map IMA.time . preProcessMidi Sixteenth $ ms
-                       print . getMinDur . buildTickMap $ [getAccompQuant Sixteenth ms]
-                       let s   =  matchMeterIMA Sixteenth ms
-                           tpb = ticksPerBeat ms
-                       mapM_ (starMeter tpb) s
-                       mapM_ (putStrLn . showNSWProf) . toList . collectNSWProf . map (toNSWProf tpb) $ s
-            _    -> error "Please provide a path to a midifile"
+main = 
+  do arg <- getArgs 
+     case arg of
+       ["-f", fp] -> do ms <- readMidiScore fp 
+                        print . getMinDur . buildTickMap $ [getAccompQuant Sixteenth ms]
+                        let s   =  matchMeterIMA Sixteenth ms
+                            tpb = ticksPerBeat ms
+                        mapM_ (starMeter tpb) s
+                        mapM_ (putStrLn . showNSWProf) . toList . collectNSWProf . map (toNSWProf tpb) $ s
+       ["-d", fp] -> do let f x = print x >> readMidiScoreSafe x >>= return . fmap toNSWProfSegs
+                        mapDirInDir (\d -> mapDir f d >>= return . concat . catMaybes) fp
+                        >>= mapM_ (putStrLn . showNSWProf) . toList . collectNSWProf . concat
+       _    -> error "Please use -f <file> or -d <ragtime directory>"

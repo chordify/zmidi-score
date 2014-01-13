@@ -6,6 +6,7 @@ module MidiCommonIO (-- * Mapping
                     , mapDir'
                     -- * Reading and Writing
                     , readMidiFile
+                    , readMidiScoreSafe
                     , readMidiScore
                     , writeMidiScore
                     -- * Utilities
@@ -52,6 +53,13 @@ mapDir f fp = do fs  <- getCurDirectoryContents fp
 -- Reading & Writing
 --------------------------------------------------------------------------------
 
+readMidiScoreSafe :: FilePath -> IO (Maybe MidiScore)
+readMidiScoreSafe f = 
+  do mf <- readMidi f
+     case mf of Left  _er -> return   Nothing
+                Right mid -> return . Just . midiFileToMidiScore $ mid
+
+
 -- | Reads a 'MidiFile' converts it into a 'MidiScore' and returns it
 readMidiScore :: FilePath -> IO (MidiScore)
 readMidiScore f = readMidiFile f >>= return . midiFileToMidiScore
@@ -71,13 +79,6 @@ writeMidiScore mf f = writeMidi f . midiScoreToMidiFile $ mf
 -- Utilities
 --------------------------------------------------------------------------------
 
--- | Writes the contents of a 'MidiFile' to a file.
--- printMidiToFile :: MidiFile -> FilePath -> IO ()
--- printMidiToFile mf fp = 
-  -- let hd = printMidiHeader mf
-      -- ts = concatMap printMidiTrack . mf_tracks $ mf
-  -- in  writeFile fp . intercalate "\n" $ (hd ++ ts)
-  
 -- | Reads all midifiles at a specific location and compares all files to 
 -- all files, printing the paths of the files with the same MIDI content 
 -- to the user
