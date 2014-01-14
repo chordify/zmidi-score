@@ -57,7 +57,7 @@ foldrDirInDir f b fp =
   do fs  <- getDirectoryContents fp 
               >>= return . filter (\x -> x /= "." && x /= "..") 
      cfp <- canonicalizePath fp
-     filterM doesDirectoryExist fs >>= foldrM (\x y -> f (cfp </> x) y) b 
+     filterM doesDirectoryExist (fmap (cfp </>) fs)  >>= foldrM f b  
                  
 -- | Applies a function to every file/dir in a directory
 foldrDir :: (FilePath -> b -> IO b) -> b -> FilePath -> IO b

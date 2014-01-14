@@ -3,7 +3,8 @@
 module Main where
 
 import ZMidiBasic            
-import MidiCommonIO                 ( readMidiScore, readMidiScoreSafe, mapDirInDir, mapDir, foldrDir )
+import MidiCommonIO                 ( readMidiScore, readMidiScoreSafe
+                                    , mapDirInDir, mapDir, foldrDir, foldrDirInDir )
 import MelFind                      ( getAccompQuant, mergeTracks )
 import TimeSigSeg
 import InnerMetricalAnalysis hiding ( Time )
@@ -105,7 +106,8 @@ showNSWProf :: (TimeSig, NSWProf) -> String
 showNSWProf (ts, (bars, m)) = intercalate "\n" ( show ts : foldrWithKey shw [] m )
 
   where shw :: Int -> NSWeight -> [String] -> [String]
-        shw bt w r = (show bt ++ ": " ++ stars (w / fromIntegral bars)) : r
+        shw bt w r = let x = w / fromIntegral bars
+                     in (show bt ++ ": " ++ show x ++ "  " ++ stars x) : r
 
 -- | Collects all profiles sorted by time signature in one map
 collectNSWProf :: [NSWProfSeg] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
@@ -116,7 +118,7 @@ collectNSWProf s m = foldr doSeg m s where
   
 -- | merges two 'NSWProf's by summing its values
 mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
-mergeNSWProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)  
+mergeNSWProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
 
   
 -- testing
@@ -132,15 +134,19 @@ main =
                         mapM_ (putStrLn . showNSWProf) . toList 
                             . collectNSWProf (map (toNSWProf tpb) s) $ empty
                             
-       ["-d", fp] -> do foldrDir readProf empty fp 
+       ["-d", fp] -> do foldrDirInDir (flip (foldrDir readProf)) empty fp
                             >>= mapM_ (putStrLn . showNSWProf) . toList 
                         
        _    -> error "Please use -f <file> or -d <ragtime directory>"
        
        
 readProf :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
-readProf fp m = do ms <- readMidiScoreSafe fp
-                   putStrLn fp
-                   case ms of
-                     Just x  -> return . collectNSWProf (toNSWProfSegs x) $! m 
-                     Nothing -> return m
+readProf fp m = 
+  do ms <- readMidiScoreSafe fp
+     -- putStrLn fp
+     case ms of
+       Just x  -> case getTimeSig x of
+                    -- ignore the piece if not time signature is present
+                    [Timed _ NoTimeSig] -> return m 
+                    _  -> return . collectNSWProf (toNSWProfSegs x) $! m 
+       Nothing -> return m 
