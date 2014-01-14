@@ -31,7 +31,8 @@ matchMeterIMA q ms =
       v   = nubBy ((==) `on` onset) 
           . head . getVoices . mergeTracks . quantise q $ ms
       -- calculate the minimal beat duration
-      mn  = Period . getMinDur . buildTickMap $ [v]
+      -- TODO this value is already included in a MidiScore...
+      mn  = Period . gcIOId . buildTickMap $ [v]
       -- calculate the spectral weights
       ws  = getSpectralWeight mn . map IMA.Time . toOnsets $ v
       -- calculate the maximum weight
@@ -143,7 +144,7 @@ main =
 readProf :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
 readProf fp m = 
   do ms <- readMidiScoreSafe fp
-     -- putStrLn fp
+     putStrLn fp
      case ms of
        Just x  -> case getTimeSig x of
                     -- ignore the piece if not time signature is present
