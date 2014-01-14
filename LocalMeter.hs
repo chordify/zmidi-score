@@ -5,7 +5,7 @@
 module LocalMeter ( Time   (..)
                   , Period (..)
                   , Len    (..)
-                  , randomOnsets
+                  -- , randomOnsets
                   , factors
                   ) where
 
@@ -35,11 +35,11 @@ instance Arbitrary Time where
 instance Arbitrary [Time] where
      arbitrary = choose (1,100) >>= genOnsets
 
-randomOnsets :: Int -> IO [Time]
-randomOnsets n = do r <- newStdGen 
-                    let t = generate 1 r (genOnsets n)
-                    print . map time $ t
-                    return t
+-- randomOnsets :: Int -> IO [Time]
+-- randomOnsets n = do r <- newStdGen 
+                    -- let t = generate 1 r (genOnsets n)
+                    -- print . map time $ t
+                    -- return t
                   
 genOnsets :: Int -> Gen [Time]                      
 genOnsets n = vector n >>= return . reverse . foldr step [] where
