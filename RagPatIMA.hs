@@ -112,11 +112,11 @@ collectNSWProf :: [NSWProfSeg] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
 collectNSWProf s m = foldr doSeg m s where
 
   doSeg :: NSWProfSeg -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-  doSeg (TimedSeg ts p) m = insertWith mergeNSWProf (getEvent ts) p $! m
+  doSeg (TimedSeg ts p) m = insertWith mergeNSWProf (getEvent ts) p m
   
 -- | merges two 'NSWProf's by summing its values
 mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
-mergeNSWProf (a, ma) (b, mb) = (a + b, unionWith (+) ma mb)  
+mergeNSWProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)  
 
   
 -- testing
@@ -142,5 +142,5 @@ readProf :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
 readProf fp m = do ms <- readMidiScoreSafe fp
                    putStrLn fp
                    case ms of
-                     Just x  -> return . collectNSWProf (toNSWProfSegs x) $ m 
+                     Just x  -> return . collectNSWProf (toNSWProfSegs x) $! m 
                      Nothing -> return m

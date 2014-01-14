@@ -52,7 +52,7 @@ executable RagPatIMA
                        random >= 1.0.1.1,
                        QuickCheck >= 1.0 && < 2.1,
                        data-ordlist >= 0.4.5
-  ghc-options:         -Wall -O2   
+  ghc-options:         -Wall -O2 
   
 executable RagPat
   main-is:             Main.hs
