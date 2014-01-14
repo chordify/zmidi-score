@@ -4,7 +4,7 @@ import System.Environment ( getArgs )
 import Data.List          ( intercalate, genericLength, intersectBy )
 
 import MidiCommonIO       ( readMidiFile, readMidiScore, mapDir
-                          , mapDir', logDuplicates, writeMidiScore
+                          , mapDir_, logDuplicates, writeMidiScore
                           , removeTrackLabels )
 import ZMidi.Core         ( writeMidi, MidiFile (..) )
 import MelFind
@@ -15,11 +15,11 @@ main :: IO ()
 main = do arg <- getArgs
           case arg of
             ["-s", d] -> do putStrLn ("filepath\tmin 1\tmax 1\tmin 2\tmax 2")
-                            mapDir' showMidiStats d
+                            mapDir_ showMidiStats d
             ["-d", d] -> do putStrLn ("filepath\tprecision\trecall\tf-measure")
                             rs <- mapDir evalHandSep d
                             putStrLn ("averages\t" ++ (show . averagePRF $ rs))
-            ["-b", d] -> mapDir' (quantiseAndMelFind FourtyEighth) d
+            ["-b", d] -> mapDir_ (quantiseAndMelFind FourtyEighth) d
             ["-f", f] -> createSepHandMidiFile f
             ["-r", f] -> reverse2Tracks f
             ["-q", f] ->   readMidiScore f >>= writeMidi (f ++ ".quant.mid") 
@@ -178,7 +178,7 @@ reverse2Tracks :: FilePath -> IO ()
 reverse2Tracks f = 
   do mf <- readMidiFile f
      -- It is customary to use a first track for storing meta data.
-     -- Also, somethimes additional information is stored in some trailing
+     -- Also, sometimes additional information is stored in some trailing
      -- tracks.
      let (empty, t1 : t2 : rest) = span (not . hasNotes) . mf_tracks $ mf
      writeMidi (f ++ ".rev2trk.mid") mf {mf_tracks = empty ++ (t2 : t1 : rest)}

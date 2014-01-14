@@ -3,7 +3,7 @@ module Main where
 
 import ZMidi.Core         ( readMidi )
 import ZMidiBasic
-import MidiCommonIO       ( mapDirInDir, mapDir' )
+import MidiCommonIO       ( mapDirInDir, mapDir_ )
 
 -- other libraries
 import System.Console.ParseArgs
@@ -50,7 +50,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             ("stat"  , Left f ) -> showFileStats f
             ("stat"  , Right d) -> getCompendium arg >>= showDirStats d
             ("subdiv", Left f ) -> printFileSubDiv f
-            ("subdiv", Right d) -> void . mapDirInDir (mapDir' printSubDiv) $ d
+            ("subdiv", Right d) -> void . mapDirInDir (mapDir_ printSubDiv) $ d
             ("mkrtc" , Right d) -> getCompendium arg >>= createSubCorpus d 
             ("rtc"   , Right d) -> getCompendium arg >>= ragPatDir d
             ("rtc"   , Left f ) -> printFilePatMat f
@@ -74,7 +74,7 @@ getCompendium arg = case getArg arg RTCFile of
 
 -- | stuff to do with the rtc flag                      
 ragPatDir :: FilePath -> [RTC] -> IO ()
-ragPatDir d c = void . mapDirInDir (mapDir' (printPatCount c)) $ d 
+ragPatDir d c = void . mapDirInDir (mapDir_ (printPatCount c)) $ d 
 
 -- | creates a subcorpus
 createSubCorpus :: FilePath -> [RTC] -> IO ()
