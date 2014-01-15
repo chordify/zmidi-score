@@ -35,9 +35,9 @@ import Data.IntMap                ( empty, IntMap, insert, toAscList, elems
                                   , filterWithKey, mapKeysMonotonic, toList )
 import qualified Data.IntMap as M ( lookup, null, map )
 import Data.Vector                ( Vector, (!), generate, freeze, thaw )
-import qualified Data.Vector as V ( fromList, length, empty, replicate )
+import qualified Data.Vector as V ( fromList, toList, length, empty, replicate )
 import Data.Vector.Mutable        ( MVector )
-import Data.Vector.Mutable   as MV ( read, write )
+import Data.Vector.Mutable   as MV ( read, unsafeRead, write )
 import Data.Foldable              ( foldrM )
 import Control.Monad.ST
 import Control.Monad.Primitive
@@ -250,15 +250,16 @@ getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap
        addWeight :: Int -> SWeightMap -> SWeightMap
        addWeight o m'' = insertWith (+) o w m''
 
--- type MVecSW = (PrimMonad m) => MVector (PrimState m) SWeight 
+       
 type MVecSW m = MVector (PrimState m) SWeight 
        
 getSpectralWeight2 :: Period -> [Time] -> [(Int, SWeight)]
 getSpectralWeight2 _ []  = []
 getSpectralWeight2 p os = let grd = createGrid p os
                               ws  = getSpectralVec p (maxPeriod os) os $ grd
-                              f g = (g, ws ! g)
-                          in  map f grd
+                          in zip grd (V.toList ws)
+                              -- f g = (g, ws ! g)
+                          -- in  map f grd
        
 getSpectralVec :: Period -> Period -> [Time] -> [Int] -> Vector SWeight
 getSpectralVec _  _  _   []   = V.empty
@@ -267,13 +268,13 @@ getSpectralVec ml mP ons grid = runST $ do v <- initVec
                                            where
    
    initVec :: (PrimMonad m) => m (MVecSW m)
-   initVec = thaw . V.replicate (succ end) . SWeight $ 0
+   initVec = thaw . V.replicate (succ . length $ grid) . SWeight $ 0
    
    start = head grid 
    end   = last grid  
    
-   -- toGridIx :: Int -> Int
-   -- toGridIx t = start + (t `div` (period ml))
+   toGridIx :: Int -> Int
+   toGridIx t = (t - start) `div` (period ml)
    
    -- calculate the spectral onsets that belong to a local meter
    spectralGrid :: Int -> Int -> [Int]
@@ -287,12 +288,11 @@ getSpectralVec ml mP ons grid = runST $ do v <- initVec
      oneMeter (t, Len l) mv = foldrM addWeight mv $ spectralGrid t p where
        
        -- addWeigth is executed very often, hence we pre-compute some values
-       -- tp = t `mod` p
        w  = SWeight (l ^ (2 :: Int))
      
        -- adds the spectral onsets to the weight vector
        addWeight :: (PrimMonad m) => Int -> MVecSW m -> m (MVecSW m)
-       addWeight i mv' = do curW <- MV.read mv' i
-                            -- MV.write mv' (toGridIx i) (curW + w)
-                            MV.write mv' i (curW + w)
+       addWeight i mv' = do curW <- MV.unsafeRead mv' (toGridIx i) --no bounds checking
+                            MV.write mv' (toGridIx i) (curW + w)
+                            -- MV.write mv' i (curW + w)
                             return mv'

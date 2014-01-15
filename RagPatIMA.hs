@@ -34,7 +34,7 @@ matchMeterIMA q ms =
       -- TODO this value is already included in a MidiScore...
       mn  = Period . gcIOId . buildTickMap $ [v]
       -- calculate the spectral weights
-      ws  = getSpectralWeight mn . map IMA.Time . toOnsets $ v
+      ws  = getSpectralWeight2 mn . map IMA.Time . toOnsets $ v
       -- calculate the maximum weight
       mx  = NSWeight . fromIntegral . maximum . map snd $ ws
       -- split the midi file per 
