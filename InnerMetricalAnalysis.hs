@@ -24,7 +24,6 @@ module InnerMetricalAnalysis ( -- * Types for Local Meters
                              , getLocalMeters
                              , getMetricWeight
                              , getSpectralWeight
-                             , getSpectralWeight2
                              -- * Utilities
                              , maxPeriod
                              ) where
@@ -205,7 +204,10 @@ getMetricMap ml mP ons = foldrWithKey onePeriod initMap
 -- the entire piece.
 getSpectralWeight :: Period -> [Time] -> [(Int, SWeight)]
 getSpectralWeight _ []  = []
-getSpectralWeight p os = assocs $ getSpectralMap p (maxPeriod os) os (createGrid p os)
+getSpectralWeight p os = 
+  let grd = createGrid p os
+  in zip grd . V.toList . getSpectralVec p (maxPeriod os) os $ grd
+  
           
 -- | Creates a grid that to align the spectral weights to:
 -- 
@@ -220,59 +222,25 @@ maxPeriod :: [Time] -> Period
 maxPeriod [] = error "maxPeriod: empty list"
 maxPeriod ts = Period ((time . last $ ts) `div` 2)
 
-getSpectralMap :: Period -> Period -> [Time] -> [Int] -> SWeightMap
-getSpectralMap _  _  _   []   = empty
-getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap 
-                              $ getLocalMeters ml mP ons where
-   
-   initMap :: SWeightMap 
-   initMap = foldr (\o m -> insertWith (+) o (SWeight 0) m) empty grid
-   
-   start = head grid 
-   end   = last grid  
-   
-   -- calculate the spectral onsets that belong to a local meter
-   spectralGrid :: Int -> Int -> [Int]
-   spectralGrid ms p = let rm = ms `mod` p
-                       in dropWhile (< start) [ rm, (rm + p) .. end ]
-   
-   onePeriod :: Int -> OnsetMap -> SWeightMap -> SWeightMap
-   onePeriod p om wm = foldrWithKey oneMeter wm om where
-     
-     oneMeter :: Int -> Len -> SWeightMap -> SWeightMap
-     oneMeter t (Len l) m' = foldr addWeight m' $ spectralGrid t p where
-       
-       -- addWeigth is executed very often, hence we pre-compute some values
-       -- tp = t `mod` p
-       w  = SWeight (l ^ (2 :: Int))
-     
-       -- adds the spectral onsets to the weight map
-       addWeight :: Int -> SWeightMap -> SWeightMap
-       addWeight o m'' = insertWith (+) o w m''
-
        
 type MVecSW m = MVector (PrimState m) SWeight 
-       
-getSpectralWeight2 :: Period -> [Time] -> [(Int, SWeight)]
-getSpectralWeight2 _ []  = []
-getSpectralWeight2 p os = let grd = createGrid p os
-                              ws  = getSpectralVec p (maxPeriod os) os $ grd
-                          in zip grd (V.toList ws)
-                              -- f g = (g, ws ! g)
-                          -- in  map f grd
-       
+
 getSpectralVec :: Period -> Period -> [Time] -> [Int] -> Vector SWeight
 getSpectralVec _  _  _   []   = V.empty
-getSpectralVec ml mP ons grid = runST $ do v <- initVec 
-                                           (foldrM onePeriod v . toList . getLocalMeters ml mP $ ons) >>= freeze
-                                           where
+getSpectralVec ml mP ons grid = runST $ (initVec >>= process >>= freeze) where
+
+   -- the main fold that processes all meters and calculates all weights
+   process :: (PrimMonad m) => MVecSW m -> m (MVecSW m)
+   process v = foldrM onePeriod v . toList . getLocalMeters ml mP $ ons
    
+   -- Initialise a mutable Vector based on the grid positions
    initVec :: (PrimMonad m) => m (MVecSW m)
    initVec = thaw . V.replicate (succ . length $ grid) . SWeight $ 0
-   
+  
    start = head grid 
    end   = last grid  
-   
+  
+   -- an indexing function mapping a grid position to its index in the MVector
    toGridIx :: Int -> Int
    toGridIx t = (t - start) `div` (period ml)
    
@@ -294,5 +262,4 @@ getSpectralVec ml mP ons grid = runST $ do v <- initVec
        addWeight :: (PrimMonad m) => Int -> MVecSW m -> m (MVecSW m)
        addWeight i mv' = do curW <- MV.unsafeRead mv' (toGridIx i) --no bounds checking
                             MV.write mv' (toGridIx i) (curW + w)
-                            -- MV.write mv' i (curW + w)
                             return mv'
