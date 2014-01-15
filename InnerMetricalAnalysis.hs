@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE RankNTypes        #-}
 --------------------------------------------------------------------------------
 -- |
 -- Module      :  InnerMetricalAnalysis
@@ -32,12 +31,13 @@ module InnerMetricalAnalysis ( -- * Types for Local Meters
 import Data.List                  ( foldl' )
 import Data.IntMap                ( empty, IntMap, insert, toAscList, elems
                                   , foldrWithKey, insertWith, split, assocs
-                                  , filterWithKey, mapKeysMonotonic )
+                                  , filterWithKey, mapKeysMonotonic, toList )
 import qualified Data.IntMap as M ( lookup, null, map )
 import Data.Vector                ( Vector, (!), generate, freeze, thaw )
-import qualified Data.Vector as V ( fromList, length, empty )
+import qualified Data.Vector as V ( fromList, length, empty, replicate )
 import Data.Vector.Mutable        ( MVector )
 import Data.Vector.Mutable   as MV ( read, write )
+import Data.Foldable              ( foldrM )
 import Control.Monad.ST
 import Control.Monad.Primitive
 import LocalMeter
@@ -249,15 +249,17 @@ getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap
        addWeight :: Int -> SWeightMap -> SWeightMap
        addWeight o m'' = insertWith (+) o w m''
 
-type MVecSW = (PrimMonad m) => MVector (PrimState m) SWeight 
+-- type MVecSW = (PrimMonad m) => MVector (PrimState m) SWeight 
+type MVecSW m = MVector (PrimState m) SWeight 
        
 getSpectralVec :: Period -> Period -> [Time] -> [Int] -> Vector SWeight
 getSpectralVec _  _  _   []   = V.empty
-getSpectralVec ml mP ons grid = runST . freeze . foldrWithKey onePeriod initVec 
-                              $ getLocalMeters ml mP ons where
+getSpectralVec ml mP ons grid = runST $ do v <- initVec 
+                                           (foldrM onePeriod v . toList . getLocalMeters ml mP $ ons) >>= freeze
+                                           where
    
-   initVec :: MVecSW
-   initVec = thaw $ replicate end 0
+   initVec :: (PrimMonad m) => m (MVecSW m)
+   initVec = thaw . V.replicate end . SWeight $ 0
    
    start = head grid 
    end   = last grid  
@@ -267,18 +269,18 @@ getSpectralVec ml mP ons grid = runST . freeze . foldrWithKey onePeriod initVec
    spectralGrid ms p = let rm = ms `mod` p
                        in dropWhile (< start) [ rm, (rm + p) .. end ]
    
-   onePeriod :: Int -> OnsetMap -> MVecSW -> MVecSW
-   onePeriod p om wm = foldrWithKey oneMeter wm om where
+   onePeriod :: (PrimMonad m) => (Int, OnsetMap) -> MVecSW m -> m (MVecSW m)
+   onePeriod (p, om) wm = foldrM oneMeter wm (toList om) where
      
-     oneMeter :: Int -> Len -> MVecSW -> MVecSW
-     oneMeter t (Len l) mv = foldr addWeight mv $ spectralGrid t p where
+     oneMeter :: (PrimMonad m) => (Int, Len) -> MVecSW m -> m (MVecSW m)
+     oneMeter (t, Len l) mv = foldrM addWeight mv $ spectralGrid t p where
        
        -- addWeigth is executed very often, hence we pre-compute some values
        -- tp = t `mod` p
        w  = SWeight (l ^ (2 :: Int))
      
        -- adds the spectral onsets to the weight vector
-       addWeight ::  Int -> MVecSW -> MVecSW
+       addWeight :: (PrimMonad m) => Int -> MVecSW m -> m (MVecSW m)
        addWeight i mv' = do curW <- MV.read mv' i
                             MV.write mv' i (curW + w)
                             return mv'
