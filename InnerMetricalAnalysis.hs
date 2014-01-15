@@ -24,6 +24,7 @@ module InnerMetricalAnalysis ( -- * Types for Local Meters
                              , getLocalMeters
                              , getMetricWeight
                              , getSpectralWeight
+                             , getSpectralWeight2
                              -- * Utilities
                              , maxPeriod
                              ) where
@@ -252,6 +253,13 @@ getSpectralMap ml mP ons grid = foldrWithKey onePeriod initMap
 -- type MVecSW = (PrimMonad m) => MVector (PrimState m) SWeight 
 type MVecSW m = MVector (PrimState m) SWeight 
        
+getSpectralWeight2 :: Period -> [Time] -> [(Int, SWeight)]
+getSpectralWeight2 _ []  = []
+getSpectralWeight2 p os = let grd = createGrid p os
+                              ws  = getSpectralVec p (maxPeriod os) os $ grd
+                              f g = (g, ws ! g)
+                          in  map f grd
+       
 getSpectralVec :: Period -> Period -> [Time] -> [Int] -> Vector SWeight
 getSpectralVec _  _  _   []   = V.empty
 getSpectralVec ml mP ons grid = runST $ do v <- initVec 
@@ -259,10 +267,13 @@ getSpectralVec ml mP ons grid = runST $ do v <- initVec
                                            where
    
    initVec :: (PrimMonad m) => m (MVecSW m)
-   initVec = thaw . V.replicate end . SWeight $ 0
+   initVec = thaw . V.replicate (succ end) . SWeight $ 0
    
    start = head grid 
    end   = last grid  
+   
+   -- toGridIx :: Int -> Int
+   -- toGridIx t = start + (t `div` (period ml))
    
    -- calculate the spectral onsets that belong to a local meter
    spectralGrid :: Int -> Int -> [Int]
@@ -282,5 +293,6 @@ getSpectralVec ml mP ons grid = runST $ do v <- initVec
        -- adds the spectral onsets to the weight vector
        addWeight :: (PrimMonad m) => Int -> MVecSW m -> m (MVecSW m)
        addWeight i mv' = do curW <- MV.read mv' i
+                            -- MV.write mv' (toGridIx i) (curW + w)
                             MV.write mv' i (curW + w)
                             return mv'
