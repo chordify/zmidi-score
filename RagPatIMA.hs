@@ -3,7 +3,7 @@
 module Main where
 
 import ZMidiBasic            
-import MidiCommonIO                 ( readMidiScore, readMidiScoreSafe
+import MidiCommonIO                 ( readMidiScore, readMidiScoreSafe, putErrStrLn
                                     , mapDirInDir, mapDir, foldrDir, foldrDirInDir )
 import MelFind                      ( getAccompQuant, mergeTracks )
 import TimeSigSeg
@@ -160,6 +160,6 @@ readProf fp m =
                     [Timed _ NoTimeSig] -> return m 
                     _  -> case toNSWProfSegs x of
                             Right p -> return . collectNSWProf p $! m
-                            Left  e -> do putStrLn ("Warning: skipping " ++ ": " ++ e)
+                            Left  e -> do putErrStrLn ("Warning: skipping " ++ ": " ++ e)
                                           return m
        Nothing -> return m 
