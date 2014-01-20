@@ -34,10 +34,10 @@ import Data.IntMap                ( empty, IntMap, insert, toAscList, elems
                                   , foldrWithKey, insertWith, split, assocs
                                   , filterWithKey, mapKeysMonotonic, toList )
 import qualified Data.IntMap as M ( lookup, null, map )
-import Data.Vector                ( Vector, (!), generate, freeze, thaw )
+import Data.Vector                ( Vector, (!), generate, freeze, thaw, unsafeIndex )
 import qualified Data.Vector as V ( fromList, toList, length, empty, replicate )
 import Data.Vector.Mutable        ( MVector )
-import Data.Vector.Mutable   as MV ( read, unsafeRead, write )
+import Data.Vector.Mutable   as MV ( unsafeRead, unsafeWrite )
 import Data.Foldable              ( foldrM )
 import Control.Monad.ST
 import Control.Monad.Primitive
@@ -121,10 +121,13 @@ onsetGrid _      _     = error "onsetGrid: non-monotone onsets"
 getLength :: Vector Bool -> Period -> Time -> Len
 getLength v (Period p) o = pred $ project o where
 
+  -- cache the length of the vector
+  lv = V.length v
+
   project :: Time -> Len
   {-# INLINE project #-}
-  project (Time t) | t < V.length v && v ! t = 1 + project (Time (t + p))
-                   | otherwise               = 0
+  project (Time t) | t < lv && v `unsafeIndex` t = succ (project (Time (t + p)))
+                   | otherwise                   = 0
 
                    
 addLMeter :: OnsetMap -> Period -> Time -> Len -> OnsetMap
@@ -276,5 +279,5 @@ getSpectralVec ml mP ons grid = runST $ (initVec >>= process >>= freeze) where
        -- adds the spectral onsets to the weight vector
        addWeight :: (PrimMonad m) => Int -> MVecSW m -> m (MVecSW m)
        addWeight i mv' = do curW <- MV.unsafeRead mv' (toGridIx i) --no bounds checking
-                            MV.write mv' (toGridIx i) (curW + w)
+                            MV.unsafeWrite mv' (toGridIx i) (curW + w)
                             return mv'
