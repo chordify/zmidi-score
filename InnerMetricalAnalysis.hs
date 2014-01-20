@@ -26,6 +26,7 @@ module InnerMetricalAnalysis ( -- * Types for Local Meters
                              , getSpectralWeight
                              -- * Utilities
                              , maxPeriod
+                             , addMaxPerCheck
                              ) where
 
 import Data.List                  ( foldl' )
@@ -222,7 +223,21 @@ maxPeriod :: [Time] -> Period
 maxPeriod [] = error "maxPeriod: empty list"
 maxPeriod ts = Period ((time . last $ ts) `div` 2)
 
-       
+-- | Tests whether 'maxPeriod' is not more than 1.5 times the median or
+-- less then 05 times the median of the onsets. This function can be used
+-- to flag outliers as they can bias the calculation of IMA. After all, one 
+-- very late onset, can bias the maximal period and trigger quite a lot of
+-- (useless) computation
+maxPeriodTest :: [Time] -> Bool
+maxPeriodTest [] = error "maxPeriodTest: empty list"
+maxPeriodTest ts = let md = fromIntegral (ts !! (length ts `div` 2)) :: Float
+                       mx = fromIntegral (maxPeriod ts)              :: Float
+                   in (1.5 * mx) > md && (0.5 * mx) < md
+
+addMaxPerCheck :: ([Time] -> a) -> [Time] -> Either String a
+addMaxPerCheck f ts | maxPeriodTest ts = Right (f ts)
+                    | otherwise        = Left "spurious onsets found"
+                   
 type MVecSW m = MVector (PrimState m) SWeight 
 
 getSpectralVec :: Period -> Period -> [Time] -> [Int] -> Vector SWeight

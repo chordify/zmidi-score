@@ -23,7 +23,7 @@ newtype NSWeight = NSWeight { nsweight :: Double }
                               
 type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeight)]
 
-matchMeterIMA :: ShortestNote -> MidiScore -> [NSWMeterSeg]
+matchMeterIMA :: ShortestNote -> MidiScore -> Either String [NSWMeterSeg]
 matchMeterIMA q ms = 
   let -- quantise the merge all tracks and remove nub notes with the same onset
       -- TODO : we should be able to use Data.List.Ordered, but this nub give
@@ -33,12 +33,14 @@ matchMeterIMA q ms =
       -- calculate the minimal beat duration
       -- TODO this value is already included in a MidiScore...
       mn  = Period . gcIOId . buildTickMap $ [v]
+      
       -- calculate the spectral weights
-      ws  = getSpectralWeight mn . map IMA.Time . toOnsets $ v
-      -- calculate the maximum weight
-      mx  = NSWeight . fromIntegral . maximum . map snd $ ws
-      -- split the midi file per 
-  in map normaliseTime $ segment (getTimeSig ms) (match mx ws v) 
+  in case addMaxPerCheck (getSpectralWeight mn) (map IMA.Time $ toOnsets v) of
+      Right w ->     -- calculate the maximum weight
+                 let mx  = NSWeight . fromIntegral . maximum . map snd $ w
+                     -- split the midi file per 
+                 in Right (map normaliseTime $ segment (getTimeSig ms) (match mx w v))
+      Left e  -> Left e
 
 -- | matches a grid with spectral weights with the onsets that created the
 -- weights. The first argument is the maximum 'Weight' found among the weights
@@ -90,8 +92,12 @@ type NSWProf     = (NrOfBars, Map Int NSWeight)
 newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
 
-toNSWProfSegs :: MidiScore -> [NSWProfSeg]
-toNSWProfSegs m = map (toNSWProf (ticksPerBeat m)) . matchMeterIMA Sixteenth $ m
+toNSWProfSegs :: MidiScore -> Either String [NSWProfSeg]
+toNSWProfSegs m = fmap (map (toNSWProf (ticksPerBeat m))) (matchMeterIMA Sixteenth m )
+-- toNSWProfSegs m = case map (toNSWProf . ticksPerBeat m)
+                           -- (matchMeterIMA Sixteenth  m) of
+                     -- Left  e -> Left e
+                     -- Right w -> Right w
 
 -- | Calculates sums the NSW profiles for a meter section
 toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
@@ -129,11 +135,14 @@ main =
      case arg of
        ["-f", fp] -> do ms <- readMidiScore fp 
                         print . getMinDur . buildTickMap $ [getAccompQuant Sixteenth ms]
-                        let s   =  matchMeterIMA Sixteenth ms
+                        let es   =  matchMeterIMA Sixteenth ms
                             tpb = ticksPerBeat ms
-                        mapM_ (starMeter tpb) s
-                        mapM_ (putStrLn . showNSWProf) . toList 
-                            . collectNSWProf (map (toNSWProf tpb) s) $ empty
+                        case es of 
+                          Right s -> do mapM_ (starMeter tpb) s
+                                        mapM_ (putStrLn . showNSWProf) . toList 
+                                          . collectNSWProf (map (toNSWProf tpb) s) 
+                                          $ empty
+                          Left e  -> putStrLn e
                             
        ["-d", fp] -> do foldrDirInDir (flip (foldrDir readProf)) empty fp
                             >>= mapM_ (putStrLn . showNSWProf) . toList 
@@ -149,5 +158,8 @@ readProf fp m =
        Just x  -> case getTimeSig x of
                     -- ignore the piece if not time signature is present
                     [Timed _ NoTimeSig] -> return m 
-                    _  -> return . collectNSWProf (toNSWProfSegs x) $! m 
+                    _  -> case toNSWProfSegs x of
+                            Right p -> return . collectNSWProf p $! m
+                            Left  e -> do putStrLn ("Warning: skipping " ++ ": " ++ e)
+                                          return m
        Nothing -> return m 
