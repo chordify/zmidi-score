@@ -137,12 +137,13 @@ main =
                         print . getMinDur . buildTickMap $ [getAccompQuant Sixteenth ms]
                         let es   =  matchMeterIMA Sixteenth ms
                             tpb = ticksPerBeat ms
+                        -- does the file contains disrubtive onsets?
                         case es of 
                           Right s -> do mapM_ (starMeter tpb) s
                                         mapM_ (putStrLn . showNSWProf) . toList 
                                           . collectNSWProf (map (toNSWProf tpb) s) 
                                           $ empty
-                          Left e  -> putStrLn e
+                          Left e  -> putStrLn e -- show the error
                             
        ["-d", fp] -> do foldrDirInDir (flip (foldrDir readProf)) empty fp
                             >>= mapM_ (putStrLn . showNSWProf) . toList 
@@ -158,8 +159,10 @@ readProf fp m =
        Just x  -> case getTimeSig x of
                     -- ignore the piece if not time signature is present
                     [Timed _ NoTimeSig] -> return m 
+                    -- check for weird onsets
                     _  -> case toNSWProfSegs x of
                             Right p -> return . collectNSWProf p $! m
-                            Left  e -> do putErrStrLn ("Warning: skipping " ++ ": " ++ e)
+                            Left  e -> do putErrStrLn ("Warning: skipping " ++ 
+                                                        fp ++ ": " ++ e)
                                           return m
        Nothing -> return m 

@@ -139,15 +139,16 @@ insertMeters :: [Period] -> MeterMap -> Period -> OnsetMap -> MeterMap
 insertMeters fs mm p om 
   | M.null om' = mm
   | otherwise  = insert (period p) om' mm
-      where om' = filterWithKey (isMaximal fs mm p) om
+      where om' = filterWithKey (isMaximal mm p) om
 
-isMaximal :: [Period] -> MeterMap -> Period -> Int -> Len -> Bool
-isMaximal fs m p t l = foldr isMaxInMeterMap True fs where
+            isMaximal :: MeterMap -> Period -> Int -> Len -> Bool
+            isMaximal m p t l = foldr isMaxInMeterMap True fs where
 
-  isMaxInMeterMap :: Period -> Bool -> Bool
-  isMaxInMeterMap f r = case M.lookup (period f) m of
-                           Nothing -> r
-                           Just om -> isMax f om p t l && r
+              isMaxInMeterMap :: Period -> Bool -> Bool
+              {-# INLINE isMaxInMeterMap #-}
+              isMaxInMeterMap f r = case M.lookup (period f) m of
+                                       Nothing -> r
+                                       Just om -> isMax f om p t l && r
 
 isMax :: Period -> OnsetMap -> Period -> Int -> Len -> Bool
 {-# INLINE isMax #-}
@@ -160,8 +161,9 @@ isMax (Period f) m (Period pb) tb (Len lb) =
              r && (  ta `mod` f    /= tb `mod` f       -- not in phase
                   || ta + (la * f)  < tb + (lb * pb) ) -- ends later
 
-subMap :: OnsetMap -> Int -> OnsetMap
-subMap m t = fst $ split (succ t) m
+          subMap :: OnsetMap -> Int -> OnsetMap
+          {-# INLINE subMap #-}
+          subMap m t = fst $ split (succ t) m
 
 --------------------------------------------------------------------------------
 -- Inner Metrical Analysis Weights
