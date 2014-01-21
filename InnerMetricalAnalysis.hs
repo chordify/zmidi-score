@@ -31,10 +31,10 @@ module InnerMetricalAnalysis ( -- * Types for Local Meters
 
 import Data.List                  ( foldl' )
 import Data.IntMap                ( empty, IntMap, insert, toAscList, elems
-                                  , foldrWithKey, insertWith, split, assocs
+                                  , foldrWithKey, insertWith, split
                                   , filterWithKey, mapKeysMonotonic, toList )
 import qualified Data.IntMap as M ( lookup, null, map )
-import Data.Vector                ( Vector, (!), generate, freeze, thaw, unsafeIndex )
+import Data.Vector                ( Vector, freeze, thaw, unsafeIndex )
 import qualified Data.Vector as V ( fromList, toList, length, empty, replicate )
 import Data.Vector.Mutable        ( MVector )
 import Data.Vector.Mutable   as MV ( unsafeRead, unsafeWrite )
@@ -76,7 +76,7 @@ getLocalMeters ml mxP ons = scaleMeterMap ml
    
    -- normalise the onset times by dividing them by the minimum length
    ons' = divideByMinLength ml ons 
-   -- preprocess onsets for fast lookup
+   -- pre-process onsets for fast lookup
    v    = V.fromList $ onsetGrid [0 .. last ons'] ons'
    
    onePeriod :: MeterMap -> Period -> MeterMap
@@ -133,10 +133,10 @@ insertMeters :: [Period] -> MeterMap -> Period -> OnsetMap -> MeterMap
 insertMeters fs mm p om 
   | M.null om' = mm
   | otherwise  = insert (period p) om' mm
-      where om' = filterWithKey (isMaximal mm p) om
+      where om' = filterWithKey (isMaximal mm) om
 
-            isMaximal :: MeterMap -> Period -> Int -> Len -> Bool
-            isMaximal m p t l = foldr isMaxInMeterMap True fs where
+            isMaximal :: MeterMap -> Int -> Len -> Bool
+            isMaximal m t l = foldr isMaxInMeterMap True fs where
 
               isMaxInMeterMap :: Period -> Bool -> Bool
               {-# INLINE isMaxInMeterMap #-}
@@ -158,7 +158,7 @@ isMax (Period f) m (Period pb) tb (Len lb) =
 
           subMap :: OnsetMap -> Int -> OnsetMap
           {-# INLINE subMap #-}
-          subMap m t = fst $ split (succ t) m
+          subMap om t = fst $ split (succ t) om
 
 --------------------------------------------------------------------------------
 -- Inner Metrical Analysis Weights
@@ -170,7 +170,7 @@ newtype MWeight = MWeight {mweight :: Int}
                   deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
  
 type MWeightMap = IntMap MWeight
-type SWeightMap = IntMap SWeight
+-- type SWeightMap = IntMap SWeight
 type OnsetMap   = IntMap Len
 
 
@@ -257,6 +257,7 @@ getSpectralVec ml mP ons grid = runST $ (initVec >>= process >>= freeze) where
   
    -- an indexing function mapping a grid position to its index in the MVector
    toGridIx :: Int -> Int
+   {-# INLINE toGridIx #-}
    toGridIx t = (t - start) `div` (period ml)
    
    -- calculate the spectral onsets that belong to a local meter
@@ -275,6 +276,7 @@ getSpectralVec ml mP ons grid = runST $ (initVec >>= process >>= freeze) where
      
        -- adds the spectral onsets to the weight vector
        addWeight :: (PrimMonad m) => Int -> MVecSW m -> m (MVecSW m)
+       {-# INLINE addWeight #-}
        addWeight i mv' = do curW <- MV.unsafeRead mv' (toGridIx i) --no bounds checking
                             MV.unsafeWrite mv' (toGridIx i) (curW + w)
                             return mv'
