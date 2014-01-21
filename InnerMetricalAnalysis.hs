@@ -80,13 +80,13 @@ getLocalMeters ml mxP ons = scaleMeterMap ml
    v    = V.fromList $ onsetGrid [0 .. last ons'] ons'
    
    onePeriod :: MeterMap -> Period -> MeterMap
-   onePeriod m p = insertMeters facts m  p . foldl oneMeter empty $ ons' where
-   
-     facts = factors p
-     
-     -- oneMeter :: [(Time, Len)] -> Time -> [(Time, Len)]     
-     oneMeter :: OnsetMap -> Time -> OnsetMap
-     oneMeter l t = addLMeter l p t (getLength v p t)
+   onePeriod m p = insertMeters (factors p) m p . foldl' oneMeter empty $ ons' 
+
+     where oneMeter :: OnsetMap -> Time -> OnsetMap
+           oneMeter l (Time t) 
+             | (len x) >= 2 && isMax p l p t x = insert t x l
+             | otherwise                       =            l
+                 where x = getLength v p (Time t)
 
 divideByMinLength :: Period -> [Time] -> [Time]
 divideByMinLength (Period l) = map divErr  where
@@ -129,12 +129,6 @@ getLength v (Period p) o = pred $ project o where
   project (Time t) | t < lv && v `unsafeIndex` t = succ (project (Time (t + p)))
                    | otherwise                   = 0
 
-                   
-addLMeter :: OnsetMap -> Period -> Time -> Len -> OnsetMap
-addLMeter m p t l 
-  | (len l) >= 2 && isMax p m p (time t) l = insert (time t) l m
-  | otherwise                              =                   m
-
 insertMeters :: [Period] -> MeterMap -> Period -> OnsetMap -> MeterMap
 insertMeters fs mm p om 
   | M.null om' = mm
@@ -146,9 +140,10 @@ insertMeters fs mm p om
 
               isMaxInMeterMap :: Period -> Bool -> Bool
               {-# INLINE isMaxInMeterMap #-}
-              isMaxInMeterMap f r = case M.lookup (period f) m of
-                                       Nothing -> r
-                                       Just om -> isMax f om p t l && r
+              isMaxInMeterMap f r = let y = period f
+                                    in case M.lookup y m of
+                                       Just x -> r && isMax f x p t l 
+                                       _      -> r
 
 isMax :: Period -> OnsetMap -> Period -> Int -> Len -> Bool
 {-# INLINE isMax #-}
