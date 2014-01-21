@@ -7,7 +7,6 @@ import Data.Function      ( on )
 import Data.Ord           ( comparing )
 import Control.Arrow      ( (***), second )
 
-
 --------------------------------------------------------------------------------
 -- Melody Finding
 --------------------------------------------------------------------------------
@@ -43,8 +42,10 @@ getMelody ms = case getVoices ms of
 
 -- | Merges all tracks into one track. This track is guaranteed to be sorted.
 mergeTracks :: MidiScore -> MidiScore
-mergeTracks ms = 
-  ms {getVoices = [sortVoice . setChans 0 . concat . getVoices $ ms]} 
+mergeTracks ms = let vs = [sortVoice . setChans 0 . concat . getVoices $ ms]
+                     -- the minimum duration might have changed
+                     md = gcIOId . buildTickMap $ vs
+                 in  ms {getVoices = vs, minDur = md} 
  
 -- TODO: adapt channel number
 -- | A hand separation function that takes a separation function and applies

@@ -26,7 +26,6 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , GridUnit
                   , toGridUnit
                   , buildTickMap
-                  , getMinDur
                   , gcIOId
                   -- * Utilities
                   , nrOfNotes
@@ -69,7 +68,7 @@ import Data.List           ( partition, intersperse, sortBy, sort, nub
                            , genericLength, find )
 import qualified Data.List.Ordered as Sort ( nub )
 import Data.Foldable       ( foldrM )
-import Data.IntMap.Lazy    ( insertWith, IntMap, findMin, keys, delete )
+import Data.IntMap.Lazy    ( insertWith, IntMap, keys )
 import qualified Data.IntMap.Lazy  as M    ( empty )
 import Text.Printf         ( printf )
 import GHC.Float           ( integerLogBase )
@@ -288,7 +287,7 @@ quantiseDev sn (MidiScore k ts dv mf tp _md vs) =
   -- snap all events to a grid, and remove possible overlaps 
   (vs',d) = unzip . map (quantiseVoice gu) $ vs 
   -- the minimum duration might have changed
-  md' = getMinDur . buildTickMap $ vs'
+  md' = gcIOId . buildTickMap $ vs'
   -- also align the time signatures to a grid
   ts' = map snapTS ts
   
@@ -354,16 +353,18 @@ gcIOId tm = case keys $ tm of
   l  -> foldr1 gcd l
 
 -- | Return the IOI of the event that has the shortest IOI
-getMinDur :: TickMap -> Time
-getMinDur tm = case fst (findMin tm) of
-                 0 -> fst . findMin . delete 0 $ tm
-                 n -> n
+-- getMinDur :: TickMap -> Time
+-- getMinDur tm = case fst (findMin tm) of
+                 -- 0 -> fst . findMin . delete 0 $ tm
+                 -- n -> n
 
 buildTickMap :: [Voice] -> TickMap
 buildTickMap = foldr oneVoice M.empty where
 
+  -- calculated all IOIs and order them per duration
   oneVoice :: Voice -> TickMap -> TickMap
-  oneVoice vs tm = foldr step tm (toIOIs vs)
+  oneVoice [] tm = tm -- to account for offsets we add the first onset too
+  oneVoice vs tm = step (onset . head $ vs) . foldr step tm $ (toIOIs vs)
 
   step :: Time -> TickMap -> TickMap
   step se tm = insertWith succIfExists se 0 tm 
@@ -371,6 +372,11 @@ buildTickMap = foldr oneVoice M.empty where
   succIfExists :: a -> Int -> Int
   succIfExists _ old = succ old
 
+-- printTickMap :: TickMap -> String
+-- printTickMap tm = "tickmap:\n" ++ (concatMap showTick . toAscList $ tm) where
+  
+  -- showTick :: (Int, Time) -> String
+  -- showTick (i, t) = show i ++ ": " ++ show t ++ "\n"
   
 --------------------------------------------------------------------------------
 -- Converting a MidiFile
@@ -384,7 +390,7 @@ midiFileToMidiScore mf = MidiScore (select isKeyChange keyChange NoKey meta)
                                    tpb
                                    (hdr_format  . mf_header $ mf)
                                    (select isTempoChange tempChange 500000 meta)
-                                   (getMinDur . buildTickMap $ trks)
+                                   (gcIOId . buildTickMap $ trks)
                                    (filter (not . null) trks) where
   
   tpb          = getDivision . mf_header $ mf

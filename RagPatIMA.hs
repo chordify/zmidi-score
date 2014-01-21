@@ -23,23 +23,26 @@ newtype NSWeight = NSWeight { nsweight :: Double }
                               
 type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeight)]
 
+-- TODO create a QMidiScore for quantised MidiScores
+-- TODO create a MPMidiScore for monophonic MidiScores
+-- TODO create a QMPMidiScore for quantised monophonic MidiScores
+
+-- before applying matchMeter 
 matchMeterIMA :: ShortestNote -> MidiScore -> Either String [NSWMeterSeg]
 matchMeterIMA q ms = 
   let -- quantise the merge all tracks and remove nub notes with the same onset
+      ms' = mergeTracks . quantise q $ ms
+      -- remove duplicates
       -- TODO : we should be able to use Data.List.Ordered, but this nub give
       -- other results, this must be investigated
-      v   = nubBy ((==) `on` onset) 
-          . head . getVoices . mergeTracks . quantise q $ ms
-      -- calculate the minimal beat duration
-      -- TODO this value is already included in a MidiScore...
-      mn  = Period . gcIOId . buildTickMap $ [v]
-      
+      v   = nubBy ((==) `on` onset) . head . getVoices $ ms'
+      ons = map IMA.Time . toOnsets $ v
       -- calculate the spectral weights
-  in case addMaxPerCheck (getSpectralWeight mn) (map IMA.Time $ toOnsets v) of
+  in case addMaxPerCheck (getSpectralWeight (Period . minDur $ ms')) ons of
       Right w ->     -- calculate the maximum weight
                  let mx  = NSWeight . fromIntegral . maximum . map snd $ w
                      -- split the midi file per 
-                 in Right (map normaliseTime $ segment (getTimeSig ms) (match mx w v))
+                 in  Right (map normaliseTime $ segment (getTimeSig ms') (match mx w v))
       Left e  -> Left e
 
 -- | matches a grid with spectral weights with the onsets that created the
@@ -134,10 +137,11 @@ main =
   do arg <- getArgs 
      case arg of
        ["-f", fp] -> do ms <- readMidiScore fp 
-                        print . getMinDur . buildTickMap $ [getAccompQuant Sixteenth ms]
-                        let es   =  matchMeterIMA Sixteenth ms
+                        print . minDur $ ms
+                        let es  =  matchMeterIMA Sixteenth ms
                             tpb = ticksPerBeat ms
-                        -- does the file contains disrubtive onsets?
+                        print tpb
+                        -- does the file contains disruptive onsets?
                         case es of 
                           Right s -> do mapM_ (starMeter tpb) s
                                         mapM_ (putStrLn . showNSWProf) . toList 
