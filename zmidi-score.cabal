@@ -54,7 +54,8 @@ executable RagPatIMA
                        data-ordlist >= 0.4.5,
                        primitive >= 0.5.0.1
                        
-  ghc-options:         -Wall -O2 -prof -auto-all -fprof-auto
+  ghc-options:         -Wall 
+  -- -O2 -prof -auto-all -fprof-auto
   
 executable RagPat
   main-is:             Main.hs
