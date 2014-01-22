@@ -2,8 +2,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 --------------------------------------------------------------------------------
 -- |
--- Module      :  InnerMetricalAnalysis
--- Copyright   :  (c) 2012--2013 Utrecht University
+-- Module      :  IMA.InnerMetricalAnalysis
+-- Copyright   :  (c) 2012--2014 Utrecht University
 -- License     :  LGPL-3
 --
 -- Maintainer  :  W. Bas de Haas <bash@cs.uu.nl>
@@ -11,9 +11,13 @@
 -- Portability :  non-portable
 --
 -- Summary: implements the Inner Metrical Analysis model 
--- see: 
+-- 
+-- see: Volk, Anja. "The study of syncopation using inner metric analysis: 
+-- Linking theoretical and experimental analysis of metre in music." Journal of 
+-- New Music Research 37.4 (2008): 259-273. 
+-- http://dx.doi.org/10.1080/09298210802680758
 --------------------------------------------------------------------------------
-module InnerMetricalAnalysis ( -- * Types for Local Meters
+module IMA.InnerMetricalAnalysis ( -- * Types for Local Meters
                                Time    (..)
                              , Period  (..)
                              , Len     (..)
@@ -41,7 +45,8 @@ import Data.Vector.Mutable   as MV ( unsafeRead, unsafeWrite )
 import Data.Foldable              ( foldrM )
 import Control.Monad.ST
 import Control.Monad.Primitive
-import LocalMeter
+
+import IMA.LocalMeter
 
 --------------------------------------------------------------------------------
 -- MeterMap and printing it

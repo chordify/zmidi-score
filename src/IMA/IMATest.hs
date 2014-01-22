@@ -1,8 +1,8 @@
-module Main where
+module IMA.Main where
 
-import LocalMeter
-import InnerMetricalAnalysis
-import InnerMetricalAnalysisOld
+import IMA.LocalMeter
+import IMA.InnerMetricalAnalysis
+import IMA.InnerMetricalAnalysisOld
 
 import Data.IntMap                ( IntMap )
 import qualified Data.IntMap as M ( fromList, map )

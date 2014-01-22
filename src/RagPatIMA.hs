@@ -7,8 +7,8 @@ import MidiCommonIO                 ( readMidiScore, readMidiScoreSafe, putErrSt
                                     , mapDirInDir, mapDir, foldrDir, foldrDirInDir )
 import MelFind                      ( getAccompQuant, mergeTracks )
 import TimeSigSeg
-import InnerMetricalAnalysis hiding ( Time )
-import qualified InnerMetricalAnalysis as IMA ( Time (..) )        
+import IMA.InnerMetricalAnalysis hiding ( Time )
+import qualified IMA.InnerMetricalAnalysis as IMA ( Time (..) )        
 -- import Math.Statistics              ( pearson )
 import System.Environment           ( getArgs )
 import Data.List            ( nubBy, intercalate, foldl' )

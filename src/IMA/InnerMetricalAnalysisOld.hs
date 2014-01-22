@@ -12,7 +12,7 @@
 -- Summary: implements the Inner Metrical Analysis model 
 -- see: 
 --------------------------------------------------------------------------------
-module InnerMetricalAnalysisOld ( getMetricWeightOld
+module IMA.InnerMetricalAnalysisOld ( getMetricWeightOld
                                 , getSpectralWeightOld 
                                 , getLocalMetersOld
                                 , showMeterMap2
@@ -24,7 +24,7 @@ import Prelude
 import Data.List                  ( tails, foldl' )
 import Data.IntMap                ( empty, IntMap, insert, mapWithKey, toAscList )
 import qualified Data.IntMap as M ( lookup, foldr )
-import LocalMeter
+import IMA.LocalMeter
 
 type Weight = Int
 

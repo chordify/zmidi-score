@@ -2,12 +2,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE FlexibleInstances          #-}
 {-# LANGUAGE OverlappingInstances       #-}
-module LocalMeter ( Time   (..)
-                  , Period (..)
-                  , Len    (..)
-                  -- , randomOnsets
-                  , factors
-                  ) where
+module IMA.LocalMeter ( Time   (..)
+                      , Period (..)
+                      , Len    (..)
+                      -- , randomOnsets
+                      , factors
+                      ) where
 
 import Data.List                  ( intercalate )
 
