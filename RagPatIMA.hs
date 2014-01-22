@@ -12,6 +12,7 @@ import qualified InnerMetricalAnalysis as IMA ( Time (..) )
 -- import Math.Statistics              ( pearson )
 import System.Environment           ( getArgs )
 import Data.List            ( nubBy, intercalate, foldl' )
+import Data.Ratio                   ( Ratio )
 import Data.Function                ( on )
 import Data.Maybe                   ( catMaybes )
 import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
@@ -78,7 +79,7 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
   toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, NSWeight) -> IO ()
   toStar os x (Timed g (se,w)) = 
     let (bar, bt) = getBeatInBar x tpb g
-    in  putStrLn (show (g+os) ++ " " ++ show bar ++ " " ++ (maybe " "  show bt)
+    in  putStrLn (show (g+os) ++ " " ++ show bar ++ " " ++ show bt
                               ++ " " ++ (maybe "   " (show . pitch) se)
                               ++ " " ++ stars w)
 
@@ -90,7 +91,7 @@ stars w = replicate (round (20 * w)) '*'
 
 -- | Normalised Spectral Weight Profiles
 type NSWProfSeg  = TimedSeg TimeSig NSWProf
-type NSWProf     = (NrOfBars, Map Int NSWeight)
+type NSWProf     = (NrOfBars, Map (Ratio Time) NSWeight)
 
 -- | Stores the number of bars
 newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
@@ -108,16 +109,17 @@ toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
 toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldl' toProf (1,empty) s) where
 
   toProf :: NSWProf -> Timed (Maybe ScoreEvent, NSWeight) -> NSWProf
-  toProf (b, m) (Timed g (_se,w)) = case getBeatInBar (getEvent ts) tpb g of 
-     (bar, Just bt) -> let x = insertWith (+) bt w m 
-                       in x `seq` (NrOfBars bar, x)
-     (_  , Nothing) -> (b , m)
+  toProf (b, m) (Timed g (_se,w)) = 
+    let (bar, bt) = getBeatInBar (getEvent ts) tpb g 
+        m'        = insertWith (+) bt w m 
+    in  m' `seq` (NrOfBars bar, m')
+
 
 -- | Plots an 'NSWProf'ile by calculating the average profile
 showNSWProf :: (TimeSig, NSWProf) -> String
 showNSWProf (ts, (bars, m)) = intercalate "\n" ( show ts : foldrWithKey shw [] m )
 
-  where shw :: Int -> NSWeight -> [String] -> [String]
+  where shw :: Ratio Time -> NSWeight -> [String] -> [String]
         shw bt w r = let x = w / fromIntegral bars
                      in (show bt ++ ": " ++ show x ++ "  " ++ stars x) : r
 

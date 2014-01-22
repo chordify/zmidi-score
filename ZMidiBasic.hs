@@ -59,6 +59,7 @@ import Control.Monad.State ( State, modify, get, gets, put
                            , evalState, execState )
 import Control.Monad       ( mapAndUnzipM )
 import Control.Arrow       ( first, second )
+import Data.Ratio          ( (%), Ratio )
 import Data.Word           ( Word8 )
 import Data.Int            ( Int8 )
 import Data.Char           ( toLower )
@@ -106,7 +107,7 @@ data TimeSig    = TimeSig       { numerator  :: Int
                                 , metronome  :: Word8
                                 , nr32ndNotes:: Word8
                                 }
-                | NoTimeSig       deriving (Eq, Ord)
+                | NoTimeSig       deriving (Ord)
 
 -- Note: we could consider adding a Voice label, like there is a track label
 -- | A 'Voice' is a list of 'ScoreEvent's that have time stamps.
@@ -149,9 +150,13 @@ type TickMap = IntMap Time
 -- Some ad-hoc show instances
 --------------------------------------------------------------------------------
 
+instance Eq TimeSig where
+  (TimeSig a1 b1 _ _) == (TimeSig a2 b2 _ _) = a1 == a2 && b1 == b2
+  NoTimeSig           == NoTimeSig           = True
+  _                   == _                   = False
+
 instance Show a => Show (Timed a) where
   show (Timed t a) = show a ++ " @ " ++ show t
-
 
 instance Show TimeSig where
   show (TimeSig n d _ _) = show n ++ '/' : show d
@@ -679,14 +684,11 @@ getMinGridSize :: ShortestNote -> MidiScore -> Time
 getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
                         (d,0) -> d
                         _     -> error "getMinGridSize: invalid quantisation"
-                        
-getBeatInBar :: TimeSig -> Time -> Time -> (Int, Maybe Int)
-getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
-getBeatInBar (TimeSig num _den _ _) tpb o = 
-  case o `divMod` tpb of
-    (t, 0) -> let (bar, bt) = t `divMod` num in (succ bar, Just (succ bt))
-    (t, _) -> (t `div` num, Nothing)
 
+getBeatInBar :: TimeSig -> Time -> Time -> (Time, Ratio Time)
+getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
+getBeatInBar (TimeSig num _den _ _) tpb o = second (% tpb) (o `divMod` tpb)
+    
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities
 --------------------------------------------------------------------------------
