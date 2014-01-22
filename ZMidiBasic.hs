@@ -14,6 +14,7 @@ module ZMidiBasic ( -- * Score representation of a MidiFile
                   , Timed (..)
                   , Time
                   , ScoreEvent (..)
+                  , Deviation
                   -- * Transformation
                   , midiFileToMidiScore
                   , midiScoreToMidiFile

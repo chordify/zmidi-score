@@ -30,10 +30,12 @@ type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeight)]
 -- TODO create a QMPMidiScore for quantised monophonic MidiScores
 
 -- before applying matchMeter 
-matchMeterIMA :: ShortestNote -> MidiScore -> Either String [NSWMeterSeg]
+matchMeterIMA :: ShortestNote -> MidiScore -> Either String (Float, [NSWMeterSeg])
 matchMeterIMA q ms = 
   let -- quantise the merge all tracks and remove nub notes with the same onset
-      ms' = mergeTracks . quantise q $ ms
+      (msq, d, gu) = quantiseDev q $ ms
+      dev = (fromIntegral d / fromIntegral (nrOfNotes msq)) / fromIntegral gu 
+      ms' = mergeTracks msq
       -- remove duplicates
       -- TODO : we should be able to use Data.List.Ordered, but this nub give
       -- other results, this must be investigated
@@ -44,7 +46,7 @@ matchMeterIMA q ms =
       Right w ->     -- calculate the maximum weight
                  let mx  = NSWeight . fromIntegral . maximum . map snd $ w
                      -- split the midi file per 
-                 in  Right (map normaliseTime $ segment (getTimeSig ms') (match mx w v))
+                 in  Right (dev, map normaliseTime $ segment (getTimeSig ms') (match mx w v))
       Left e  -> Left e
 
 -- | matches a grid with spectral weights with the onsets that created the
@@ -98,7 +100,7 @@ newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
 
 toNSWProfSegs :: MidiScore -> Either String [NSWProfSeg]
-toNSWProfSegs m = fmap (map (toNSWProf (ticksPerBeat m))) (matchMeterIMA Sixteenth m )
+toNSWProfSegs m = fmap (map (toNSWProf (ticksPerBeat m)) . snd) (matchMeterIMA Sixteenth m )
 
 -- | Calculates sums the NSW profiles for a meter section
 toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
@@ -137,15 +139,17 @@ main =
      case arg of
        ["-f", fp] -> do ms <- readMidiScore fp 
                         print . minDur $ ms
-                        let es  =  matchMeterIMA Sixteenth ms
+                        let es  = matchMeterIMA Sixteenth ms
                             tpb = ticksPerBeat ms
-                        print tpb
+                        putStrLn ("Ticks per beat: " ++ show tpb)
                         -- does the file contains disruptive onsets?
                         case es of 
-                          Right s -> do mapM_ (starMeter tpb) s
-                                        printMeterStats . collectNSWProf 
-                                          (map (toNSWProf tpb) s) $ empty
-                          Left e  -> putStrLn e -- show the error
+                          Right (d,s) -> 
+                            do putStrLn ("Quantisation deviation: " ++ show d)
+                               mapM_ (starMeter tpb) s
+                               printMeterStats . collectNSWProf 
+                                  (map (toNSWProf tpb) s) $ empty
+                          Left e      -> putStrLn e -- show the error
                             
        ["-a", fp] -> do mapDirInDir (\x -> mapDir readProf x >>= unionNWProfMaps) fp
                             >>= unionNWProfMaps >>= printMeterStats
