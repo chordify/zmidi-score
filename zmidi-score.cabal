@@ -16,6 +16,7 @@ cabal-version:       >=1.8
 
 library
   exposed-modules:     ZMidiBasic
+  hs-source-dirs:      src
   -- other-modules:       
   build-depends:       base >= 4.4 && < 4.7, 
                        zmidi-core ==0.7.*, 
@@ -30,6 +31,7 @@ library
   
 executable melfind
   main-is:             MelFindMain.hs
+  hs-source-dirs:      src
   -- other-modules:       
   build-depends:       base >= 4.4 && < 4.7, 
                        zmidi-core ==0.7.*, 
@@ -43,6 +45,7 @@ executable melfind
 
 executable RagPatIMA
   main-is:             RagPatIMA.hs
+  hs-source-dirs:      src
   -- other-modules:       
   build-depends:       base >= 4.4 && < 4.7, 
                        zmidi-core ==0.7.*, 
@@ -62,6 +65,7 @@ executable RagPatIMA
   
 executable RagPat
   main-is:             Main.hs
+  hs-source-dirs:      src
   -- other-modules:       
   build-depends:       base >= 4.4 && < 4.7, 
                        zmidi-core ==0.7.*, 
