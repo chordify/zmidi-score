@@ -108,7 +108,7 @@ data TimeSig    = TimeSig       { numerator  :: Int
                                 , metronome  :: Word8
                                 , nr32ndNotes:: Word8
                                 }
-                | NoTimeSig       deriving (Ord)
+                | NoTimeSig
 
 -- Note: we could consider adding a Voice label, like there is a track label
 -- | A 'Voice' is a list of 'ScoreEvent's that have time stamps.
@@ -151,17 +151,25 @@ type TickMap = IntMap Time
 -- Some ad-hoc show instances
 --------------------------------------------------------------------------------
 
+instance Show a => Show (Timed a) where
+  show (Timed t a) = show a ++ " @ " ++ show t
+
 instance Eq TimeSig where
   (TimeSig a1 b1 _ _) == (TimeSig a2 b2 _ _) = a1 == a2 && b1 == b2
   NoTimeSig           == NoTimeSig           = True
   _                   == _                   = False
 
-instance Show a => Show (Timed a) where
-  show (Timed t a) = show a ++ " @ " ++ show t
-
+instance Ord TimeSig where
+  compare _         NoTimeSig                     = GT
+  compare NoTimeSig _                             = LT
+  compare (TimeSig a1 b1 _ _) (TimeSig a2 b2 _ _) = 
+    case compare b1 b2 of 
+      EQ -> compare a1 a2
+      c  -> c
+  
 instance Show TimeSig where
   show (TimeSig n d _ _) = show n ++ '/' : show d
-  show NoTimeSig         = "NoTimeSig"
+  show NoTimeSig         = "NoTimeSig"  
 
 instance Show Key where
   show NoKey      = "NoKey"

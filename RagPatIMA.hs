@@ -16,6 +16,7 @@ import Data.Ratio                   ( Ratio )
 import Data.Function                ( on )
 import Data.Maybe                   ( catMaybes )
 import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
+import Control.Arrow               ( second )
 import Data.Foldable      ( foldrM )
 
 -- | Normalised spectral weights (value between 0 and 1)
@@ -99,8 +100,8 @@ type NSWProf     = (NrOfBars, Map (Ratio Time) NSWeight)
 newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
 
-toNSWProfSegs :: MidiScore -> Either String [NSWProfSeg]
-toNSWProfSegs m = fmap (map (toNSWProf (ticksPerBeat m)) . snd) (matchMeterIMA Sixteenth m )
+toNSWProfSegs :: MidiScore -> Either String (Float, [NSWProfSeg])
+toNSWProfSegs m = fmap (second (map (toNSWProf (ticksPerBeat m)))) (matchMeterIMA FourtyEighth m )
 
 -- | Calculates sums the NSW profiles for a meter section
 toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
@@ -139,7 +140,7 @@ main =
      case arg of
        ["-f", fp] -> do ms <- readMidiScore fp 
                         print . minDur $ ms
-                        let es  = matchMeterIMA Sixteenth ms
+                        let es  = matchMeterIMA FourtyEighth ms
                             tpb = ticksPerBeat ms
                         putStrLn ("Ticks per beat: " ++ show tpb)
                         -- does the file contains disruptive onsets?
@@ -176,11 +177,14 @@ readProf fp =
                        [Timed _ NoTimeSig] -> return empty 
                        -- check for weird onsets
                        _  -> case toNSWProfSegs x of
-                               Right p -> do let r = collectNSWProf p empty 
-                                             mapM_ (putStrLn . showNSWProf) (toList r)
-                                             r `seq` return r
-                               Left  e -> do putErrStrLn ("Warning: skipping " ++ 
-                                                           fp ++ ": " ++ e)
-                                             return empty
+                               Right (d,p) -> 
+                                 do let r = collectNSWProf p empty 
+                                    putStrLn ("Q deviation: " ++ show d)
+                                    mapM_ (putStrLn . showNSWProf) (toList r)
+                                    r `seq` return r
+                               Left  e -> 
+                                 do putErrStrLn ("Warning: skipping " 
+                                                 ++ fp ++ ": " ++ e)
+                                    return empty
        Nothing -> return empty
        
