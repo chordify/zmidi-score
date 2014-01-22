@@ -3,11 +3,11 @@ module Main where
 import System.Environment ( getArgs )
 import Data.List          ( intercalate, genericLength, intersectBy )
 
-import MidiCommonIO       ( readMidiFile, readMidiScore, mapDir
+import ZMidi.IO.Common    ( readMidiFile, readMidiScore, mapDir
                           , mapDir_, logDuplicates, writeMidiScore
                           , removeTrackLabels )
 import ZMidi.Core         ( writeMidi, MidiFile (..) )
-import MelFind
+import ZMidi.Skyline.MelFind
 import ZMidi.Score.Datatypes
 
 main :: IO ()

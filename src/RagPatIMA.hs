@@ -3,10 +3,10 @@
 module Main where
 
 import ZMidi.Score.Datatypes         
-import MidiCommonIO                 ( readMidiScore, readMidiScoreSafe, putErrStrLn
+import ZMidi.IO.Common          ( readMidiScore, readMidiScoreSafe, putErrStrLn
                                     , mapDirInDir, mapDir, foldrDir, foldrDirInDir )
-import MelFind                      ( getAccompQuant, mergeTracks )
-import TimeSigSeg
+import ZMidi.Skyline.MelFind                      ( getAccompQuant, mergeTracks )
+import Ragtime.TimeSigSeg
 import IMA.InnerMetricalAnalysis hiding ( Time )
 import qualified IMA.InnerMetricalAnalysis as IMA ( Time (..) )        
 -- import Math.Statistics              ( pearson )

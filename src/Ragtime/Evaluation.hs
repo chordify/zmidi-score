@@ -13,7 +13,7 @@
 --------------------------------------------------------------------------------
 
 
-module Evaluation (
+module Ragtime.Evaluation (
     -- * Evaluation functions
       -- relCorrectOverlap
     -- , achievScore

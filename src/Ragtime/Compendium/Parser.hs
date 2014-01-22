@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE FlexibleContexts        #-}
-module RTCParser ( readRTC
+module Ragtime.Compendium.Parser ( readRTC
                  , parseRTC
                  , RTC (..)
                  , preciseYear

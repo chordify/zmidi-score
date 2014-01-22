@@ -1,21 +1,21 @@
 {-# OPTIONS_GHC -Wall                #-}
-module RagPat ( getPercTripGridOnsets
-              , hasValidGridSize
-              , printFileSubDiv
-              , printSubDiv 
-              , printFilePatMat
-              , printPatCount
-              )where
+module Ragtime.Pattern ( getPercTripGridOnsets
+                       , hasValidGridSize
+                       , printFileSubDiv
+                       , printSubDiv 
+                       , printFilePatMat
+                       , printPatCount
+                       )where
 
 import ZMidi.Score.Datatypes
-import MidiCommonIO       ( readMidiScore )
-import RTCParser          ( RTC (..), getRTCMeta, approxYear )
+import ZMidi.IO.Common       ( readMidiScore )
+import ZMidi.Skyline.MelFind ( findMelodyQuant )
+import Ragtime.Compendium.Parser          ( RTC (..), getRTCMeta, approxYear )
 
 import Data.List          ( intercalate )
 import Control.Arrow      ( first, second )
 import Control.Monad      ( when )
-import MelFind            ( findMelodyQuant )
-import Evaluation
+import Ragtime.Evaluation
 
 
 -- import Debug.Trace

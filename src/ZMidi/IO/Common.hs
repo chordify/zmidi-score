@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE TupleSections           #-}
-module MidiCommonIO (-- * Mapping
+module ZMidi.IO.Common (-- * Mapping
                       mapDirInDir
                     , mapDir
                     , mapDir_

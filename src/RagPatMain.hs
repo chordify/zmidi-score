@@ -3,14 +3,14 @@ module Main where
 
 import ZMidi.Core         ( readMidi )
 import ZMidi.Score.Datatypes
-import MidiCommonIO       ( mapDirInDir, mapDir_ )
+import ZMidi.IO.Common       ( mapDirInDir, mapDir_ )
 
 -- other libraries
 import System.Console.ParseArgs
 import Control.Monad      ( void )
-import RTCParser          ( readRTC, RTC (..) )
-import MatchFile          ( readRTCMidis, matchAll, copyRTCMidi, printMatch )
-import RagPat             ( printFileSubDiv, printSubDiv -- , hasValidTimeSig
+import Ragtime.Compendium.Parser          ( readRTC, RTC (..) )
+import Ragtime.Compendium.MatchFile          ( readRTCMidis, matchAll, copyRTCMidi, printMatch )
+import Ragtime.Pattern    ( printFileSubDiv, printSubDiv -- , hasValidTimeSig
                           , printFilePatMat, printPatCount -- , isStraight
                           , hasValidGridSize)
 

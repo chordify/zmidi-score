@@ -1,4 +1,4 @@
-module MelFind where -- ( findMelody ) where
+module ZMidi.Skyline.MelFind where -- ( findMelody ) where
 
 import ZMidi.Score.Datatypes
 

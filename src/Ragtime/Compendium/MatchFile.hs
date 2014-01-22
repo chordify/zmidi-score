@@ -1,5 +1,5 @@
 {-# OPTIONS_GHC -Wall                #-}
-module MatchFile ( -- | * Retrieving Meta data (after creating a matched corpus)
+module Ragtime.Compendium.MatchFile ( -- | * Retrieving Meta data (after creating a matched corpus)
                    getRTCMeta 
                    -- | * Creating a matched corpus
                    -- | ** Reading
@@ -26,13 +26,14 @@ import Data.Function     ( on )
 import Control.Arrow     ( second )
 import Control.Monad     ( when )
 
-import RTCParser
-import MidiCommonIO      ( mapDir, mapDirInDir )
+
+import ZMidi.IO.Common   ( mapDir, mapDirInDir )
 import ZMidi.Core        ( readMidi )
 import ZMidi.Score.Datatypes( MidiScore (..), midiFileToMidiScore, TimeSig (..), Timed (..)
                          , GridUnit, ShortestNote, nrOfNotes, quantiseDev )
 
-import RagPat            ( getPercTripGridOnsets, hasValidGridSize)
+import Ragtime.Compendium.Parser
+import Ragtime.Pattern   ( getPercTripGridOnsets, hasValidGridSize)
                          
 import System.Directory  ( copyFile, createDirectoryIfMissing, doesFileExist )
 import System.FilePath   ( (</>), (<.>), splitDirectories, takeFileName

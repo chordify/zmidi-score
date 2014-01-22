@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE DeriveFunctor           #-}
-module TimeSigSeg ( TimedSeg (..)
+module Ragtime.TimeSigSeg ( TimedSeg (..)
                   , TimeSigSeg
                   , TimeSigTrack
                   , segByTimeSig
@@ -11,7 +11,7 @@ module TimeSigSeg ( TimedSeg (..)
                   ) where
 
 import ZMidi.Score.Datatypes
-import MidiCommonIO
+import ZMidi.IO.Common
 import Data.List    ( sort )
 import Data.Maybe   ( catMaybes )
 

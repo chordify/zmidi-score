@@ -43,6 +43,7 @@ executable melfind
                        parallel-io >= 0.3.3
   ghc-options:         -Wall  
 
+  
 executable RagPatIMA
   main-is:             RagPatIMA.hs
   hs-source-dirs:      src
@@ -64,7 +65,7 @@ executable RagPatIMA
   -- ghc-options:         -O2 -prof -auto-all -fprof-auto
   
 executable RagPat
-  main-is:             Main.hs
+  main-is:             RagPatMain.hs
   hs-source-dirs:      src
   -- other-modules:       
   build-depends:       base >= 4.4 && < 4.7, 
