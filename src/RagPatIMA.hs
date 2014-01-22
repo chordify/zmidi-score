@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Main where
 
-import ZMidiBasic            
+import ZMidi.Score.Datatypes         
 import MidiCommonIO                 ( readMidiScore, readMidiScoreSafe, putErrStrLn
                                     , mapDirInDir, mapDir, foldrDir, foldrDirInDir )
 import MelFind                      ( getAccompQuant, mergeTracks )

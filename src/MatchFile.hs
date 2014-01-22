@@ -29,7 +29,7 @@ import Control.Monad     ( when )
 import RTCParser
 import MidiCommonIO      ( mapDir, mapDirInDir )
 import ZMidi.Core        ( readMidi )
-import ZMidiBasic        ( MidiScore (..), midiFileToMidiScore, TimeSig (..), Timed (..)
+import ZMidi.Score.Datatypes( MidiScore (..), midiFileToMidiScore, TimeSig (..), Timed (..)
                          , GridUnit, ShortestNote, nrOfNotes, quantiseDev )
 
 import RagPat            ( getPercTripGridOnsets, hasValidGridSize)

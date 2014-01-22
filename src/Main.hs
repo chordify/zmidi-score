@@ -2,7 +2,7 @@
 module Main where
 
 import ZMidi.Core         ( readMidi )
-import ZMidiBasic
+import ZMidi.Score.Datatypes
 import MidiCommonIO       ( mapDirInDir, mapDir_ )
 
 -- other libraries

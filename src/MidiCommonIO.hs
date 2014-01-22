@@ -20,7 +20,7 @@ module MidiCommonIO (-- * Mapping
                     )where
                     
 import ZMidi.Core         ( MidiFile (..), readMidi, writeMidi )
-import ZMidiBasic         ( MidiScore (..), midiFileToMidiScore
+import ZMidi.Score.Datatypes ( MidiScore (..), midiFileToMidiScore
                           , midiScoreToMidiFile, removeLabels )
 import Control.Monad      ( filterM, void )
 import System.Directory   ( getDirectoryContents, canonicalizePath

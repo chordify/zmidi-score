@@ -7,7 +7,7 @@ module RagPat ( getPercTripGridOnsets
               , printPatCount
               )where
 
-import ZMidiBasic
+import ZMidi.Score.Datatypes
 import MidiCommonIO       ( readMidiScore )
 import RTCParser          ( RTC (..), getRTCMeta, approxYear )
 

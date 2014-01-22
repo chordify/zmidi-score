@@ -1,6 +1,6 @@
 module MelFind where -- ( findMelody ) where
 
-import ZMidiBasic
+import ZMidi.Score.Datatypes
 
 import Data.List          ( sortBy, groupBy, partition )
 import Data.Function      ( on )

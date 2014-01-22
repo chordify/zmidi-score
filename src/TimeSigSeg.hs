@@ -10,7 +10,7 @@ module TimeSigSeg ( TimedSeg (..)
                   , normaliseTime
                   ) where
 
-import ZMidiBasic
+import ZMidi.Score.Datatypes
 import MidiCommonIO
 import Data.List    ( sort )
 import Data.Maybe   ( catMaybes )

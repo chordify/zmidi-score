@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE DeriveFunctor           #-}
 {-# LANGUAGE ScopedTypeVariables     #-}
-module ZMidiBasic ( -- * Score representation of a MidiFile
+module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                     MidiScore (..)
                   , Key (..)
                   , TimeSig (..)
