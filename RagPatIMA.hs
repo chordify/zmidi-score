@@ -150,15 +150,20 @@ main =
                                           $ empty
                           Left e  -> putStrLn e -- show the error
                             
-       ["-a", fp] -> do foldrDirInDir (flip (foldrDir readProf)) empty fp
+       ["-a", fp] -> do mapDirInDir (\x -> mapDir readProf2 x >>= unionNWProfMaps) fp
+                            >>= unionNWProfMaps
                             >>= mapM_ (putStrLn . showNSWProf) . toList 
                             
-       ["-d", fp] -> do mapDir readProf2 fp 
-                            >>= return . foldr (unionWith mergeNSWProf) empty
+       ["-d", fp] -> do mapDir readProf2 fp >>= unionNWProfMaps
                             >>= mapM_ (putStrLn . showNSWProf) . toList 
                         
        _    -> error "Please use -f <file> or -d <ragtime directory>"
-       
+   
+unionNWProfMaps :: [Map TimeSig NSWProf] -> IO (Map TimeSig NSWProf)
+unionNWProfMaps m = do let r = foldr (unionWith mergeNSWProf) empty m
+                       m `seq` r `seq` return r
+
+   
 readProf2 :: FilePath -> IO (Map TimeSig NSWProf)
 readProf2 fp = 
   do ms <- readMidiScoreSafe fp

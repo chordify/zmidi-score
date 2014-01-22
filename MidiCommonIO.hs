@@ -54,9 +54,10 @@ mapDir :: (FilePath -> IO a) ->  FilePath -> IO [a]
 mapDir f fp = do fs  <- getCurDirectoryContents fp
                  cin <- canonicalizePath fp
                  putErrStrLn cin
-                 res <- parallel . map (f . (cin </>)) $ fs 
-                 stopGlobalPool
-                 return res
+                 mapM (f . (cin </>)) $ fs 
+                 -- res <- parallel . map (f . (cin </>)) $ fs 
+                 -- stopGlobalPool
+                 -- return res
                  
 
 foldrDirInDir :: (FilePath -> b -> IO b) -> b -> FilePath -> IO b

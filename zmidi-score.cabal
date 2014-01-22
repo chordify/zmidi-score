@@ -57,8 +57,8 @@ executable RagPatIMA
                        primitive >= 0.5.0.1,
                        parallel-io >= 0.3.3
                        
-  ghc-options:         -Wall -O2 -rtsopts -threaded
-  -- -O2 -prof -auto-all -fprof-auto
+  -- ghc-options:         -Wall -O2 -rtsopts -threaded
+  ghc-options:         -O2 -prof -auto-all -fprof-auto
   
 executable RagPat
   main-is:             Main.hs
