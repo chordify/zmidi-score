@@ -15,6 +15,7 @@ import Data.List            ( nubBy, intercalate, foldl' )
 import Data.Function                ( on )
 import Data.Maybe                   ( catMaybes )
 import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
+import Data.Foldable      ( foldrM )
 
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
@@ -152,11 +153,28 @@ main =
        ["-a", fp] -> do foldrDirInDir (flip (foldrDir readProf)) empty fp
                             >>= mapM_ (putStrLn . showNSWProf) . toList 
                             
-       ["-d", fp] -> do foldrDir readProf empty fp
+       ["-d", fp] -> do mapDir readProf2 fp 
+                            >>= return . foldr (unionWith mergeNSWProf) empty
                             >>= mapM_ (putStrLn . showNSWProf) . toList 
                         
        _    -> error "Please use -f <file> or -d <ragtime directory>"
        
+readProf2 :: FilePath -> IO (Map TimeSig NSWProf)
+readProf2 fp = 
+  do ms <- readMidiScoreSafe fp
+     putStrLn fp
+     case ms of
+       Just x  -> case getTimeSig x of
+                    -- ignore the piece if not time signature is present
+                    [Timed _ NoTimeSig] -> return empty 
+                    -- check for weird onsets
+                    _  -> case toNSWProfSegs x of
+                            Right p -> do let r = collectNSWProf p empty 
+                                          r `seq` return r
+                            Left  e -> do putErrStrLn ("Warning: skipping " ++ 
+                                                        fp ++ ": " ++ e)
+                                          return empty
+       Nothing -> return empty
        
 readProf :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
 readProf fp m = 

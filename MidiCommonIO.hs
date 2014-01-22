@@ -28,6 +28,7 @@ import System.Directory   ( getDirectoryContents, canonicalizePath
 import System.IO          ( stderr, hPutStrLn )
 import System.FilePath    ( (</>) )
 import Data.Foldable      ( foldrM )
+import Control.Concurrent.ParallelIO.Global ( parallel, stopGlobalPool )
 
 --------------------------------------------------------------------------------
 -- Mapping
@@ -38,7 +39,10 @@ mapDirInDir :: (FilePath -> IO a) -> FilePath ->  IO [a]
 mapDirInDir f fp = do fs  <- getDirectoryContents fp 
                               >>= return . filter (\x -> x /= "." && x /= "..") 
                       cfp <- canonicalizePath fp
-                      filterM doesDirectoryExist (fmap (cfp </>) fs) >>= mapM f 
+                      res <- filterM doesDirectoryExist (fmap (cfp </>) fs) 
+                              >>= parallel . map f 
+                      stopGlobalPool
+                      return res
 
 -- | Applies a function to every file/dir in a directory, similar to 'mapDir',
 -- but it discards the result of the evaluation
@@ -50,7 +54,10 @@ mapDir :: (FilePath -> IO a) ->  FilePath -> IO [a]
 mapDir f fp = do fs  <- getCurDirectoryContents fp
                  cin <- canonicalizePath fp
                  putErrStrLn cin
-                 mapM (f . (cin </>)) fs 
+                 res <- parallel . map (f . (cin </>)) $ fs 
+                 stopGlobalPool
+                 return res
+                 
 
 foldrDirInDir :: (FilePath -> b -> IO b) -> b -> FilePath -> IO b
 foldrDirInDir f b fp = 
