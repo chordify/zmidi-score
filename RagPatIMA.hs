@@ -99,10 +99,6 @@ newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
 
 toNSWProfSegs :: MidiScore -> Either String [NSWProfSeg]
 toNSWProfSegs m = fmap (map (toNSWProf (ticksPerBeat m))) (matchMeterIMA Sixteenth m )
--- toNSWProfSegs m = case map (toNSWProf . ticksPerBeat m)
-                           -- (matchMeterIMA Sixteenth  m) of
-                     -- Left  e -> Left e
-                     -- Right w -> Right w
 
 -- | Calculates sums the NSW profiles for a meter section
 toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
@@ -113,7 +109,6 @@ toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldl' toProf (1,empty) s) where
     let (bar, bt) = getBeatInBar (getEvent ts) tpb g 
         m'        = insertWith (+) bt w m 
     in  m' `seq` (NrOfBars bar, m')
-
 
 -- | Plots an 'NSWProf'ile by calculating the average profile
 showNSWProf :: (TimeSig, NSWProf) -> String
@@ -148,17 +143,14 @@ main =
                         -- does the file contains disruptive onsets?
                         case es of 
                           Right s -> do mapM_ (starMeter tpb) s
-                                        mapM_ (putStrLn . showNSWProf) . toList 
-                                          . collectNSWProf (map (toNSWProf tpb) s) 
-                                          $ empty
+                                        printMeterStats . collectNSWProf 
+                                          (map (toNSWProf tpb) s) $ empty
                           Left e  -> putStrLn e -- show the error
                             
-       ["-a", fp] -> do mapDirInDir (\x -> mapDir readProf2 x >>= unionNWProfMaps) fp
-                            >>= unionNWProfMaps
-                            >>= mapM_ (putStrLn . showNSWProf) . toList 
+       ["-a", fp] -> do mapDirInDir (\x -> mapDir readProf x >>= unionNWProfMaps) fp
+                            >>= unionNWProfMaps >>= printMeterStats
                             
-       ["-d", fp] -> do mapDir readProf2 fp >>= unionNWProfMaps
-                            >>= mapM_ (putStrLn . showNSWProf) . toList 
+       ["-d", fp] -> do mapDir readProf fp >>= unionNWProfMaps >>= printMeterStats
                         
        _    -> error "Please use -f <file> or -d <ragtime directory>"
    
@@ -166,36 +158,25 @@ unionNWProfMaps :: [Map TimeSig NSWProf] -> IO (Map TimeSig NSWProf)
 unionNWProfMaps m = do let r = foldr (unionWith mergeNSWProf) empty m
                        r `seq` return r
 
+
+printMeterStats :: Map TimeSig NSWProf -> IO ()
+printMeterStats = mapM_ (putStrLn . showNSWProf) . toList 
    
-readProf2 :: FilePath -> IO (Map TimeSig NSWProf)
-readProf2 fp = 
+readProf :: FilePath -> IO (Map TimeSig NSWProf)
+readProf fp = 
   do ms <- readMidiScoreSafe fp
-     putStrLn fp
      case ms of
-       Just x  -> case getTimeSig x of
-                    -- ignore the piece if not time signature is present
-                    [Timed _ NoTimeSig] -> return empty 
-                    -- check for weird onsets
-                    _  -> case toNSWProfSegs x of
-                            Right p -> do let r = collectNSWProf p empty 
-                                          r `seq` return r
-                            Left  e -> do putErrStrLn ("Warning: skipping " ++ 
-                                                        fp ++ ": " ++ e)
-                                          return empty
+       Just x  -> do putStrLn ((show . map getEvent . getTimeSig $ x) ++ ": " ++ fp)
+                     case getTimeSig x of
+                       -- ignore the piece if not time signature is present
+                       [Timed _ NoTimeSig] -> return empty 
+                       -- check for weird onsets
+                       _  -> case toNSWProfSegs x of
+                               Right p -> do let r = collectNSWProf p empty 
+                                             mapM_ (putStrLn . showNSWProf) (toList r)
+                                             r `seq` return r
+                               Left  e -> do putErrStrLn ("Warning: skipping " ++ 
+                                                           fp ++ ": " ++ e)
+                                             return empty
        Nothing -> return empty
        
-readProf :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
-readProf fp m = 
-  do ms <- readMidiScoreSafe fp
-     putStrLn fp
-     case ms of
-       Just x  -> case getTimeSig x of
-                    -- ignore the piece if not time signature is present
-                    [Timed _ NoTimeSig] -> return m 
-                    -- check for weird onsets
-                    _  -> case toNSWProfSegs x of
-                            Right p -> return . collectNSWProf p $! m
-                            Left  e -> do putErrStrLn ("Warning: skipping " ++ 
-                                                        fp ++ ": " ++ e)
-                                          return m
-       Nothing -> return m 

@@ -58,7 +58,7 @@ import ZMidi.Core          ( MidiFile (..), MidiEvent (..), MidiFormat (..)
 import Control.Monad.State ( State, modify, get, gets, put
                            , evalState, execState )
 import Control.Monad       ( mapAndUnzipM )
-import Control.Arrow       ( first, second )
+import Control.Arrow       ( first, second, (***) )
 import Data.Ratio          ( (%), Ratio )
 import Data.Word           ( Word8 )
 import Data.Int            ( Int8 )
@@ -687,7 +687,7 @@ getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
 
 getBeatInBar :: TimeSig -> Time -> Time -> (Time, Ratio Time)
 getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
-getBeatInBar (TimeSig num _den _ _) tpb o = second (% tpb) (o `divMod` tpb)
+getBeatInBar (TimeSig _num _den _ _) tpb o = (succ *** (% tpb)) (o `divMod` tpb)
     
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities
