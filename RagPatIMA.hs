@@ -109,7 +109,8 @@ toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldl' toProf (1,empty) s) where
 
   toProf :: NSWProf -> Timed (Maybe ScoreEvent, NSWeight) -> NSWProf
   toProf (b, m) (Timed g (_se,w)) = case getBeatInBar (getEvent ts) tpb g of 
-     (bar, Just bt) -> (NrOfBars bar, insertWith (+) bt w m)
+     (bar, Just bt) -> let x = insertWith (+) bt w m 
+                       in x `seq` (NrOfBars bar, x)
      (_  , Nothing) -> (b , m)
 
 -- | Plots an 'NSWProf'ile by calculating the average profile
@@ -161,7 +162,7 @@ main =
    
 unionNWProfMaps :: [Map TimeSig NSWProf] -> IO (Map TimeSig NSWProf)
 unionNWProfMaps m = do let r = foldr (unionWith mergeNSWProf) empty m
-                       m `seq` r `seq` return r
+                       r `seq` return r
 
    
 readProf2 :: FilePath -> IO (Map TimeSig NSWProf)
