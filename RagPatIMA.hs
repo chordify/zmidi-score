@@ -149,7 +149,10 @@ main =
                                           $ empty
                           Left e  -> putStrLn e -- show the error
                             
-       ["-d", fp] -> do foldrDirInDir (flip (foldrDir readProf)) empty fp
+       ["-a", fp] -> do foldrDirInDir (flip (foldrDir readProf)) empty fp
+                            >>= mapM_ (putStrLn . showNSWProf) . toList 
+                            
+       ["-d", fp] -> do foldrDir readProf empty fp
                             >>= mapM_ (putStrLn . showNSWProf) . toList 
                         
        _    -> error "Please use -f <file> or -d <ragtime directory>"
