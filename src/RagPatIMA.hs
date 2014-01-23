@@ -19,6 +19,8 @@ import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey, union
 import Control.Arrow               ( second )
 import Data.Foldable      ( foldrM )
 
+import Debug.Trace
+
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
                      deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
@@ -47,7 +49,8 @@ matchMeterIMA q ms =
       Right w ->     -- calculate the maximum weight
                  let mx  = NSWeight . fromIntegral . maximum . map snd $ w
                      -- split the midi file per 
-                 in  Right (dev, map normaliseTime $ segment (getTimeSig ms') (match mx w v))
+                 in  trace (showMidiScore msq) $
+                     Right (dev, map normaliseTime $ segment (getTimeSig ms') (match mx w v))
       Left e  -> Left e
 
 -- | matches a grid with spectral weights with the onsets that created the

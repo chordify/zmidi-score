@@ -12,7 +12,7 @@ import Ragtime.Compendium.Parser          ( readRTC, RTC (..) )
 import Ragtime.Compendium.MatchFile          ( readRTCMidis, matchAll, copyRTCMidi, printMatch )
 import Ragtime.Pattern    ( printFileSubDiv, printSubDiv -- , hasValidTimeSig
                           , printFilePatMat, printPatCount -- , isStraight
-                          , hasValidGridSize)
+                          )
 
 data RagArgs = Mode| MidiDir | RTCFile | MidiFile deriving (Eq, Ord, Show)
 

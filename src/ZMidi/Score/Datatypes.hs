@@ -19,6 +19,7 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , midiFileToMidiScore
                   , midiScoreToMidiFile
                   -- * Quantisation
+                  , canBeQuantisedAt
                   , quantise
                   , quantiseDev
                   , quantiseVoice
@@ -283,6 +284,13 @@ data ShortestNote = Eighth | Sixteenth | ThirtySecond
 type GridUnit = Time
 
 type Deviation = Time
+
+
+-- | Returns true if the number of ticks per beat can be divided by the 
+-- maximal number of quantisation bins.
+canBeQuantisedAt :: ShortestNote -> MidiScore -> Bool
+canBeQuantisedAt sn ms = (ticksPerBeat ms `mod` toGridUnit sn) == 0
+
 -- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid
 -- similar to 'quantiseDev', but then discarding the cumulative deviation.
 quantise :: ShortestNote -> MidiScore -> MidiScore
@@ -297,6 +305,8 @@ quantiseDev :: ShortestNote -> MidiScore -> (MidiScore, Deviation, GridUnit)
 quantiseDev sn (MidiScore k ts dv mf tp _md vs) =  
   (MidiScore k ts' dv mf tp md' vs', sum d, gu)  where
   
+  -- the grid unit is the number of ticks per beat divided by the maximum
+  -- number of notes in one beat
   gu = dv `div` toGridUnit sn
   -- snap all events to a grid, and remove possible overlaps 
   (vs',d) = unzip . map (quantiseVoice gu) $ vs 

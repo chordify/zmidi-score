@@ -1,6 +1,5 @@
 {-# OPTIONS_GHC -Wall                #-}
 module Ragtime.Pattern ( getPercTripGridOnsets
-                       , hasValidGridSize
                        , printFileSubDiv
                        , printSubDiv 
                        , printFilePatMat
@@ -66,7 +65,7 @@ printSubDiv f = do ms <- readMidiScore f
                    let p = toPatterns FourtyEighth ms
                        -- r = rankSubDiv p
                        t = percTripGridOnsets p
-                   when ( hasValidGridSize ms ) 
+                   when ( canBeQuantisedAt FourtyEighth ms ) 
                         ( putStrLn . intercalate "\t" $ 
                           [f, show t, show (t <= 0.01) ] )
 
@@ -133,10 +132,6 @@ takeConcatOverlap i l  = let (top, rest) = splitAt i l
 --------------------------------------------------------------------------------
 -- Important tests for valid midi files
 --------------------------------------------------------------------------------
-
--- | 
-hasValidGridSize :: MidiScore -> Bool
-hasValidGridSize ms = (ticksPerBeat ms `mod` toGridUnit FourtyEighth) == 0
 
 -- | Returns the percentage of onsets that are not on grid positions 0, 3, 6,
 -- and 9 (of 12) for a 'Pattern' (by applying 'percTripGridOnsets)

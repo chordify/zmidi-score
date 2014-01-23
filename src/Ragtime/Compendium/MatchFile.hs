@@ -30,10 +30,11 @@ import Control.Monad     ( when )
 import ZMidi.IO.Common   ( mapDir, mapDirInDir )
 import ZMidi.Core        ( readMidi )
 import ZMidi.Score.Datatypes( MidiScore (..), midiFileToMidiScore, TimeSig (..), Timed (..)
-                         , GridUnit, ShortestNote, nrOfNotes, quantiseDev )
+                         , GridUnit, ShortestNote, nrOfNotes, quantiseDev
+                         , ShortestNote (..) , canBeQuantisedAt )
 
 import Ragtime.Compendium.Parser
-import Ragtime.Pattern   ( getPercTripGridOnsets, hasValidGridSize)
+import Ragtime.Pattern   ( getPercTripGridOnsets )
                          
 import System.Directory  ( copyFile, createDirectoryIfMissing, doesFileExist )
 import System.FilePath   ( (</>), (<.>), splitDirectories, takeFileName
@@ -168,7 +169,7 @@ toRTCMidi :: RTCFolder -> FilePath -> FilePath -> ShortestNote -> MidiScore
 toRTCMidi rtcf bd fp sn ms = 
   let n          = length . getVoices $ ms  
       t          = getTimeSig ms
-      g          = hasValidGridSize ms
+      g          = canBeQuantisedAt FourtyEighth ms
       p          = if g then getPercTripGridOnsets ms else -1
       (_, d, gu) = quantiseDev sn ms -- using the complete MIDI file !
       x          = fromIntegral . nrOfNotes $ ms
