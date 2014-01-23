@@ -91,7 +91,7 @@ showFileStats fp = do mf <- readMidi fp
                         Right mid -> 
                           do let m  = quantise FourtyEighth . midiFileToMidiScore $ mid
                              putStrLn fp
-                             putStrLn (showMidiScore m)
+                             putStrLn . showMidiScore . qMidiScore $ m
 
 showDirStats :: FilePath -> [RTC] -> IO ()
 showDirStats dir c = do m <- readRTCMidis FourtyEighth dir

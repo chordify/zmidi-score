@@ -30,8 +30,8 @@ import Control.Monad     ( when )
 import ZMidi.IO.Common   ( mapDir, mapDirInDir )
 import ZMidi.Core        ( readMidi )
 import ZMidi.Score.Datatypes( MidiScore (..), midiFileToMidiScore, TimeSig (..), Timed (..)
-                         , GridUnit, ShortestNote, nrOfNotes, quantiseDev
-                         , ShortestNote (..) , canBeQuantisedAt )
+                         , GridUnit, ShortestNote, nrOfNotes, QMidiScore (..)
+                         , ShortestNote (..) , canBeQuantisedAt, quantise )
 
 import Ragtime.Compendium.Parser
 import Ragtime.Pattern   ( getPercTripGridOnsets )
@@ -53,7 +53,7 @@ selectRTCMidi (rtc, mm) =
     Just m  ->    isValidYear      (year rtc)
                && isValidTimeSig   (rtcTimeSig m)
                -- && validGrid m 
-               && isValidDeviation (gridUnit m) (avgDeviation m)
+               && isValidDeviation (rtcGridUnit m) (avgDeviation m)
  
 -- | Is the 'TimeSig'natur a meter we can use for analysis?
 isValidTimeSig :: [Timed TimeSig] -> Bool
@@ -87,7 +87,7 @@ data RTCMidi = RTCMidi { baseDir      :: FilePath
                        , tripletPerc  :: Double
                        , validGrid    :: Bool
                        , avgDeviation :: Float
-                       , gridUnit     :: GridUnit
+                       , rtcGridUnit  :: GridUnit
                        } deriving (Show, Eq)
  
 -- compare the midi file based on statistics that might reflect the quality 
@@ -112,11 +112,11 @@ printMatch (r,m) = let l  = [ show (rtcid r)   , show (title r)
                                               , show (tripletPerc   p <= 0.01)
                                               , show (validGrid     p)
                                               , show (avgDeviation  p)
-                                              , show (gridUnit      p)
+                                              , show (rtcGridUnit      p)
                                               , show (avgDeviation  p / 
-                                                     (fromIntegral . gridUnit $ p))
+                                                     (fromIntegral . rtcGridUnit $ p))
                                               , show ((avgDeviation p / 
-                                                     (fromIntegral . gridUnit $ p)) <= 0.1)
+                                                     (fromIntegral . rtcGridUnit $ p)) <= 0.1)
                                               , show (fileName      p) ]
                               Nothing -> l ++ ["n/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tn/a\tno matching file found"]
                    in intercalate "\t" l'
@@ -171,7 +171,7 @@ toRTCMidi rtcf bd fp sn ms =
       t          = getTimeSig ms
       g          = canBeQuantisedAt FourtyEighth ms
       p          = if g then getPercTripGridOnsets ms else -1
-      (_, d, gu) = quantiseDev sn ms -- using the complete MIDI file !
+      (QMidiScore _ _ d gu) = quantise sn ms -- using the complete MIDI file !
       x          = fromIntegral . nrOfNotes $ ms
       r          = RTCMidi bd rtcf (takeFileName fp) n t p g (fromIntegral d / x) gu
   in n `seq` t `seq` p `seq` g `seq` p `seq` d `seq` gu `seq` x `seq` r

@@ -19,8 +19,6 @@ import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey, union
 import Control.Arrow               ( second )
 import Data.Foldable      ( foldrM )
 
-import Debug.Trace
-
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
                      deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
@@ -28,15 +26,17 @@ newtype NSWeight = NSWeight { nsweight :: Double }
                               
 type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeight)]
 
--- TODO create a QMidiScore for quantised MidiScores
 -- TODO create a MPMidiScore for monophonic MidiScores
 -- TODO create a QMPMidiScore for quantised monophonic MidiScores
 
--- before applying matchMeter 
 matchMeterIMA :: ShortestNote -> MidiScore -> Either String (Float, [NSWMeterSeg])
-matchMeterIMA q ms = 
+matchMeterIMA sn = either Left matchMeterQIMA . quantiseSafe sn
+
+-- before applying matchMeter 
+matchMeterQIMA :: QMidiScore -> Either String (Float, [NSWMeterSeg])
+matchMeterQIMA (QMidiScore msq _sn gu d) = 
   let -- quantise the merge all tracks and remove nub notes with the same onset
-      (msq, d, gu) = quantiseDev q $ ms
+      -- (msq, d, gu) = quantiseDev q $ ms
       dev = (fromIntegral d / fromIntegral (nrOfNotes msq)) / fromIntegral gu 
       ms' = mergeTracks msq
       -- remove duplicates
@@ -49,8 +49,7 @@ matchMeterIMA q ms =
       Right w ->     -- calculate the maximum weight
                  let mx  = NSWeight . fromIntegral . maximum . map snd $ w
                      -- split the midi file per 
-                 in  trace (showMidiScore msq) $
-                     Right (dev, map normaliseTime $ segment (getTimeSig ms') (match mx w v))
+                 in  Right (dev, map normaliseTime $ segment (getTimeSig ms') (match mx w v))
       Left e  -> Left e
 
 -- | matches a grid with spectral weights with the onsets that created the

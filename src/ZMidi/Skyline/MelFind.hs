@@ -13,6 +13,8 @@ import Control.Arrow      ( (***), second )
 
 type MelFind = Voice -> (Voice, Voice)
 
+-- TODO: output QMidiFile instead of Voice
+
 -- | Applies 'findMelodyQuant' to a 'MidiScore' but returns the score instead
 -- of just the 'Voice'.
 filterMelodyQuant :: ShortestNote -> MidiScore -> MidiScore
@@ -24,14 +26,14 @@ filterMelodyQuant q ms = ms {getVoices = [findMelodyQuant q ms]}
 findMelodyQuant :: ShortestNote ->  MidiScore -> Voice
 findMelodyQuant q = removeOverlap . head . getVoices -- get the first voice 
                                   . sepHand skyLineLLDipDetect -- melody finding
-                                  . quantise q . mergeTracks   
+                                  . qMidiScore . quantise q . mergeTracks   
 
 -- | The complement of 'findMelodyQuant', returning only the accompaniment 
--- without the melody in a single 'Voice'.
+-- without the melody in a single 'Voice'. 
 getAccompQuant  :: ShortestNote ->  MidiScore -> Voice
 getAccompQuant q = (!! 1) . getVoices          -- get the second voice
                  . sepHand skyLineLLDipDetect  -- melody separation
-                 . quantise q . mergeTracks 
+                 . qMidiScore . quantise q . mergeTracks 
                                   
 -- | Returns the melody 'Voice', if there the 'MidiScore' has exactly 2 voices
 -- This function assumes that the first track is the melody.

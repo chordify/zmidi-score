@@ -1,6 +1,7 @@
-{-# OPTIONS_GHC -Wall                #-}
-{-# LANGUAGE DeriveFunctor           #-}
-{-# LANGUAGE ScopedTypeVariables     #-}
+{-# OPTIONS_GHC -Wall                   #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                     MidiScore (..)
                   , Key (..)
@@ -19,10 +20,10 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , midiFileToMidiScore
                   , midiScoreToMidiFile
                   -- * Quantisation
+                  , QMidiScore (..)
                   , canBeQuantisedAt
+                  , quantiseSafe
                   , quantise
-                  , quantiseDev
-                  , quantiseVoice
                   , removeOverlap
                   , ShortestNote (..)
                   , GridUnit
@@ -282,9 +283,13 @@ data ShortestNote = Eighth | Sixteenth | ThirtySecond
                     deriving (Eq, Show)
 
 type GridUnit = Time
-
 type Deviation = Time
 
+data QMidiScore = QMidiScore { qMidiScore   :: MidiScore 
+                             , shortestNote :: ShortestNote
+                             , gridUnit     :: GridUnit
+                             , totDeviation :: Deviation
+                             } deriving (Show, Eq)
 
 -- | Returns true if the number of ticks per beat can be divided by the 
 -- maximal number of quantisation bins.
@@ -293,30 +298,37 @@ canBeQuantisedAt sn ms = (ticksPerBeat ms `mod` toGridUnit sn) == 0
 
 -- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid
 -- similar to 'quantiseDev', but then discarding the cumulative deviation.
-quantise :: ShortestNote -> MidiScore -> MidiScore
-quantise s ms = let (ms', _, _) = quantiseDev s ms in ms'
+-- quantise :: ShortestNote -> MidiScore -> MidiScore
+-- quantise s ms = let (ms', _, _) = quantiseDev s ms in ms'
+
+quantise :: ShortestNote -> MidiScore -> QMidiScore
+quantise sn = either error id . quantiseSafe sn
 
 -- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid. 
 -- The absolute size of the grid is based on the 'GridUnit', which is the
 -- 'ticksPerBeat' divided by the number of quantization bins per beat. Besides
 -- the quantised 'MidiScore' and the 'GridUnit' also the cumulative deviation 
 -- from the grid is returned.
-quantiseDev :: ShortestNote -> MidiScore -> (MidiScore, Deviation, GridUnit)
-quantiseDev sn (MidiScore k ts dv mf tp _md vs) =  
-  (MidiScore k ts' dv mf tp md' vs', sum d, gu)  where
-  
+quantiseSafe :: ShortestNote -> MidiScore -> Either String QMidiScore
+quantiseSafe sn (MidiScore k ts dv mf tp _md vs) =  
   -- the grid unit is the number of ticks per beat divided by the maximum
   -- number of notes in one beat
-  gu = dv `div` toGridUnit sn
-  -- snap all events to a grid, and remove possible overlaps 
-  (vs',d) = unzip . map (quantiseVoice gu) $ vs 
-  -- the minimum duration might have changed
-  md' = gcIOId . buildTickMap $ vs'
-  -- also align the time signatures to a grid
-  ts' = map snapTS ts
+  case dv `divMod` toGridUnit sn of
+    (gu, 0) -> let -- snap all events to a grid, and remove possible overlaps 
+                   (vs',d) = unzip . map (quantiseVoice gu) $ vs 
+                   -- the minimum duration might have changed
+                   md' = gcIOId . buildTickMap $ vs'
+                   -- also align the time signatures to a grid
+                   ts' = map (snapTimed gu) ts
+                   -- update the MidiScore
+                   ms' = MidiScore k ts' dv mf tp md' vs'
+               in Right (QMidiScore ms' sn gu (sum d))
+    _       ->    Left ("MidiFile cannot be quantised: " ++ show dv ++ 
+                        " cannot be divided by " ++ show (toGridUnit sn))
   
-  snapTS :: Timed TimeSig -> Timed TimeSig
-  snapTS t = t {onset = fst . snap gu $ onset t}  
+  
+snapTimed :: GridUnit -> Timed a -> Timed a
+snapTimed gu t = t {onset = fst . snap gu $ onset t}  
 
 -- | quantises a 'Voice', and returns the cumulative 'Deviation'.
 quantiseVoice :: GridUnit -> Voice -> (Voice, Deviation)

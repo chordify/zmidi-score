@@ -3,7 +3,7 @@ module Main where
 import System.Environment ( getArgs )
 import Data.List          ( intercalate, genericLength, intersectBy )
 
-import ZMidi.IO.Common    ( readMidiFile, readMidiScore, mapDir
+import ZMidi.IO.Common    ( readMidiFile, readMidiScore, readQMidiScore, mapDir
                           , mapDir_, logDuplicates, writeMidiScore
                           , removeTrackLabels )
 import ZMidi.Core         ( writeMidi, MidiFile (..) )
@@ -21,8 +21,9 @@ main = do arg <- getArgs
             ["-b", d] -> mapDir_ (quantiseAndMelFind FourtyEighth) d
             ["-f", f] -> createSepHandMidiFile f
             ["-r", f] -> reverse2Tracks f
-            ["-q", f] ->   readMidiScore f >>= writeMidi (f ++ ".quant.mid") 
-                         . midiScoreToMidiFile . quantise FourtyEighth
+            ["-q", f] -> readQMidiScore FourtyEighth f 
+                            >>= (flip writeMidiScore) (f ++ ".quant.mid") 
+                              . qMidiScore
             ["-l", d] -> logDuplicates d
             ["-n", f] -> removeTrackLabels f
             ["-x", f] -> melodySkyline f 
@@ -68,7 +69,7 @@ evalHandSep f = do putStr (show f ++ "\t")
 
 quantiseAndMelFind ::  ShortestNote -> FilePath -> IO ()
 quantiseAndMelFind q  f = do m <- readMidiScore f
-                             writeMidiScore (quantise q m) (f ++ ".quantise.mid")
+                             writeMidiScore (qMidiScore $ quantise q m) (f ++ ".quantise.mid")
                              putStrLn ("written: " ++ f ++ ".quantise.mid")
                              writeMidiScore (filterMelodyQuant q m) (f ++ ".melody.dip.mid")
                              putStrLn ("written: " ++ f ++ ".melody.dip.mid")

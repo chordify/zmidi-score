@@ -11,6 +11,7 @@ module ZMidi.IO.Common (-- * Mapping
                     , readMidiFile
                     , readMidiScoreSafe
                     , readMidiScore
+                    , readQMidiScore
                     , writeMidiScore
                     -- * Utilities
                     -- , printMidiToFile
@@ -20,8 +21,8 @@ module ZMidi.IO.Common (-- * Mapping
                     )where
                     
 import ZMidi.Core         ( MidiFile (..), readMidi, writeMidi )
-import ZMidi.Score.Datatypes ( MidiScore (..), midiFileToMidiScore
-                          , midiScoreToMidiFile, removeLabels )
+import ZMidi.Score.Datatypes ( MidiScore (..), midiFileToMidiScore, ShortestNote (..)
+                          , midiScoreToMidiFile, removeLabels, QMidiScore (..), quantise  )
 import Control.Monad      ( filterM, void )
 import System.Directory   ( getDirectoryContents, canonicalizePath
                           , doesDirectoryExist )
@@ -40,9 +41,6 @@ mapDirInDir f fp = do fs  <- getDirectoryContents fp
                               >>= return . filter (\x -> x /= "." && x /= "..") 
                       cfp <- canonicalizePath fp
                       filterM doesDirectoryExist (fmap (cfp </>) fs) >>= mapM f
-                              -- >>= parallel . map f 
-                      -- stopGlobalPool
-                      -- return res
 
 -- | Applies a function to every file/dir in a directory, similar to 'mapDir',
 -- but it discards the result of the evaluation
@@ -84,7 +82,10 @@ readMidiScoreSafe f =
      case mf of Left  _er -> return   Nothing
                 Right mid -> return . Just . midiFileToMidiScore $ mid
 
-
+-- | Reads a 'MidiFile' using 'readMidiScore' but 'quantise'es the result.
+readQMidiScore :: ShortestNote -> FilePath -> IO (QMidiScore)
+readQMidiScore sn f = readMidiScore f >>= return . quantise sn
+                
 -- | Reads a 'MidiFile' converts it into a 'MidiScore' and returns it
 readMidiScore :: FilePath -> IO (MidiScore)
 readMidiScore f = readMidiFile f >>= return . midiFileToMidiScore
