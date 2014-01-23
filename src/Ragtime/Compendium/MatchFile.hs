@@ -29,7 +29,7 @@ import Control.Monad     ( when )
 
 import ZMidi.IO.Common   ( mapDir, mapDirInDir )
 import ZMidi.Core        ( readMidi )
-import ZMidi.Score.Datatypes( MidiScore (..), midiFileToMidiScore, TimeSig (..), Timed (..)
+import ZMidi.Score       ( MidiScore (..), midiFileToMidiScore, TimeSig (..), Timed (..)
                          , GridUnit, ShortestNote, nrOfNotes, QMidiScore (..)
                          , ShortestNote (..) , canBeQuantisedAt, quantise )
 
@@ -171,7 +171,7 @@ toRTCMidi rtcf bd fp sn ms =
       t          = getTimeSig ms
       g          = canBeQuantisedAt FourtyEighth ms
       p          = if g then getPercTripGridOnsets ms else -1
-      (QMidiScore _ _ d gu) = quantise sn ms -- using the complete MIDI file !
+      (QMidiScore _ _ gu d) = quantise sn ms -- using the complete MIDI file !
       x          = fromIntegral . nrOfNotes $ ms
       r          = RTCMidi bd rtcf (takeFileName fp) n t p g (fromIntegral d / x) gu
   in n `seq` t `seq` p `seq` g `seq` p `seq` d `seq` gu `seq` x `seq` r

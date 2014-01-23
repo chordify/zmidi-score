@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Main where
 
-import ZMidi.Score.Datatypes         
+import ZMidi.Score         
 import ZMidi.IO.Common          ( readMidiScore, readMidiScoreSafe, putErrStrLn
                                     , mapDirInDir, mapDir, foldrDir, foldrDirInDir )
 import ZMidi.Skyline.MelFind                      ( getAccompQuant, mergeTracks )
@@ -181,8 +181,8 @@ readProf fp =
                        _  -> case toNSWProfSegs x of
                                Right (d,p) -> 
                                  do let r = collectNSWProf p empty 
-                                    putStrLn ("Q deviation: " ++ show d)
-                                    mapM_ (putStrLn . showNSWProf) (toList r)
+                                    -- putStrLn ("Q deviation: " ++ show d)
+                                    -- mapM_ (putStrLn . showNSWProf) (toList r)
                                     r `seq` return r
                                Left  e -> 
                                  do putErrStrLn ("Warning: skipping " 

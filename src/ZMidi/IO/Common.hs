@@ -21,7 +21,7 @@ module ZMidi.IO.Common (-- * Mapping
                     )where
                     
 import ZMidi.Core         ( MidiFile (..), readMidi, writeMidi )
-import ZMidi.Score.Datatypes ( MidiScore (..), midiFileToMidiScore, ShortestNote (..)
+import ZMidi.Score ( MidiScore (..), midiFileToMidiScore, ShortestNote (..)
                           , midiScoreToMidiFile, removeLabels, QMidiScore (..), quantise  )
 import Control.Monad      ( filterM, void )
 import System.Directory   ( getDirectoryContents, canonicalizePath

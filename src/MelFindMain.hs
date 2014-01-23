@@ -8,7 +8,7 @@ import ZMidi.IO.Common    ( readMidiFile, readMidiScore, readQMidiScore, mapDir
                           , removeTrackLabels )
 import ZMidi.Core         ( writeMidi, MidiFile (..) )
 import ZMidi.Skyline.MelFind
-import ZMidi.Score.Datatypes
+import ZMidi.Score
 
 main :: IO ()
 main = do arg <- getArgs

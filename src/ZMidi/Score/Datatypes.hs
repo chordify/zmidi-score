@@ -15,19 +15,10 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , Timed (..)
                   , Time
                   , ScoreEvent (..)
-                  , Deviation
                   -- * Transformation
                   , midiFileToMidiScore
                   , midiScoreToMidiFile
-                  -- * Quantisation
-                  , QMidiScore (..)
-                  , canBeQuantisedAt
-                  , quantiseSafe
-                  , quantise
-                  , removeOverlap
-                  , ShortestNote (..)
-                  , GridUnit
-                  , toGridUnit
+                  -- * Minimum length calculation
                   , buildTickMap
                   , gcIOId
                   -- * Utilities
@@ -41,7 +32,6 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , changePitch
                   , pitchClass
                   , hasTimeSigs
-                  , getMinGridSize
                   , getBeatInBar
                   -- * MidiFile Utilities
                   , hasNotes 
@@ -275,111 +265,6 @@ showVoices ms = concat . intersperse "\n"
 --------------------------------------------------------------------------------
 -- Analysing durations
 --------------------------------------------------------------------------------
-
--- | The 'ShortestNote' determines the minimal grid length of a quantised 
--- 'MidiScore', when quantised with 'quantise'.
-data ShortestNote = Eighth | Sixteenth | ThirtySecond 
-                  | FourtyEighth | SixtyFourth
-                    deriving (Eq, Show)
-
-type GridUnit = Time
-type Deviation = Time
-
-data QMidiScore = QMidiScore { qMidiScore   :: MidiScore 
-                             , shortestNote :: ShortestNote
-                             , gridUnit     :: GridUnit
-                             , totDeviation :: Deviation
-                             } deriving (Show, Eq)
-
--- | Returns true if the number of ticks per beat can be divided by the 
--- maximal number of quantisation bins.
-canBeQuantisedAt :: ShortestNote -> MidiScore -> Bool
-canBeQuantisedAt sn ms = (ticksPerBeat ms `mod` toGridUnit sn) == 0
-
--- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid
--- similar to 'quantiseDev', but then discarding the cumulative deviation.
--- quantise :: ShortestNote -> MidiScore -> MidiScore
--- quantise s ms = let (ms', _, _) = quantiseDev s ms in ms'
-
-quantise :: ShortestNote -> MidiScore -> QMidiScore
-quantise sn = either error id . quantiseSafe sn
-
--- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid. 
--- The absolute size of the grid is based on the 'GridUnit', which is the
--- 'ticksPerBeat' divided by the number of quantization bins per beat. Besides
--- the quantised 'MidiScore' and the 'GridUnit' also the cumulative deviation 
--- from the grid is returned.
-quantiseSafe :: ShortestNote -> MidiScore -> Either String QMidiScore
-quantiseSafe sn (MidiScore k ts dv mf tp _md vs) =  
-  -- the grid unit is the number of ticks per beat divided by the maximum
-  -- number of notes in one beat
-  case dv `divMod` toGridUnit sn of
-    (gu, 0) -> let -- snap all events to a grid, and remove possible overlaps 
-                   (vs',d) = unzip . map (quantiseVoice gu) $ vs 
-                   -- the minimum duration might have changed
-                   md' = gcIOId . buildTickMap $ vs'
-                   -- also align the time signatures to a grid
-                   ts' = map (snapTimed gu) ts
-                   -- update the MidiScore
-                   ms' = MidiScore k ts' dv mf tp md' vs'
-               in Right (QMidiScore ms' sn gu (sum d))
-    _       ->    Left ("MidiFile cannot be quantised: " ++ show dv ++ 
-                        " cannot be divided by " ++ show (toGridUnit sn))
-  
-  
-snapTimed :: GridUnit -> Timed a -> Timed a
-snapTimed gu t = t {onset = fst . snap gu $ onset t}  
-
--- | quantises a 'Voice', and returns the cumulative 'Deviation'.
-quantiseVoice :: GridUnit -> Voice -> (Voice, Deviation)
-quantiseVoice gu = second sum . unzip . map snapEvent  where
-
-  snapEvent :: Timed ScoreEvent -> (Timed ScoreEvent, Deviation)
-  snapEvent (Timed ons dat) = let (t', d) = snap gu ons 
-                              in case dat of
-    (NoteEvent c p v l) -> (Timed t' (NoteEvent c p v (fst $ snap gu l)), d)
-    _                   -> (Timed t' dat                                , d)
-    
--- | snaps a 'Time' to a grid
-snap :: GridUnit -> Time -> (Time, Deviation) 
-snap g t | m == 0  = (t, 0)          -- score event is on the grid
-         | m >  0  = if (g - m) >= m -- score event is off the grid
-                     -- and closer to the past grid point
-                     then let t' =    d  * g in (t', t  - t') -- snap backwards
-                     -- or closer to the next grid point
-                     else let t' = (1+d) * g in (t', t' - t ) -- snap forwards
-         | otherwise = error "Negative time stamp found"
-             where (d,m) = t `divMod` g
-
-    
--- | Although 'quantise' also quantises the duration of 'NoteEvents', it can
--- happen that melody notes do still overlap. This function removes the overlap
--- N.B. This function is designed only for monophonic melodies, it does not 
--- work on a polyphonic score.
-removeOverlap :: Voice -> Voice
-removeOverlap = foldr step [] where
-  
-  step :: Timed ScoreEvent -> [Timed ScoreEvent] -> [Timed ScoreEvent]
-  step t [] = [t]
-  step t n  = updateDur : n where
-    
-    updateDur :: Timed ScoreEvent
-    updateDur = case getEvent t of
-      (NoteEvent c p v d) -> let nxt = onset . head $ n
-                                 d'  = if onset t + d > nxt 
-                                       then nxt - onset t else d
-                             in  t {getEvent = NoteEvent c p v d'}
-      _                   -> t
-
--- | takes the quantisation granularity parameter 'ShortestNote' and returns
--- a the 'Int' that the beat length should be divided by. The resulting 
--- value we name 'GridUnit'; it describes the minimal length of an event.
-toGridUnit :: ShortestNote -> GridUnit
-toGridUnit Eighth       = 2
-toGridUnit Sixteenth    = 4
-toGridUnit ThirtySecond = 8
-toGridUnit FourtyEighth = 12
-toGridUnit SixtyFourth  = 16
 
 -- | The Inter Onset Interval that is the greatest common divider. It can be
 --used to estimate whether a track is quantised or not.
@@ -707,14 +592,6 @@ invalidMidiNumberError w = error ("invalid MIDI note number" ++ show w)
 -- | Returns True if the 'MidiScore' has time signatures other than 'NoTimeSig'
 hasTimeSigs :: MidiScore -> Bool
 hasTimeSigs = not . null . filter (not . (== NoTimeSig) . getEvent) . getTimeSig
-
--- | Returns the minimal grid size of a 'MidiScore' if it has been quantised. 
--- This is the 'ticksPerBeat' divided by the number of quantisation bins.
--- N.B. this function does not check whether a file is quantised.
-getMinGridSize :: ShortestNote -> MidiScore -> Time
-getMinGridSize q ms = case ticksPerBeat ms `divMod` (toGridUnit q) of
-                        (d,0) -> d
-                        _     -> error "getMinGridSize: invalid quantisation"
 
 getBeatInBar :: TimeSig -> Time -> Time -> (Time, Ratio Time)
 getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
