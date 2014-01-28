@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveGeneric              #-}
 module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                     MidiScore (..)
                   , Key (..)
@@ -63,7 +64,8 @@ import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( insertWith, IntMap, keys )
 import qualified Data.IntMap.Lazy  as M    ( empty )
 import Text.Printf         ( printf, PrintfArg )
-
+import Data.Binary         ( Binary )
+import GHC.Generics        ( Generic )
 
 --------------------------------------------------------------------------------                                   
 -- A less low-level MIDI data representation
@@ -98,7 +100,7 @@ data TimeSig    = TimeSig       { numerator  :: Int
                                 , metronome  :: Word8
                                 , nr32ndNotes:: Word8
                                 }
-                | NoTimeSig
+                | NoTimeSig       deriving (Generic)
 
 -- Note: we could consider adding a Voice label, like there is a track label
 -- | A 'Voice' is a list of 'ScoreEvent's that have time stamps.
@@ -119,7 +121,7 @@ newtype Time    = Time { time :: Int }
 newtype Bar     = Bar  { bar  :: Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
 newtype BarRat  = BarRat { barRat  :: Ratio Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real )                    
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Binary )                    
                     
 -- perhaps add duration??
 data Timed a    = Timed         { onset       :: Time 
@@ -163,6 +165,8 @@ instance Ord TimeSig where
     case compare b1 b2 of 
       EQ -> compare a1 a2
       c  -> c
+
+instance Binary TimeSig
   
 instance Show TimeSig where
   show (TimeSig n d _ _) = show n ++ '/' : show d
@@ -266,7 +270,6 @@ showVoices ms = intercalate "\n" $ evalState (showTimeSlice . getVoices $ ms) 0
   hasEnded t (Timed ons se) = ons + duration se  <  t
 
   
-  
 --------------------------------------------------------------------------------
 -- Analysing durations
 --------------------------------------------------------------------------------
@@ -297,9 +300,6 @@ buildTickMap = foldr oneVoice M.empty where
   
   -- showTick :: (Int, Time) -> String
   -- showTick (i, t) = show i ++ ": " ++ show t ++ "\n"
-  
-
-
 
 --------------------------------------------------------------------------------
 -- Utilities

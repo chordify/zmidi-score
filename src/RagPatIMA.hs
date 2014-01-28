@@ -13,13 +13,15 @@ import Data.List            ( nubBy, intercalate, foldl' )
 import Data.Ratio                   ( numerator, denominator )
 import Data.Function                ( on )
 import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
+import Data.Binary                 ( Binary, encodeFile )
 import Control.Arrow               ( first, second )
 import Text.Printf
 
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
                      deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
-                              , Fractional, RealFloat, RealFrac, PrintfArg )
+                              , Fractional, RealFloat, RealFrac, PrintfArg
+                              , Binary )
                               
 type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeight)]
 
@@ -87,6 +89,7 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
 
 stars :: NSWeight -> String
 stars w = replicate (round (20 * w)) '*' 
+
 --------------------------------------------------------------------------------
 -- IMA profiles
 --------------------------------------------------------------------------------
@@ -97,7 +100,7 @@ type NSWProf     = (NrOfBars, Map BarRat NSWeight)
 
 -- | Stores the number of bars
 newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg, Binary )
 
 toNSWProfSegs :: MidiScore -> Either String (Float, [NSWProfSeg])
 toNSWProfSegs m = fmap (second (map (toNSWProf (ticksPerBeat m)))) (matchMeterIMA FourtyEighth m )
@@ -132,6 +135,12 @@ collectNSWProf s m = foldr doSeg m s where
 mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
 mergeNSWProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
 
+--------------------------------------------------------------------------------
+-- exporting / importing IMA profiles
+--------------------------------------------------------------------------------
+
+safeNSWProf :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
+safeNSWProf fp m = encodeFile fp m >> putStrLn ("written: " ++ fp) >> return m
   
 -- testing
 main :: IO ()
@@ -153,9 +162,11 @@ main =
                           Left e      -> putStrLn e -- show the error
                             
        ["-a", fp] -> do mapDirInDir (\x -> mapDir readProf x >>= unionNWProfMaps) fp
-                            >>= unionNWProfMaps >>= printMeterStats
+                            >>= unionNWProfMaps >>= safeNSWProf "nswProf.bin" 
+                            >>= printMeterStats
                             
-       ["-d", fp] -> do mapDir readProf fp >>= unionNWProfMaps >>= printMeterStats
+       ["-d", fp] -> do     mapDir readProf fp >>= unionNWProfMaps 
+                        >>= safeNSWProf "nswProf.bin" >>= printMeterStats    
                         
        _    -> error "Please use -f <file> or -d <ragtime directory>"
    
