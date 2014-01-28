@@ -4,7 +4,7 @@ module Main where
 
 import ZMidi.Score         hiding (numerator, denominator)
 import ZMidi.IO.Common          ( readMidiScore, readMidiScoreSafe, putErrStrLn
-                                    , mapDirInDir, mapDir )
+                                    , mapDirInDir, mapDir, warning )
 import ZMidi.Skyline.MelFind                      ( mergeTracks )
 import Ragtime.TimeSigSeg
 import IMA.InnerMetricalAnalysis hiding ( Time )
@@ -179,23 +179,33 @@ printMeterStats :: Map TimeSig NSWProf -> IO ()
 printMeterStats = mapM_ (putStrLn . showNSWProf) . toList 
    
 readProf :: FilePath -> IO (Map TimeSig NSWProf)
-readProf fp = 
-  do ms <- readMidiScoreSafe fp
-     case ms of
-       Just x  -> do putStrLn ((show . map getEvent . getTimeSig $ x) ++ ": " ++ fp)
-                     case getTimeSig x of
-                       -- ignore the piece if not time signature is present
-                       [Timed _ NoTimeSig] -> return empty 
-                       -- check for weird onsets
-                       _  -> case toNSWProfSegs x of
-                               Right (_d,p) -> 
-                                 do let r = collectNSWProf p empty 
-                                    -- putStrLn ("Q deviation: " ++ show d)
-                                    -- mapM_ (putStrLn . showNSWProf) (toList r)
-                                    r `seq` return r
-                               Left  e -> 
-                                 do putErrStrLn ("Warning: skipping " 
-                                                 ++ fp ++ ": " ++ e)
-                                    return empty
-       Nothing -> return empty
+readProf fp = undefined
+  -- do ms <- readMidiScoreSafe fp
+     -- case ms of
+       -- Just x  -> 
+                  -- when (hasTimeSig x) 
+                    -- do putStrLn ((show . map getEvent . getTimeSig $ x) ++ ": " ++ fp)
+                       -- selectNSWProf x
+       -- Nothing -> return empty
        
+-- selectNSWProfIO x = 
+  -- case toNSWProfSegs x of
+    -- Right (d,p) ->  do let r = collectNSWProf p empty 
+                           -- -- putStrLn ("Q deviation: " ++ show d)
+                          -- -- mapM_ (putStrLn . showNSWProf) (toList r)
+                        -- r `seq` return r
+    -- Left  e ->  warning fp e >> return empty
+       
+timeSigCheck :: MidiScore -> Either String MidiScore
+timeSigCheck ms | hasTimeSigs ms = Right ms
+                | otherwise      = Left "Has no valid time signature"
+       
+checkQuantDev :: Float -> a -> Either String a
+checkQuantDev d a | d < 0.02  = Right a
+                  | otherwise = Left ("Quantisation deviation is to high: "
+                                       ++ show d)
+       
+warnBind :: FilePath -> Either String a -> (a -> Either String b) -> IO (Either String b)
+warnBind fp (Left  e) _ = warning fp e >> return (Left e)
+warnBind fp (Right x) f = return (f x)
+ 

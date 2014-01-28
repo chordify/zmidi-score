@@ -69,6 +69,7 @@ isValidTimeSig [Timed ons ts] = case ons of
                                   _ -> False
 isValidTimeSig _              = False
  
+-- TODO: solve differently
 -- | Is the quantisation deviation small enough for analysis?
 isValidDeviation :: GridUnit -> Float -> Bool
 isValidDeviation gu d = (d / fromIntegral gu) < 0.02

@@ -14,10 +14,10 @@ module ZMidi.IO.Common (-- * Mapping
                     , readQMidiScore
                     , writeMidiScore
                     -- * Utilities
-                    -- , printMidiToFile
                     , logDuplicates
                     , removeTrackLabels
                     , putErrStrLn
+                    , warning
                     )where
                     
 import ZMidi.Core         ( MidiFile (..), readMidi, writeMidi )
@@ -125,10 +125,13 @@ removeTrackLabels :: FilePath -> IO ()
 removeTrackLabels f = readMidiFile f >>= 
                       writeMidi (f ++ ".noLab.mid") . removeLabels
                       
-
+-- | Prints a string to the standard error stream
 putErrStrLn :: String -> IO ()
 putErrStrLn s = hPutStrLn stderr s
-                   
+       
+warning :: FilePath -> String -> IO ()
+warning fp w = putErrStrLn ("Warning: skipping " ++ fp ++ ": " ++ w)
+
 --------------------------------------------------------------------------------
 -- Unexported directory utils
 --------------------------------------------------------------------------------
