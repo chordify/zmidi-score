@@ -7,11 +7,11 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , Key (..)
                   , TimeSig (..)
                   , Voice 
-                  , Channel
+                  , Channel (..)
                   , Pitch (..)
                   , PitchClass (..)
                   , Interval
-                  , Velocity
+                  , Velocity (..)
                   , Timed (..)
                   , Time (..)
                   , Bar (..)
@@ -108,14 +108,16 @@ data TimeSig    = TimeSig       { numerator  :: Int
 -- | A 'Voice' is a list of 'ScoreEvent's that have time stamps.
 type Voice      = [Timed ScoreEvent]
 
-type Channel    = Word8
+newtype Channel    = Channel {channel :: Word8 }
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
 -- TODO: better changed to Pitch (Int, PitchClass)
 newtype Pitch   = Pitch    (Int, Int) deriving (Eq, Ord) -- (Octave, Pitch class)
 type    Interval= Int
 
 newtype PitchClass = PitchClass Int deriving (Eq, Ord) 
 
-type Velocity   = Word8
+newtype Velocity = Velocity { velocity :: Word8 }
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
 newtype Time    = Time { time :: Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
 newtype Bar     = Bar  { bar  :: Int } 
@@ -128,9 +130,9 @@ data Timed a    = Timed         { onset       :: Time
                                 , getEvent    :: a
                                 } deriving (Functor, Eq, Ord)
                                 
-data ScoreEvent = NoteEvent     { channel     :: Channel
+data ScoreEvent = NoteEvent     { chan        :: Channel
                                 , pitch       :: Pitch
-                                , velocity    :: Velocity
+                                , velo        :: Velocity
                                 -- No, this should this not be in Timed 
                                 -- because only a NoteEvent has a duration
                                 -- (or we should give Key and TimeSig changes 
@@ -423,8 +425,8 @@ midiTrackToVoice m =
     getMetaEvent _                   = Nothing
 
     getVelocity :: MidiVoiceEvent -> Velocity
-    getVelocity (NoteOn  _ _ v) = v
-    getVelocity (NoteOff _ _ v) = v
+    getVelocity (NoteOn  _ _ v) = Velocity v
+    getVelocity (NoteOff _ _ v) = Velocity v
     getVelocity _               = error "not a noteOn or a noteOff event"
     
 -- We define a stat to store the absolute midi clock 
@@ -488,7 +490,9 @@ midiScoreToMidiFile (MidiScore ks ts dv mf tp _ vs) = MidiFile hdr trks where
     toMidiNote :: Timed ScoreEvent -> [Timed MidiVoiceEvent] 
     toMidiNote (Timed o (NoteEvent c p v d)) = 
       let p' = toMidiNr p
-      in [Timed o (NoteOn c p' v), Timed (o + d) (NoteOff c p' 0)]
+          c' = channel c
+          v' = velocity v
+      in [Timed o (NoteOn c' p' v'), Timed (o + d) (NoteOff c' p' 0)]
     toMidiNote _ = error "noteEventToMidiNote: not a NoteEvent."  
      
     -- this is where the magic happens. A list of timed events is made relative

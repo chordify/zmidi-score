@@ -138,11 +138,11 @@ setChans :: Channel -> [Timed ScoreEvent] -> [Timed ScoreEvent]
 setChans c = map (setChan c)
 
 setChan :: Channel -> Timed ScoreEvent -> Timed ScoreEvent
-setChan c tse = fmap f tse where f ne = ne {channel = c}
+setChan c tse = fmap f tse where f ne = ne {chan = c}
 
 -- | Returns the number of different channels used in NoteEvents within a track
 countChan :: Voice -> Int
 countChan = length . groupBy ((==) `on` f) . sortBy (comparing f)
-  where f = channel . getEvent
+  where f = chan . getEvent
 
      

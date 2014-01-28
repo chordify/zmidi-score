@@ -140,8 +140,8 @@ noteRetrieval gt tst = precRecF eqf gt tst where
   
   eqf :: Timed ScoreEvent -> Timed ScoreEvent -> Bool
   eqf (Timed onA datA) (Timed onB datB) =  onA           == onB 
-                                        && pitch    datA == pitch datB
-                                        && velocity datA == velocity datB
+                                        && pitch    datA == pitch    datB
+                                        && velo     datA == velo     datB
                                         && duration datA == duration datB
 
 -- | calculates the the triplet of Precision, Recall and F-Measure given
