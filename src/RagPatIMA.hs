@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Main where
 
-import ZMidi.Score         
+import ZMidi.Score         hiding (numerator, denominator)
 import ZMidi.IO.Common          ( readMidiScore, readMidiScoreSafe, putErrStrLn
                                     , mapDirInDir, mapDir, foldrDir, foldrDirInDir )
 import ZMidi.Skyline.MelFind                      ( getAccompQuant, mergeTracks )
@@ -12,17 +12,18 @@ import qualified IMA.InnerMetricalAnalysis as IMA ( Time (..) )
 -- import Math.Statistics              ( pearson )
 import System.Environment           ( getArgs )
 import Data.List            ( nubBy, intercalate, foldl' )
-import Data.Ratio                   ( Ratio )
+import Data.Ratio                   ( Ratio, numerator, denominator )
 import Data.Function                ( on )
 import Data.Maybe                   ( catMaybes )
 import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
 import Control.Arrow               ( first, second )
 import Data.Foldable      ( foldrM )
+import Text.Printf
 
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
                      deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
-                              , Fractional, RealFloat, RealFrac )
+                              , Fractional, RealFloat, RealFrac, PrintfArg )
                               
 type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeight)]
 
@@ -84,10 +85,12 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
   -- prints one line e.g. "1152 1 3 1C  ***************"
   toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, NSWeight) -> IO ()
   toStar os x (Timed g (se,w)) = 
-    let (bar, bt) = getBeatInBar x tpb g
-    in  putStrLn (show (g+os) ++ " " ++ show bar ++ " " ++ show bt
-                              ++ " " ++ (maybe "   " (show . pitch) se)
-                              ++ " " ++ stars w)
+    let (bar, BarRat br) = getBeatInBar x tpb g
+    in putStrLn (printf ("%6d: %3d - %2d / %2d: " ++ stars w) 
+                (g+os) bar (numerator br) (denominator br)) 
+    -- in  putStrLn (show (g+os) ++ " " ++ show bar ++ " " ++ show bt
+                              -- ++ " " ++ (maybe "   " (show . pitch) se)
+                              -- ++ " " ++ stars w)
 
 stars :: NSWeight -> String
 stars w = replicate (round (20 * w)) '*' 
@@ -97,11 +100,11 @@ stars w = replicate (round (20 * w)) '*'
 
 -- | Normalised Spectral Weight Profiles
 type NSWProfSeg  = TimedSeg TimeSig NSWProf
-type NSWProf     = (NrOfBars, Map (Ratio Time) NSWeight)
+type NSWProf     = (NrOfBars, Map BarRat NSWeight)
 
 -- | Stores the number of bars
 newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
 
 toNSWProfSegs :: MidiScore -> Either String (Float, [NSWProfSeg])
 toNSWProfSegs m = fmap (second (map (toNSWProf (ticksPerBeat m)))) (matchMeterIMA FourtyEighth m )
@@ -120,8 +123,9 @@ toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldl' toProf (1,empty) s) where
 showNSWProf :: (TimeSig, NSWProf) -> String
 showNSWProf (ts, (bars, m)) = intercalate "\n" ( show ts : foldrWithKey shw [] m )
 
-  where shw :: Ratio Time -> NSWeight -> [String] -> [String]
+  where shw :: BarRat -> NSWeight -> [String] -> [String]
         shw bt w r = let x = w / fromIntegral bars
+                     -- in printf "%6d: %3d "
                      in (show bt ++ ": " ++ show x ++ "  " ++ stars x) : r
 
 -- | Collects all profiles sorted by time signature in one map

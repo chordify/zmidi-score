@@ -14,6 +14,8 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , Velocity
                   , Timed (..)
                   , Time (..)
+                  , Bar (..)
+                  , BarRat (..)
                   , ScoreEvent (..)
                   -- * Transformation
                   , midiFileToMidiScore
@@ -64,7 +66,7 @@ import qualified Data.List.Ordered as Sort ( nub )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( insertWith, IntMap, keys )
 import qualified Data.IntMap.Lazy  as M    ( empty )
-import Text.Printf         ( printf )
+import Text.Printf         ( printf, PrintfArg )
 import GHC.Float           ( integerLogBase )
 
 --------------------------------------------------------------------------------                                   
@@ -96,7 +98,7 @@ data Key        = Key           { keyRoot    :: Int8
                
 -- | A 'TimeSig'nature has a fraction, e.g. 4/4, 3/4, or 6/8.
 data TimeSig    = TimeSig       { numerator  :: Int 
-                                , denomenator:: Int
+                                , denominator:: Int
                                 , metronome  :: Word8
                                 , nr32ndNotes:: Word8
                                 }
@@ -115,8 +117,12 @@ newtype PitchClass = PitchClass Int deriving (Eq, Ord)
 
 type Velocity   = Word8
 newtype Time    = Time { time :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
-
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
+newtype Bar     = Bar  { bar  :: Int } 
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
+newtype BarRat  = BarRat { barRat  :: Ratio Int } 
+                    deriving ( Eq, Show, Num, Ord, Enum, Real )                    
+                    
 -- perhaps add duration??
 data Timed a    = Timed         { onset       :: Time 
                                 , getEvent    :: a
@@ -594,9 +600,10 @@ invalidMidiNumberError w = error ("invalid MIDI note number" ++ show w)
 hasTimeSigs :: MidiScore -> Bool
 hasTimeSigs = not . null . filter (not . (== NoTimeSig) . getEvent) . getTimeSig
 
-getBeatInBar :: TimeSig -> Time -> Time -> (Time, Ratio Time)
+getBeatInBar :: TimeSig -> Time -> Time -> (Bar, BarRat)
 getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
-getBeatInBar (TimeSig _num _den _ _) tpb o = (succ *** (% tpb)) (o `divMod` tpb)
+getBeatInBar (TimeSig _num _den _ _) (Time tpb) (Time o) = 
+  ((Bar . succ) *** (BarRat . (% tpb))) (o `divMod` tpb)
     
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities
