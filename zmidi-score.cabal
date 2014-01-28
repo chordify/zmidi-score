@@ -15,7 +15,11 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 library
-  exposed-modules:     ZMidi.Score.Datatypes
+  exposed-modules:     ZMidi.Score
+                       ZMidi.Score.Datatypes
+                       ZMidi.Score.ToMidiScore
+                       ZMidi.Score.ToMidiFile
+                       ZMidi.Score.Quantise
   hs-source-dirs:      src
   -- other-modules:       
   build-depends:       base >= 4.4 && < 4.7, 
