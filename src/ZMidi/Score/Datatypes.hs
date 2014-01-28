@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor              #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
 module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                     MidiScore (..)
                   , Key (..)
@@ -17,9 +16,6 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , Bar (..)
                   , BarRat (..)
                   , ScoreEvent (..)
-                  -- * Transformation
-                  -- , midiFileToMidiScore
-                  , midiScoreToMidiFile
                   -- * Minimum length calculation
                   , buildTickMap
                   , gcIOId
@@ -50,11 +46,9 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
 
 import ZMidi.Core          ( MidiFile (..), MidiEvent (..), MidiFormat (..)
                            , MidiVoiceEvent (..), MidiMetaEvent (..)
-                           , MidiMessage, MidiTrack (..), MidiHeader (..) 
-                           , MidiScaleType (..), MidiTimeDivision (..)
-                           , MidiRunningStatus (..), DeltaTime
+                           , MidiMessage, MidiTrack (..), MidiScaleType (..)
                            )
-import Control.Monad.State ( State, modify, get, put
+import Control.Monad.State ( State, modify, get
                            , evalState, execState )
 import Control.Monad       ( mapAndUnzipM )
 import Control.Arrow       ( first, (***) )
@@ -62,14 +56,14 @@ import Data.Ratio          ( (%), Ratio )
 import Data.Word           ( Word8 )
 import Data.Int            ( Int8 )
 import Data.Char           ( toLower )
-import Data.Maybe          ( mapMaybe, isJust )
-import Data.List           ( intercalate, sort, genericLength, find )
+import Data.Maybe          ( isJust )
+import Data.List           ( intercalate, sort, find )
 import qualified Data.List.Ordered as Sort ( nub )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( insertWith, IntMap, keys )
 import qualified Data.IntMap.Lazy  as M    ( empty )
 import Text.Printf         ( printf, PrintfArg )
-import GHC.Float           ( integerLogBase )
+
 
 --------------------------------------------------------------------------------                                   
 -- A less low-level MIDI data representation
@@ -304,68 +298,6 @@ buildTickMap = foldr oneVoice M.empty where
   -- showTick :: (Int, Time) -> String
   -- showTick (i, t) = show i ++ ": " ++ show t ++ "\n"
   
---------------------------------------------------------------------------------
--- Converting a MidiScore into a MidiFile
---------------------------------------------------------------------------------
-
--- | Transforms a 'MidiFile' into a 'MidiScore'
-midiScoreToMidiFile :: MidiScore -> MidiFile
-midiScoreToMidiFile (MidiScore ks ts dv mf tp _ vs) = MidiFile hdr trks where
-    
-    hdr  = MidiHeader mf (genericLength trks) (TPB . fromIntegral $ dv) 
-    trks = metaToMidiEvent : map voiceToTrack vs -- the MidiTracks
-    
-    -- Takes the Key and TimeSig fields and tranforms them into 
-    -- a MidiTrack containing only MetaEvents
-    metaToMidiEvent :: MidiTrack
-    metaToMidiEvent = mkMidiTrack MetaEvent (   mapMaybe keyToMidiEvent   ks 
-                                             -- ++ (mapMaybe tsToMidiEvent . map (revTimeSig dv) $ ts)
-                                             ++ (mapMaybe tsToMidiEvent ts)
-                                             ++ map      tempoToMidiEvent tp)
-      
-    -- transforms a Key into a MetaEvent
-    keyToMidiEvent :: Timed Key -> Maybe (Timed MidiMetaEvent)
-    keyToMidiEvent (Timed _ NoKey    ) = Nothing
-    keyToMidiEvent (Timed o (Key r s)) = Just $ Timed o (KeySignature r s)
-
-    -- transforms a TimeSig into a MetaEvent
-    tsToMidiEvent :: Timed TimeSig -> Maybe (Timed MidiMetaEvent)
-    tsToMidiEvent (Timed _  NoTimeSig       ) = Nothing
-    tsToMidiEvent (Timed o (TimeSig n d m n32)) = 
-      Just $ Timed o (TimeSignature (fromIntegral n) 
-                     (fromIntegral . integerLogBase 2 . fromIntegral $ d) m n32)
-                     
-    
-    -- transforms a tempo into a MetaEvent
-    tempoToMidiEvent :: Timed Time -> Timed MidiMetaEvent
-    tempoToMidiEvent = fmap (SetTempo . fromIntegral)
-    
-    -- transforms a Voice into a MidiTrack
-    voiceToTrack :: Voice -> MidiTrack
-    voiceToTrack = mkMidiTrack (VoiceEvent RS_OFF) . concatMap toMidiNote 
-
-    -- transforms a NoteEvent into a MidiVoiceEvent 
-    toMidiNote :: Timed ScoreEvent -> [Timed MidiVoiceEvent] 
-    toMidiNote (Timed o (NoteEvent c p v d)) = 
-      let p' = toMidiNr p
-          c' = channel c
-          v' = velocity v
-      in [Timed o (NoteOn c' p' v'), Timed (o + d) (NoteOff c' p' 0)]
-    toMidiNote _ = error "noteEventToMidiNote: not a NoteEvent."  
-     
-    -- this is where the magic happens. A list of timed events is made relative
-    -- such that timestamps denote the time between elements. We close 
-    -- the track by appending a EndOfTrack marker with final time stamp.
-    -- The track is sorted by midi tick
-    mkMidiTrack :: forall a. Ord a => (a -> MidiEvent) -> [Timed a] -> MidiTrack
-    mkMidiTrack f e = MidiTrack $ (trk ++ [(0, MetaEvent EndOfTrack)])
-    
-      where trk = evalState (mapM mkRelative . sort $ e) 0
-      
-            mkRelative :: Timed a -> State DeltaTime MidiMessage
-            mkRelative (Timed o me) = do let o' = fromIntegral o
-                                         t <- get ; put o'
-                                         return (o' - t, f me) 
 
 
 
