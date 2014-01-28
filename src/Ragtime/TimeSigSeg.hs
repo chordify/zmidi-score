@@ -11,14 +11,11 @@ module Ragtime.TimeSigSeg ( TimedSeg (..)
                   ) where
 
 import ZMidi.Score.Datatypes
-import ZMidi.IO.Common
 import Data.List    ( sort )
 import Data.Maybe   ( catMaybes )
 
--- type TimeSigSeg   = (Timed TimeSig, [[Timed ScoreEvent]])
 type TimeSigSeg   = TimedSeg TimeSig [[Timed ScoreEvent]]
 type TimeSigTrack = TimedSeg TimeSig  [Timed ScoreEvent]
--- type TimedSeg a b = (Timed a, [Timed b])
 data TimedSeg a b = TimedSeg { boundary :: Timed a
                              , seg      :: b 
                              } deriving (Show, Eq, Functor)

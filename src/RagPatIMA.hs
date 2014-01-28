@@ -4,20 +4,16 @@ module Main where
 
 import ZMidi.Score         hiding (numerator, denominator)
 import ZMidi.IO.Common          ( readMidiScore, readMidiScoreSafe, putErrStrLn
-                                    , mapDirInDir, mapDir, foldrDir, foldrDirInDir )
-import ZMidi.Skyline.MelFind                      ( getAccompQuant, mergeTracks )
+                                    , mapDirInDir, mapDir )
+import ZMidi.Skyline.MelFind                      ( mergeTracks )
 import Ragtime.TimeSigSeg
 import IMA.InnerMetricalAnalysis hiding ( Time )
-import qualified IMA.InnerMetricalAnalysis as IMA ( Time (..) )        
--- import Math.Statistics              ( pearson )
 import System.Environment           ( getArgs )
 import Data.List            ( nubBy, intercalate, foldl' )
-import Data.Ratio                   ( Ratio, numerator, denominator )
+import Data.Ratio                   ( numerator, denominator )
 import Data.Function                ( on )
-import Data.Maybe                   ( catMaybes )
 import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
 import Control.Arrow               ( first, second )
-import Data.Foldable      ( foldrM )
 import Text.Printf
 
 -- | Normalised spectral weights (value between 0 and 1)
@@ -85,12 +81,9 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
   -- prints one line e.g. "1152 1 3 1C  ***************"
   toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, NSWeight) -> IO ()
   toStar os x (Timed g (se,w)) = 
-    let (bar, BarRat br) = getBeatInBar x tpb g
+    let (b, BarRat r) = getBeatInBar x tpb g
     in putStrLn (printf ("%6d: %3d - %2d / %2d: " ++ stars w) 
-                (g+os) bar (numerator br) (denominator br)) 
-    -- in  putStrLn (show (g+os) ++ " " ++ show bar ++ " " ++ show bt
-                              -- ++ " " ++ (maybe "   " (show . pitch) se)
-                              -- ++ " " ++ stars w)
+                (g+os) b (numerator r) (denominator r)) 
 
 stars :: NSWeight -> String
 stars w = replicate (round (20 * w)) '*' 
@@ -184,7 +177,7 @@ readProf fp =
                        [Timed _ NoTimeSig] -> return empty 
                        -- check for weird onsets
                        _  -> case toNSWProfSegs x of
-                               Right (d,p) -> 
+                               Right (_d,p) -> 
                                  do let r = collectNSWProf p empty 
                                     -- putStrLn ("Q deviation: " ++ show d)
                                     -- mapM_ (putStrLn . showNSWProf) (toList r)

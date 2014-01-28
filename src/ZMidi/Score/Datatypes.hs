@@ -280,12 +280,6 @@ gcIOId tm = case keys $ tm of
   [] -> 0
   l  -> Time . foldr1 gcd $ l
 
--- | Return the IOI of the event that has the shortest IOI
--- getMinDur :: TickMap -> Time
--- getMinDur tm = case fst (findMin tm) of
-                 -- 0 -> fst . findMin . delete 0 $ tm
-                 -- n -> n
-
 buildTickMap :: [Voice] -> TickMap
 buildTickMap = foldr oneVoice M.empty where
 

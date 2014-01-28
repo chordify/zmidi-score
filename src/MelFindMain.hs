@@ -136,7 +136,7 @@ melodyRetrieval f ms =
 -- | Given a groundtruth 'Voice' (first argument) and a test 'Voice' calculates
 -- the recall, precision and F-meaures
 noteRetrieval :: Voice -> Voice -> PrecisionRecallFMeasure
-noteRetrieval gt test = precRecF eqf gt test where
+noteRetrieval gt tst = precRecF eqf gt tst where
   
   eqf :: Timed ScoreEvent -> Timed ScoreEvent -> Bool
   eqf (Timed onA datA) (Timed onB datB) =  onA           == onB 
@@ -147,9 +147,9 @@ noteRetrieval gt test = precRecF eqf gt test where
 -- | calculates the the triplet of Precision, Recall and F-Measure given
 -- a list of segmentable groundtruth items and test items.
 precRecF :: (a -> a -> Bool) -> [a] -> [a] -> PrecisionRecallFMeasure
-precRecF eqf gt test = 
-  let inters    = genericLength $ intersectBy eqf gt test
-      precision = inters / genericLength test
+precRecF eqf gt tst = 
+  let inters    = genericLength $ intersectBy eqf gt tst
+      precision = inters / genericLength tst
       recall    = inters / genericLength gt
       fMeasure  = (2 * precision * recall) / (precision + recall)
   in precision `seq` recall `seq` fMeasure `seq` PRF precision recall fMeasure
