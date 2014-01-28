@@ -13,7 +13,7 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , Interval
                   , Velocity
                   , Timed (..)
-                  , Time
+                  , Time (..)
                   , ScoreEvent (..)
                   -- * Transformation
                   , midiFileToMidiScore
@@ -58,7 +58,7 @@ import Data.Int            ( Int8 )
 import Data.Char           ( toLower )
 import Data.Maybe          ( catMaybes, mapMaybe, isJust )
 import Data.Ord            ( comparing )
-import Data.List           ( partition, intersperse, sortBy, sort, nub
+import Data.List           ( partition, intercalate, sortBy, sort, nub
                            , genericLength, find )
 import qualified Data.List.Ordered as Sort ( nub )
 import Data.Foldable       ( foldrM )
@@ -114,7 +114,8 @@ type    Interval= Int
 newtype PitchClass = PitchClass Int deriving (Eq, Ord) 
 
 type Velocity   = Word8
-type Time       = Int
+newtype Time    = Time { time :: Int } 
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
 
 -- perhaps add duration??
 data Timed a    = Timed         { onset       :: Time 
@@ -219,8 +220,8 @@ showMidiScore ms@(MidiScore k ts tpb mf tp st _vs) = "Key: "      ++ show k
 -- Shows the voices in a MidiScore in a readable way, but this function
 -- only works for monophonic channels. TODO: fix
 showVoices :: MidiScore -> String
-showVoices ms = concat . intersperse "\n" 
-              $ evalState (showTimeSlice . getVoices $ ms) 0 where
+showVoices ms = intercalate "\n" $ evalState (showTimeSlice . getVoices $ ms) 0 
+  where
   
   -- shows a the sounding notes at a specific time 
   showTimeSlice :: [Voice] -> State Time [String]
@@ -233,7 +234,7 @@ showVoices ms = concat . intersperse "\n"
                      modify (+ minDur ms)
                      x <- showTimeSlice vs' -- recursively calculate a next slice
                      -- the output string:
-                     let out = concat $ intersperse "\t" (printf "%7d" t : str)                                    
+                     let out = intercalate "\t" (printf "%7d" (time t) : str)                                    
                      return (out : x)
 
   -- The stopping condition: when there are no more notes in all of the tracks
@@ -271,7 +272,7 @@ showVoices ms = concat . intersperse "\n"
 gcIOId :: TickMap -> Time
 gcIOId tm = case keys $ tm of
   [] -> 0
-  l  -> foldr1 gcd l
+  l  -> Time . foldr1 gcd $ l
 
 -- | Return the IOI of the event that has the shortest IOI
 -- getMinDur :: TickMap -> Time
@@ -288,9 +289,9 @@ buildTickMap = foldr oneVoice M.empty where
   oneVoice vs tm = step (onset . head $ vs) . foldr step tm $ (toIOIs vs)
 
   step :: Time -> TickMap -> TickMap
-  step se tm = insertWith succIfExists se 0 tm 
+  step (Time se) tm = insertWith succIfExists se 0 tm 
   
-  succIfExists :: a -> Int -> Int
+  succIfExists :: Time -> Time -> Time
   succIfExists _ old = succ old
 
 -- printTickMap :: TickMap -> String

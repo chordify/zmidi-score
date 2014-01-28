@@ -16,7 +16,7 @@ import Data.Ratio                   ( Ratio )
 import Data.Function                ( on )
 import Data.Maybe                   ( catMaybes )
 import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
-import Control.Arrow               ( second )
+import Control.Arrow               ( first, second )
 import Data.Foldable      ( foldrM )
 
 -- | Normalised spectral weights (value between 0 and 1)
@@ -43,18 +43,19 @@ matchMeterQIMA (QMidiScore msq _sn gu d) =
       -- TODO : we should be able to use Data.List.Ordered, but this nub give
       -- other results, this must be investigated
       v   = nubBy ((==) `on` onset) . head . getVoices $ ms'
-      ons = map IMA.Time . toOnsets $ v
+      ons = map fromIntegral . toOnsets $ v
       -- calculate the spectral weights
-  in case addMaxPerCheck (getSpectralWeight (Period . minDur $ ms')) ons of
+  in case addMaxPerCheck (getSpectralWeight (fromIntegral . minDur $ ms')) ons of
       Right w ->     -- calculate the maximum weight
-                 let mx  = NSWeight . fromIntegral . maximum . map snd $ w
+                 let mx = NSWeight . fromIntegral . maximum . map snd $ w
+                     m  = match mx (map (first Time) w) v
                      -- split the midi file per 
-                 in  Right (dev, map normaliseTime $ segment (getTimeSig ms') (match mx w v))
+                 in  Right (dev, map normaliseTime $ segment (getTimeSig ms') m)
       Left e  -> Left e
 
 -- | matches a grid with spectral weights with the onsets that created the
 -- weights. The first argument is the maximum 'Weight' found among the weights
-match :: NSWeight -> [(Int, SWeight)] -> Voice -> [Timed (Maybe ScoreEvent, NSWeight)]
+match :: NSWeight -> [(Time, SWeight)] -> Voice -> [Timed (Maybe ScoreEvent, NSWeight)]
 match _ [] []              = []
 match m ((g, w):ws) []     =          addWeight m w (Left g) : match m ws []
 match m ((g, w):ws) (t:ts) | g <  o = addWeight m w (Left g) : match m ws (t:ts)
@@ -63,7 +64,7 @@ match m ((g, w):ws) (t:ts) | g <  o = addWeight m w (Left g) : match m ws (t:ts)
                                where o = onset t
 match _ _ _                = error "list of unequal lengths"             
 
-addWeight :: NSWeight -> SWeight -> Either Int (Timed ScoreEvent) 
+addWeight :: NSWeight -> SWeight -> Either Time (Timed ScoreEvent) 
           -> Timed (Maybe ScoreEvent, NSWeight)
 addWeight m w e = either ((flip Timed) (Nothing, w')) f e
   where w'  = fromIntegral w / m
@@ -113,7 +114,7 @@ toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldl' toProf (1,empty) s) where
   toProf (b, m) (Timed g (_se,w)) = 
     let (bar, bt) = getBeatInBar (getEvent ts) tpb g 
         m'        = insertWith (+) bt w m 
-    in  m' `seq` (NrOfBars bar, m')
+    in  m' `seq` (fromIntegral bar, m')
 
 -- | Plots an 'NSWProf'ile by calculating the average profile
 showNSWProf :: (TimeSig, NSWProf) -> String

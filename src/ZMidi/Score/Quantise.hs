@@ -56,7 +56,7 @@ quantise sn = either error id . quantiseSafe sn
 -- the quantised 'MidiScore' and the 'GridUnit' also the cumulative deviation 
 -- from the grid is returned.
 quantiseSafe :: ShortestNote -> MidiScore -> Either String QMidiScore
-quantiseSafe sn (MidiScore k ts dv mf tp _md vs) =  
+quantiseSafe sn (MidiScore k ts (Time dv) mf tp _md vs) =  
   -- the grid unit is the number of ticks per beat divided by the maximum
   -- number of notes in one beat
   case dv `divMod` (gridUnit . toGridUnit $ sn) of
@@ -67,7 +67,7 @@ quantiseSafe sn (MidiScore k ts dv mf tp _md vs) =
                    -- also align the time signatures to a grid
                    ts' = map (snapTimed . GridUnit $ gu) ts
                    -- update the MidiScore
-                   ms' = MidiScore k ts' dv mf tp md' vs'
+                   ms' = MidiScore k ts' (Time dv) mf tp md' vs'
                in Right (QMidiScore ms' sn (GridUnit gu) (sum d))
     _       ->    Left ("MidiFile cannot be quantised: " ++ show dv ++ 
                         " cannot be divided by " ++ show (toGridUnit sn))
@@ -92,19 +92,20 @@ snap gu t | m == 0  = (t, 0)          -- score event is on the grid
           | m >  0  = if (g - m) >= m -- score event is off the grid
                       -- and closer to the past grid point
                       then let t' =    d  * g 
-                           in (t', QDev (t  - t')) -- snap backwards
+                           in (t', fromIntegral (t  - t')) -- snap backwards
                       -- or closer to the next grid point
                       else let t' = (1+d) * g 
-                           in (t', QDev (t' - t )) -- snap forwards
+                           in (t', fromIntegral (t' - t )) -- snap forwards
           | otherwise = error "Negative time stamp found"
               where (d,m) = t `divMod` g
-                    g     = gridUnit gu
+                    g     = fromIntegral gu
 
 
 -- | Returns true if the number of ticks per beat can be divided by the 
 -- maximal number of quantisation bins.
 canBeQuantisedAt :: ShortestNote -> MidiScore -> Bool
-canBeQuantisedAt sn ms = (ticksPerBeat ms `mod` (gridUnit . toGridUnit $ sn)) == 0
+canBeQuantisedAt sn ms =   ((time . ticksPerBeat   $ ms)
+                      `mod` (gridUnit . toGridUnit $ sn)) == 0
     
 -- | Although 'quantise' also quantises the duration of 'NoteEvents', it can
 -- happen that melody notes do still overlap. This function removes the overlap
@@ -130,8 +131,9 @@ removeOverlap = foldr step [] where
 -- This is the 'ticksPerBeat' divided by the number of quantisation bins.
 -- N.B. this function does not check whether a file is quantised.
 getMinGridSize :: ShortestNote -> MidiScore -> Time
-getMinGridSize q ms = case ticksPerBeat ms `divMod` (gridUnit $ toGridUnit q) of
-                        (d,0) -> d
+getMinGridSize q ms = case (time . ticksPerBeat  $ ms) `divMod` 
+                           (gridUnit . toGridUnit $ q) of
+                        (d,0) -> Time d
                         _     -> error "getMinGridSize: invalid quantisation"
       
 -- | takes the quantisation granularity parameter 'ShortestNote' and returns
