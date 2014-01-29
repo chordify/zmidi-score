@@ -5,10 +5,14 @@ module ZMidi.Score.Quantise ( -- * Quantisation specific datatypes
                             , ShortestNote (..)
                             , GridUnit (..)
                             , QDev (..)
+                            , QDevPerc (..)
                               -- * Quantisation functions
                             , quantise
                             , quantiseSafe
+                            , quantiseQDevSafe
                               -- * Utilities
+                            , avgQDev
+                            , avgQDevQMS
                             , canBeQuantisedAt
                             , removeOverlap
                             , getMinGridSize
@@ -18,7 +22,18 @@ module ZMidi.Score.Quantise ( -- * Quantisation specific datatypes
 import ZMidi.Score.Datatypes
 
 import Control.Arrow              ( second )
+import Text.Printf                ( printf, PrintfArg )
 
+--------------------------------------------------------------------------------
+-- Quantisation contants
+--------------------------------------------------------------------------------
+
+acceptableQuantisationDeviation :: QDevPerc
+acceptableQuantisationDeviation = 0.02
+
+--------------------------------------------------------------------------------
+-- Quantisation datatypes
+--------------------------------------------------------------------------------
                       
 -- | QMidiScore wraps around a 'MidiScore' and stores some additional 
 -- information about the quantisation process.
@@ -44,11 +59,40 @@ newtype GridUnit  = GridUnit { gridUnit :: Int }
 -- event was moved to match the time grid.
 newtype QDev      = QDev     { qDev     :: Int }
                       deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+                      
+-- | Represents the average quantisation deviation per onset
+newtype QDevPerc = QDevPerc { qDevPerc :: Double }
+                     deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
+                              , Fractional, RealFloat, RealFrac, PrintfArg )
 
-
+--------------------------------------------------------------------------------
+-- Quantisation function
+--------------------------------------------------------------------------------
+                      
 -- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid.
 quantise :: ShortestNote -> MidiScore -> QMidiScore
 quantise sn = either error id . quantiseSafe sn
+
+quantiseQDevSafe :: ShortestNote -> MidiScore -> Either String QMidiScore
+quantiseQDevSafe sn ms = quantiseSafe sn ms >>= qDevCheck
+
+qDevCheck :: QMidiScore -> Either String QMidiScore
+qDevCheck qm | d < acceptableQuantisationDeviation = Right qm
+             | otherwise = Left ("the average quantisation deviation is above "
+                                 ++ printf "allowed deviation: %.3f < %.3f" 
+                                      d acceptableQuantisationDeviation )
+                 where d = avgQDevQMS qm
+                 
+avgQDevQMS :: QMidiScore -> QDevPerc
+avgQDevQMS qm = avgQDev (qGridUnit qm) (totDeviation qm) 
+                        (nrOfNotes . qMidiScore $ qm)
+
+avgQDev :: GridUnit -> QDev -> Int -> QDevPerc
+avgQDev gu qd nrn = 
+  QDevPerc ((fromIntegral qd / fromIntegral nrn) / fromIntegral nrn)
+                 
+                 
+                 
 
 -- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid. 
 -- The absolute size of the grid is based on the 'GridUnit', which is the

@@ -200,12 +200,12 @@ timeSigCheck :: MidiScore -> Either String MidiScore
 timeSigCheck ms | hasTimeSigs ms = Right ms
                 | otherwise      = Left "Has no valid time signature"
        
-checkQuantDev :: Float -> a -> Either String a
-checkQuantDev d a | d < 0.02  = Right a
-                  | otherwise = Left ("Quantisation deviation is to high: "
-                                       ++ show d)
+-- checkQuantDev :: Float -> a -> Either String a
+-- checkQuantDev d a | d < 0.02  = Right a
+                  -- | otherwise = Left ("Quantisation deviation is to high: "
+                                       -- ++ show d)
        
-warnBind :: FilePath -> Either String a -> (a -> Either String b) -> IO (Either String b)
-warnBind fp (Left  e) _ = warning fp e >> return (Left e)
-warnBind fp (Right x) f = return (f x)
+-- warnBind :: FilePath -> Either String a -> (a -> Either String b) -> IO (Either String b)
+-- warnBind fp (Left  e) _ = warning fp e >> return (Left e)
+-- warnBind fp (Right x) f = return (f x)
  
