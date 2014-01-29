@@ -239,9 +239,10 @@ maxPeriodTest ts = let md = fromIntegral (ts !! (length ts `div` 2)) :: Float
                        mx = fromIntegral (maxPeriod ts)              :: Float
                    in (1.5 * mx) > md && (0.5 * mx) < md
 
-addMaxPerCheck :: ([Time] -> a) -> [Time] -> Either String a
-addMaxPerCheck f ts | maxPeriodTest ts = Right (f ts)
-                    | otherwise        = Left "spurious onsets found"
+-- | combines 'maxPeriodTest' with an appropriate error message
+addMaxPerCheck :: [Time] -> Either String [Time]
+addMaxPerCheck ts | maxPeriodTest ts = Right ts
+                  | otherwise        = Left "spurious onsets found"
                    
 type MVecSW m = MVector (PrimState m) SWeight 
 

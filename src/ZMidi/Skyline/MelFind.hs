@@ -11,6 +11,10 @@ import Control.Arrow      ( (***), second )
 -- Melody Finding
 --------------------------------------------------------------------------------
 
+-- | Representing monophonic 'Voice's. A 'MonoVoice' only contains NoteEvents
+-- and no two NoteEvents have the same onset timestamp.
+-- newtype MonoVoice = MonoVoice { monoVoice :: Voice }
+
 type MelFind = Voice -> (Voice, Voice)
 
 -- TODO: output QMidiFile instead of Voice

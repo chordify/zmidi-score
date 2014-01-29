@@ -6,8 +6,6 @@ module Ragtime.TimeSigSeg ( TimedSeg (..)
                   , segByTimeSig
                   , toTimeSigSegs
                   , segment
-                  -- | * Utilities
-                  , normaliseTime
                   ) where
 
 import ZMidi.Score.Datatypes
@@ -70,8 +68,9 @@ segment ts v = toTimeSigSeg v (toSegments ts)
 -- | Takes a list of 'Timed' values and a list of segment boundaries created
 -- by 'toSegments'. This second list will slice the first list up and return
 -- the 'TimedSeg'ments. 
-toTimeSigSeg :: [Timed a] -> [(Timed b, Maybe Time)] -> [TimedSeg b [Timed a]]
-toTimeSigSeg v = map toSeg where
+toTimeSigSeg :: Ord a => [Timed a] -> [(Timed b, Maybe Time)] 
+             -> [TimedSeg b [Timed a]]
+toTimeSigSeg v = map (normaliseTime . toSeg) where
 
   -- toSeg :: (Timed a, Maybe Time) -> TimedSeg a
   toSeg (srt, Nothing ) = TimedSeg srt ( dropWhile ((< onset srt) . onset) v  ) 
@@ -88,6 +87,8 @@ toSegments = foldr step [] . sort where
   step ts  []   = [(ts , Nothing)] 
   step srt rest =  (srt, Just . onset . fst . head $ rest) : rest
 
+-- | Sets the timestamps in the Timed data to a timestamp relative to the
+-- boundary time stamp
 normaliseTime :: Ord b => TimedSeg a [Timed b] -> TimedSeg a [Timed b]
 normaliseTime (TimedSeg t ts) = TimedSeg t (map f ts) where
   f x = x { onset = onset x - onset t }

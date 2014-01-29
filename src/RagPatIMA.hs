@@ -3,11 +3,12 @@
 module Main where
 
 import ZMidi.Score         hiding (numerator, denominator)
-import ZMidi.IO.Common          ( readMidiScore, readMidiScoreSafe, putErrStrLn
+import ZMidi.IO.Common          ( readMidiScore, readQMidiScoreSafe, putErrStrLn
                                     , mapDirInDir, mapDir, warning )
 import ZMidi.Skyline.MelFind                      ( mergeTracks )
 import Ragtime.TimeSigSeg
 import IMA.InnerMetricalAnalysis hiding ( Time )
+import qualified IMA.InnerMetricalAnalysis as IMA ( Time )
 import System.Environment           ( getArgs )
 import Data.List            ( nubBy, intercalate, foldl' )
 import Data.Ratio                   ( numerator, denominator )
@@ -15,6 +16,7 @@ import Data.Function                ( on )
 import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
 import Data.Binary                 ( Binary, encodeFile )
 import Control.Arrow               ( first, second )
+import Control.Monad               ( liftM )
 import Text.Printf
 
 -- | Normalised spectral weights (value between 0 and 1)
@@ -28,51 +30,81 @@ type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeight)]
 -- TODO create a MPMidiScore for monophonic MidiScores
 -- TODO create a QMPMidiScore for quantised monophonic MidiScores
 
-matchMeterIMA :: ShortestNote -> MidiScore -> Either String (Float, [NSWMeterSeg])
-matchMeterIMA sn = either Left matchMeterQIMA . quantiseSafe sn
+-- matchMeterIMA :: ShortestNote -> MidiScore -> Either String [NSWMeterSeg]
+-- matchMeterIMA sn = either Left matchMeterQIMA . quantiseSafe sn
 
--- before applying matchMeter 
-matchMeterQIMA :: QMidiScore -> Either String (Float, [NSWMeterSeg])
-matchMeterQIMA (QMidiScore msq _sn gu d) = 
-  let -- quantise the merge all tracks and remove nub notes with the same onset
-      -- (msq, d, gu) = quantiseDev q $ ms
-      dev = (fromIntegral d / fromIntegral (nrOfNotes msq)) / fromIntegral gu 
-      ms' = mergeTracks msq
-      -- remove duplicates
-      -- TODO : we should be able to use Data.List.Ordered, but this nub give
-      -- other results, this must be investigated
-      v   = nubBy ((==) `on` onset) . head . getVoices $ ms'
-      ons = map fromIntegral . toOnsets $ v
-      -- calculate the spectral weights
-  in case addMaxPerCheck (getSpectralWeight (fromIntegral . minDur $ ms')) ons of
-      Right w ->     -- calculate the maximum weight
-                 let mx = NSWeight . fromIntegral . maximum . map snd $ w
-                     m  = match mx (map (first Time) w) v
-                     -- split the midi file per 
-                 in  Right (dev, map normaliseTime $ segment (getTimeSig ms') m)
-      Left e  -> Left e
+doIMA :: QMidiScore -> Either String [NSWMeterSeg]
+doIMA qms = 
+  let v    = toMonoVoice . qMidiScore $ qms
+      md   = fromIntegral . minDur . qMidiScore $ qms
+  in     return (toIMAOnset v)
+     >>= addMaxPerCheck 
+     >>= return . getSpectralWeight md
+     >>= return . matchScore v
+     >>= return . segment (getTimeSig . qMidiScore $ qms)
+                
 
--- | matches a grid with spectral weights with the onsets that created the
--- weights. The first argument is the maximum 'Weight' found among the weights
-match :: NSWeight -> [(Time, SWeight)] -> Voice -> [Timed (Maybe ScoreEvent, NSWeight)]
-match _ [] []              = []
-match m ((g, w):ws) []     =          addWeight m w (Left g) : match m ws []
-match m ((g, w):ws) (t:ts) | g <  o = addWeight m w (Left g) : match m ws (t:ts)
-                           | g == o = addWeight m w (Right t): match m ws ts
-                           | otherwise = error "unmatched onset"
-                               where o = onset t
-match _ _ _                = error "list of unequal lengths"             
+-- merges all tracks and applies 'makeMono' to the result
+toMonoVoice :: MidiScore -> Voice 
+toMonoVoice = makeMono . head . getVoices . mergeTracks where
 
-addWeight :: NSWeight -> SWeight -> Either Time (Timed ScoreEvent) 
-          -> Timed (Maybe ScoreEvent, NSWeight)
-addWeight m w e = either ((flip Timed) (Nothing, w')) f e
-  where w'  = fromIntegral w / m
-        f t = t {getEvent = (Just $ getEvent t, w')}
+  -- filters NoteEvents, and deletes events with the same onset time
+  makeMono :: Voice -> Voice 
+  -- TODO : we should be able to use Data.List.Ordered, but this nub give
+  -- other results, this must be investigated
+  makeMono = nubBy ((==) `on` onset) . filter isNoteEvent
+      
+-- Transforms a 'Voice' into a list of IMA onsets
+toIMAOnset :: Voice -> [IMA.Time]
+toIMAOnset = map fromIntegral . toOnsets 
+      
+      
+-- -- before applying matchMeter 
+-- matchMeterQIMA :: QMidiScore -> Either String [NSWMeterSeg]
+-- matchMeterQIMA qms@(QMidiScore msq _sn gu d) = 
+  -- let -- merge all tracks and remove nub notes with the same onset
+      -- ms' = mergeTracks msq
+      -- -- remove duplicates
+      -- -- TODO : we should be able to use Data.List.Ordered, but this nub give
+      -- -- other results, this must be investigated
+      -- v   = nubBy ((==) `on` onset) . head . getVoices $ ms'
+      -- ons = map fromIntegral . toOnsets $ v
+      -- -- calculate the spectral weights
+  -- in case addMaxPerCheck (getSpectralWeight (fromIntegral . minDur $ ms')) ons of
+      -- Right w ->     -- calculate the maximum weight
+                 -- let mx = NSWeight . fromIntegral . maximum . map snd $ w
+                     -- m  = match mx (map (first Time) w) v
+                     -- -- split the midi file per 
+                 -- in  Right (segment (getTimeSig ms') m)
+      -- Left e  -> Left e
 
--- normalise :: (Num a, Fractional b) => [a] -> [b]
-normalise :: [Int] -> [Double]
-normalise l = let m = fromIntegral $ maximum l 
-              in map ((/ m) . fromIntegral) (l :: [Int])
+matchScore :: Voice -> [(Int, SWeight)] -> [Timed (Maybe ScoreEvent, NSWeight)]
+matchScore v w = match (fromIntegral . maximum . map snd $ w) (map (first Time) w) v where
+      
+  -- | matches a grid with spectral weights with the onsets that created the
+  -- weights. The first argument is the maximum 'Weight' found among the weights
+  match :: NSWeight -> [(Time, SWeight)] -> Voice 
+        -> [Timed (Maybe ScoreEvent, NSWeight)]
+  match _ [] []              = []
+  match m ((g, w):ws) []     =          addWeight m w (Left g) : match m ws []
+  match m ((g, w):ws) (t:ts) | g <  o = addWeight m w (Left g) : match m ws (t:ts)
+                             | g == o = addWeight m w (Right t): match m ws ts
+                             | otherwise = error "unmatched onset"
+                                 where o = onset t
+  match _ _ _                = error "list of unequal lengths"             
+
+  addWeight :: NSWeight -> SWeight -> Either Time (Timed ScoreEvent) 
+            -> Timed (Maybe ScoreEvent, NSWeight)
+  addWeight m w e = either ((flip Timed) (Nothing, w')) f e
+    where w'  = fromIntegral w / m
+          f t = t {getEvent = (Just $ getEvent t, w')}
+
+
+          
+-- -- normalise :: (Num a, Fractional b) => [a] -> [b]
+-- normalise :: [Int] -> [Double]
+-- normalise l = let m = fromIntegral $ maximum l 
+              -- in map ((/ m) . fromIntegral) (l :: [Int])
 
 --
 starMeter :: Time -> NSWMeterSeg -> IO ()
@@ -102,8 +134,8 @@ type NSWProf     = (NrOfBars, Map BarRat NSWeight)
 newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg, Binary )
 
-toNSWProfSegs :: MidiScore -> Either String (Float, [NSWProfSeg])
-toNSWProfSegs m = fmap (second (map (toNSWProf (ticksPerBeat m)))) (matchMeterIMA FourtyEighth m )
+toNSWProfSegs :: QMidiScore -> Either String [NSWProfSeg]
+toNSWProfSegs m = doIMA m >>= return . map (toNSWProf (ticksPerBeat . qMidiScore $ m))
 
 -- | Calculates sums the NSW profiles for a meter section
 toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
@@ -147,15 +179,14 @@ main :: IO ()
 main = 
   do arg <- getArgs 
      case arg of
-       ["-f", fp] -> do ms <- readMidiScore fp 
-                        print . minDur $ ms
-                        let es  = matchMeterIMA FourtyEighth ms
-                            tpb = ticksPerBeat ms
-                        putStrLn ("Ticks per beat: " ++ show tpb)
+       ["-f", fp] -> do x <- readQMidiScoreSafe FourtyEighth fp 
+                        let ms = either error id x
                         -- does the file contains disruptive onsets?
-                        case es of 
-                          Right (d,s) -> 
-                            do putStrLn ("Quantisation deviation: " ++ show d)
+                        case doIMA ms of 
+                          Right s -> 
+                            do let tpb = ticksPerBeat (qMidiScore ms)
+                               -- putStrLn ("Ticks per beat: " ++ show tpb)
+                               putStrLn ("Quantisation deviation: " ++ show (avgQDevQMS ms))
                                mapM_ (starMeter tpb) s
                                printMeterStats . collectNSWProf 
                                   (map (toNSWProf tpb) s) $ empty
@@ -179,7 +210,25 @@ printMeterStats :: Map TimeSig NSWProf -> IO ()
 printMeterStats = mapM_ (putStrLn . showNSWProf) . toList 
    
 readProf :: FilePath -> IO (Map TimeSig NSWProf)
-readProf fp = undefined
+readProf fp = do qm <- readQMidiScoreSafe FourtyEighth fp 
+                 case qm >>= qMidiScoreToNSWProfMaps of
+                   Right w -> return w
+                   Left  e -> warning fp e >> return empty
+                
+-- readProf fp =     readQMidiScoreSafe FourtyEighth fp 
+              -- >>= either warnEmpty return . (>>= qMidiScoreToNSWProfMaps)
+                
+                -- where warnEmpty w = warning fp w >> return empty
+                 
+qMidiScoreToNSWProfMaps :: QMidiScore -> Either String (Map TimeSig NSWProf)
+qMidiScoreToNSWProfMaps qms =     timeSigCheck qms 
+                              >>= toNSWProfSegs
+                              >>= (\x -> return $ collectNSWProf x empty)
+       
+timeSigCheck :: QMidiScore -> Either String QMidiScore
+timeSigCheck ms | hasTimeSigs (qMidiScore ms) = Right ms
+                | otherwise = Left "Has no valid time signature"
+
   -- do ms <- readMidiScoreSafe fp
      -- case ms of
        -- Just x  -> 
@@ -195,10 +244,7 @@ readProf fp = undefined
                           -- -- mapM_ (putStrLn . showNSWProf) (toList r)
                         -- r `seq` return r
     -- Left  e ->  warning fp e >> return empty
-       
-timeSigCheck :: MidiScore -> Either String MidiScore
-timeSigCheck ms | hasTimeSigs ms = Right ms
-                | otherwise      = Left "Has no valid time signature"
+
        
 -- checkQuantDev :: Float -> a -> Either String a
 -- checkQuantDev d a | d < 0.02  = Right a

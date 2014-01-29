@@ -10,6 +10,7 @@ module ZMidi.IO.Common (-- * Mapping
                     -- * Reading and Writing
                     , readMidiFile
                     , readMidiScoreSafe
+                    , readQMidiScoreSafe
                     , readMidiScore
                     , readQMidiScore
                     , writeMidiScore
@@ -21,8 +22,9 @@ module ZMidi.IO.Common (-- * Mapping
                     )where
                     
 import ZMidi.Core         ( MidiFile (..), readMidi, writeMidi )
-import ZMidi.Score ( MidiScore (..), midiFileToMidiScore, ShortestNote (..)
-                          , midiScoreToMidiFile, removeLabels, QMidiScore (..), quantise  )
+import ZMidi.Score        ( MidiScore (..), midiFileToMidiScore, ShortestNote (..)
+                          , midiScoreToMidiFile, removeLabels, QMidiScore (..)
+                          , quantiseQDevSafe, quantise )
 import Control.Monad      ( filterM, void )
 import System.Directory   ( getDirectoryContents, canonicalizePath
                           , doesDirectoryExist )
@@ -76,12 +78,17 @@ foldrDir f b fp = do fs  <- getCurDirectoryContents fp
 -- Reading & Writing
 --------------------------------------------------------------------------------
 
-readMidiScoreSafe :: FilePath -> IO (Maybe MidiScore)
-readMidiScoreSafe f = 
-  do mf <- readMidi f
-     case mf of Left  _er -> return   Nothing
-                Right mid -> return . Just . midiFileToMidiScore $ mid
+readMidiScoreSafe :: FilePath -> IO (Either String MidiScore)
+readMidiScoreSafe f = readMidi f >>= return . either (Left . show) 
+                                                     (Right . midiFileToMidiScore)
 
+
+-- | Reads a 'MidiFile' using 'readMidiScoreSafe', 'quantise'es the result
+-- and checks if the 'MidiScore' has a reasonable average quantisation deviation
+-- (see 'QDevPerc')
+readQMidiScoreSafe :: ShortestNote -> FilePath -> IO (Either String QMidiScore)
+readQMidiScoreSafe sn f = readMidiScoreSafe f >>= return . (>>= quantiseQDevSafe sn)
+                                                     
 -- | Reads a 'MidiFile' using 'readMidiScore' but 'quantise'es the result.
 readQMidiScore :: ShortestNote -> FilePath -> IO (QMidiScore)
 readQMidiScore sn f = readMidiScore f >>= return . quantise sn
@@ -92,9 +99,7 @@ readMidiScore f = readMidiFile f >>= return . midiFileToMidiScore
 
 -- | Reads a 'MidiFile'
 readMidiFile :: FilePath -> IO (MidiFile)
-readMidiFile  f = do mf <- readMidi f
-                     case mf of Left  err -> error (f ++ '\t' : show err)
-                                Right mid -> return mid
+readMidiFile  f = readMidi f >>= return . either (error . show) id
 
 -- | Writes a 'MidiScore' to a file.
 writeMidiScore :: MidiScore -> FilePath -> IO ()
