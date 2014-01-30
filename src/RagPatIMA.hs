@@ -6,8 +6,8 @@ import ZMidi.Score         hiding (numerator, denominator)
 import ZMidi.IO.Common          ( readQMidiScoreSafe, mapDirInDir, mapDir, warning )
 import ZMidi.Skyline.MelFind                      ( mergeTracks )
 import Ragtime.TimeSigSeg
-import IMA.InnerMetricalAnalysis hiding ( Time )
-import qualified IMA.InnerMetricalAnalysis as IMA ( Time )
+import IMA.InnerMetricalAnalysis hiding ( Time(..) )
+import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
 import System.Environment           ( getArgs )
 import Data.List            ( nubBy, intercalate, foldl' )
 import Data.Ratio                   ( numerator, denominator )
@@ -58,30 +58,34 @@ toIMAOnset = map fromIntegral . toOnsets
 
 -- combines a 'Voice' with its spectral weights
 matchScore :: Voice -> [(Int, SWeight)] -> [Timed (Maybe ScoreEvent, NSWeight)]
-matchScore v s = match (fromIntegral . maximum . map snd $ s) (map (first Time) s) v where
-      
+matchScore v s = match (map (first Time) s) v where
+
+  -- The first argument is the maximum 'Weight' found among the weights
+  mx = maximum . map snd $ s
+  
   -- | matches a grid with spectral weights with the onsets that created the
-  -- weights. The first argument is the maximum 'Weight' found among the weights
-  match :: NSWeight -> [(Time, SWeight)] -> Voice 
-        -> [Timed (Maybe ScoreEvent, NSWeight)]
-  match _ [] []              = []
-  match m ((g, w):ws) []     =          addWeight m w (Left g) : match m ws []
-  match m ((g, w):ws) (t:ts) | g <  o = addWeight m w (Left g) : match m ws (t:ts)
-                             | g == o = addWeight m w (Right t): match m ws ts
+  -- weights. 
+  match :: [(Time, SWeight)] -> Voice -> [Timed (Maybe ScoreEvent, NSWeight)]
+  match [] []              = []
+  match ((g, w):ws) []     =          addWeight w (Left g) : match ws []
+  match ((g, w):ws) (t:ts) | g <  o = addWeight w (Left g) : match ws (t:ts)
+                             | g == o = addWeight w (Right t): match ws ts
                              | otherwise = error "unmatched onset"
                                  where o = onset t
-  match _ _ _                = error "list of unequal lengths"             
+  match _ _                = error "list of unequal lengths"             
 
-  addWeight :: NSWeight -> SWeight -> Either Time (Timed ScoreEvent) 
+  -- Normalises a spectral weight and combines it with a possible score event
+  addWeight :: SWeight -> Either Time (Timed ScoreEvent) 
             -> Timed (Maybe ScoreEvent, NSWeight)
-  addWeight m w e = either ((flip Timed) (Nothing, w')) f e
-    where w'  = fromIntegral w / m
+  addWeight w e = either ((flip Timed) (Nothing, w')) f e
+    where w'  = fromIntegral w / fromIntegral mx
           f t = t {getEvent = (Just $ getEvent t, w')}
 
 --
 starMeter :: Time -> NSWMeterSeg -> IO ()
 starMeter tpb (TimedSeg (Timed t ts) s) = 
-  do putStrLn (show t ++ " ================== " ++ show ts ++ " ==================" )
+  do putStrLn . printf ("%6d: ======================= " ++ show ts 
+                         ++ " =======================" ) $ t
      mapM_ (toStar t ts) s where
                     
   -- prints one line e.g. "1152 1 3 1C  ***************"
@@ -92,7 +96,7 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
                 (g+os) b (numerator r) (denominator r)) 
                 
   showMSE :: Maybe ScoreEvent -> String
-  showMSE = maybe "   " (show . pitch) 
+  showMSE = maybe "    " (show . pitch) 
 
 stars :: NSWeight -> String
 stars w = replicate (round (20 * w)) '*' 
@@ -128,7 +132,7 @@ showNSWProf (ts, (bars, m)) = intercalate "\n" ( show ts : foldrWithKey shw [] m
 
   where shw :: BarRat -> NSWeight -> [String] -> [String]
         shw (BarRat br) w r = let x = w / fromIntegral bars
-                              in (printf ("%2d / %2d: %.3f" ++ stars x) 
+                              in (printf ("%2d / %2d: %.5f " ++ stars x) 
                                  (numerator br) (denominator br) x   ) : r
 
 -- | Collects all profiles sorted by time signature in one map
@@ -161,7 +165,7 @@ main =
                           Right s -> 
                             do let tpb = ticksPerBeat (qMidiScore ms)
                                -- putStrLn ("Ticks per beat: " ++ show tpb)
-                               putStrLn ("Quantisation deviation: " ++ show (avgQDevQMS ms))
+                               putStrLn (printf "Quantisation deviation: %.4f" (avgQDevQMS ms))
                                mapM_ (starMeter tpb) s
                                printMeterStats . collectNSWProf 
                                   (map (toNSWProf tpb) s) $ empty

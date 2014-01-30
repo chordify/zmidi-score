@@ -183,7 +183,11 @@ instance Show Key where
       GT -> replicate r '#'
 
 instance Show Pitch where
-  show (Pitch (oct, p)) = show oct ++ showPitch p where
+  show (Pitch (oct, p)) = showOct oct ++ showPitch p where
+  
+    showOct :: Int -> String
+    showOct i | i < 0     = show i
+              | otherwise = ' ' : show i
 
 instance Show PitchClass where
   show (PitchClass p) = showPitch p
