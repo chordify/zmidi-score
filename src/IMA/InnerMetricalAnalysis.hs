@@ -27,6 +27,7 @@ module IMA.InnerMetricalAnalysis ( -- * Types for Local Meters
                              -- * The Inner Metrical Analysis
                              , getLocalMeters
                              , getMetricWeight
+                             , getMetricWeightGrid
                              , getSpectralWeight
                              -- * Utilities
                              , maxPeriod
@@ -175,9 +176,20 @@ newtype MWeight = MWeight {mweight :: Int}
                   deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
  
 type MWeightMap = IntMap MWeight
--- type SWeightMap = IntMap SWeight
 type OnsetMap   = IntMap Len
 
+-- | Places the metric weights on a grid to have the same interface as 
+-- 'getSpectralWeights', the grid positions without an onset have weight 0.
+getMetricWeightGrid :: Period -> [Time] -> [(Int, MWeight)]
+getMetricWeightGrid p ons = placeOnGrid (createGrid p ons) 
+                                        (zip ons . getMetricWeight p $ ons) where
+
+  placeOnGrid :: [Int] -> [(Time, MWeight)] -> [(Int, MWeight)]
+  placeOnGrid [] [] = []
+  placeOnGrid (g:gd) (t@(Time o, w):ts) | g <  o = (g,0) : placeOnGrid gd (t:ts)
+                                        | g == o = (g,w) : placeOnGrid gd    ts
+                                        | otherwise = error "unmatched onset"
+  placeOnGrid _  _  = error "placeOnGrid: asynchronous grid and onsets"
 
 -- | Based on the detection of all local metres in a given piece a metric weight 
 -- for each onset is defined that reflects the amount of local metres that 

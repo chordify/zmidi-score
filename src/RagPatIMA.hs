@@ -38,6 +38,7 @@ doIMA qms =
   in     return (toIMAOnset v)
      >>= addMaxPerCheck 
      >>= return . getSpectralWeight md
+     -- >>= return . getMetricWeightGrid md
      >>= return . matchScore v
      >>= return . segment (getTimeSig . qMidiScore $ qms)
                 
@@ -69,9 +70,9 @@ matchScore v s = match (map (first Time) s) v where
   match [] []              = []
   match ((g, w):ws) []     =          addWeight w (Left g) : match ws []
   match ((g, w):ws) (t:ts) | g <  o = addWeight w (Left g) : match ws (t:ts)
-                             | g == o = addWeight w (Right t): match ws ts
-                             | otherwise = error "unmatched onset"
-                                 where o = onset t
+                           | g == o = addWeight w (Right t): match ws ts
+                           | otherwise = error "unmatched onset"
+                               where o = onset t
   match _ _                = error "list of unequal lengths"             
 
   -- Normalises a spectral weight and combines it with a possible score event
@@ -191,11 +192,18 @@ unionNWProfMaps m = do let r = foldr (unionWith mergeNSWProf) empty m
 printMeterStats :: Map TimeSig NSWProf -> IO ()
 printMeterStats = mapM_ (putStrLn . showNSWProf) . toList 
    
+printSongStats :: QMidiScore -> IO ()
+printSongStats m = let s = "q: %.3f ts: " ++ (show . getTimeSig . qMidiScore $ m)
+                   in  putStrLn . printf s . avgQDevQMS $ m
+   
 -- Reads a file and does an inner metric analysis per time signature segment
 readProf :: FilePath -> IO (Map TimeSig NSWProf)
 readProf fp = do qm <- readQMidiScoreSafe FourtyEighth fp 
                  case qm >>= qMidiScoreToNSWProfMaps of
-                   Right w -> return w
+                   Right w -> do putStrLn fp 
+                                 either error printSongStats qm
+                                 printMeterStats w
+                                 qm `seq` w `seq` return w
                    Left  e -> warning fp e >> return empty
                  
 -- Transforms quantised midi into an inner metric analysis or a failure warning

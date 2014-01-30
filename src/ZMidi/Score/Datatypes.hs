@@ -151,7 +151,7 @@ type TickMap = IntMap Time
 --------------------------------------------------------------------------------
 
 instance Show a => Show (Timed a) where
-  show (Timed t a) = show a ++ " @ " ++ show t
+  show (Timed t a) = show a ++ " @ " ++ show (time t)
 
 instance Eq TimeSig where
   (TimeSig a1 b1 _ _) == (TimeSig a2 b2 _ _) = a1 == a2 && b1 == b2
