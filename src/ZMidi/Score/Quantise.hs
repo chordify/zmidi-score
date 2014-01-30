@@ -89,7 +89,7 @@ avgQDevQMS qm = avgQDev (qGridUnit qm) (totDeviation qm)
 
 avgQDev :: GridUnit -> QDev -> Int -> QDevPerc
 avgQDev gu qd nrn = 
-  QDevPerc ((fromIntegral qd / fromIntegral nrn) / fromIntegral nrn)
+  QDevPerc ((fromIntegral qd / fromIntegral nrn) / fromIntegral gu)
 
 -- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid. 
 -- The absolute size of the grid is based on the 'GridUnit', which is the

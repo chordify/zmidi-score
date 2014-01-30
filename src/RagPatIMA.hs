@@ -12,7 +12,9 @@ import System.Environment           ( getArgs )
 import Data.List            ( nubBy, intercalate, foldl' )
 import Data.Ratio                   ( numerator, denominator )
 import Data.Function                ( on )
-import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
+import qualified Data.Map.Strict as M ( map )
+import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey
+                                   , unionWith, toList  )
 import Data.Binary                 ( Binary, encodeFile )
 import Control.Arrow               ( first )
 import Text.Printf
@@ -148,6 +150,14 @@ collectNSWProf s m = foldr doSeg m s where
 mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
 mergeNSWProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
 
+-- TODO create newtype around Map BarRat NSWeight and create a datatype
+-- cumNSWProf for the current NSWProf
+normNSWProf :: NSWProf -> Map BarRat NSWeight
+normNSWProf (b, wp) = let b' = fromIntegral b in M.map (\x -> x / b') wp
+
+matchNSWProf :: Map BarRat NSWeight -> Map BarRat NSWeight -> a
+matchNSWProf = undefined
+
 --------------------------------------------------------------------------------
 -- exporting / importing IMA profiles
 --------------------------------------------------------------------------------
@@ -201,8 +211,8 @@ readProf :: FilePath -> IO (Map TimeSig NSWProf)
 readProf fp = do qm <- readQMidiScoreSafe FourtyEighth fp 
                  case qm >>= qMidiScoreToNSWProfMaps of
                    Right w -> do putStrLn fp 
-                                 either error printSongStats qm
-                                 printMeterStats w
+                                 -- either error printSongStats qm
+                                 -- printMeterStats w
                                  qm `seq` w `seq` return w
                    Left  e -> warning fp e >> return empty
                  
