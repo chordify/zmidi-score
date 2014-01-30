@@ -3,8 +3,7 @@
 module Main where
 
 import ZMidi.Score         hiding (numerator, denominator)
-import ZMidi.IO.Common          ( readMidiScore, readQMidiScoreSafe, putErrStrLn
-                                    , mapDirInDir, mapDir, warning )
+import ZMidi.IO.Common          ( readQMidiScoreSafe, mapDirInDir, mapDir, warning )
 import ZMidi.Skyline.MelFind                      ( mergeTracks )
 import Ragtime.TimeSigSeg
 import IMA.InnerMetricalAnalysis hiding ( Time )
@@ -15,8 +14,7 @@ import Data.Ratio                   ( numerator, denominator )
 import Data.Function                ( on )
 import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey, unionWith, toList  )
 import Data.Binary                 ( Binary, encodeFile )
-import Control.Arrow               ( first, second )
-import Control.Monad               ( liftM )
+import Control.Arrow               ( first )
 import Text.Printf
 
 -- | Normalised spectral weights (value between 0 and 1)
@@ -57,29 +55,10 @@ toMonoVoice = makeMono . head . getVoices . mergeTracks where
 -- Transforms a 'Voice' into a list of IMA onsets
 toIMAOnset :: Voice -> [IMA.Time]
 toIMAOnset = map fromIntegral . toOnsets 
-      
-      
--- -- before applying matchMeter 
--- matchMeterQIMA :: QMidiScore -> Either String [NSWMeterSeg]
--- matchMeterQIMA qms@(QMidiScore msq _sn gu d) = 
-  -- let -- merge all tracks and remove nub notes with the same onset
-      -- ms' = mergeTracks msq
-      -- -- remove duplicates
-      -- -- TODO : we should be able to use Data.List.Ordered, but this nub give
-      -- -- other results, this must be investigated
-      -- v   = nubBy ((==) `on` onset) . head . getVoices $ ms'
-      -- ons = map fromIntegral . toOnsets $ v
-      -- -- calculate the spectral weights
-  -- in case addMaxPerCheck (getSpectralWeight (fromIntegral . minDur $ ms')) ons of
-      -- Right w ->     -- calculate the maximum weight
-                 -- let mx = NSWeight . fromIntegral . maximum . map snd $ w
-                     -- m  = match mx (map (first Time) w) v
-                     -- -- split the midi file per 
-                 -- in  Right (segment (getTimeSig ms') m)
-      -- Left e  -> Left e
 
+-- combines a 'Voice' with its spectral weights
 matchScore :: Voice -> [(Int, SWeight)] -> [Timed (Maybe ScoreEvent, NSWeight)]
-matchScore v w = match (fromIntegral . maximum . map snd $ w) (map (first Time) w) v where
+matchScore v s = match (fromIntegral . maximum . map snd $ s) (map (first Time) s) v where
       
   -- | matches a grid with spectral weights with the onsets that created the
   -- weights. The first argument is the maximum 'Weight' found among the weights
@@ -99,13 +78,6 @@ matchScore v w = match (fromIntegral . maximum . map snd $ w) (map (first Time) 
     where w'  = fromIntegral w / m
           f t = t {getEvent = (Just $ getEvent t, w')}
 
-
-          
--- -- normalise :: (Num a, Fractional b) => [a] -> [b]
--- normalise :: [Int] -> [Double]
--- normalise l = let m = fromIntegral $ maximum l 
-              -- in map ((/ m) . fromIntegral) (l :: [Int])
-
 --
 starMeter :: Time -> NSWMeterSeg -> IO ()
 starMeter tpb (TimedSeg (Timed t ts) s) = 
@@ -116,7 +88,7 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
   toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, NSWeight) -> IO ()
   toStar os x (Timed g (se,w)) = 
     let (b, BarRat r) = getBeatInBar x tpb g
-    in putStrLn (printf ("%6d: %3d - %2d / %2d: " ++ stars w) 
+    in putStrLn (printf ("%6d: %3d - %2d / %2d: " ++ show se ++ ": " ++ stars w) 
                 (g+os) b (numerator r) (denominator r)) 
 
 stars :: NSWeight -> String
@@ -142,10 +114,10 @@ toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
 toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldl' toProf (1,empty) s) where
 
   toProf :: NSWProf -> Timed (Maybe ScoreEvent, NSWeight) -> NSWProf
-  toProf (b, m) (Timed g (_se,w)) = 
-    let (bar, bt) = getBeatInBar (getEvent ts) tpb g 
-        m'        = insertWith (+) bt w m 
-    in  m' `seq` (fromIntegral bar, m')
+  toProf (_b, m) (Timed g (_se,w)) = 
+    let (br, bt) = getBeatInBar (getEvent ts) tpb g 
+        m'       = insertWith (+) bt w m 
+    in  m' `seq` (fromIntegral br, m')
 
 -- | Plots an 'NSWProf'ile by calculating the average profile
 showNSWProf :: (TimeSig, NSWProf) -> String
@@ -161,7 +133,7 @@ collectNSWProf :: [NSWProfSeg] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
 collectNSWProf s m = foldr doSeg m s where
 
   doSeg :: NSWProfSeg -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-  doSeg (TimedSeg ts p) m = insertWith mergeNSWProf (getEvent ts) p m
+  doSeg (TimedSeg ts p) m' = insertWith mergeNSWProf (getEvent ts) p m'
   
 -- | merges two 'NSWProf's by summing its values
 mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
@@ -214,11 +186,6 @@ readProf fp = do qm <- readQMidiScoreSafe FourtyEighth fp
                  case qm >>= qMidiScoreToNSWProfMaps of
                    Right w -> return w
                    Left  e -> warning fp e >> return empty
-                
--- readProf fp =     readQMidiScoreSafe FourtyEighth fp 
-              -- >>= either warnEmpty return . (>>= qMidiScoreToNSWProfMaps)
-                
-                -- where warnEmpty w = warning fp w >> return empty
                  
 qMidiScoreToNSWProfMaps :: QMidiScore -> Either String (Map TimeSig NSWProf)
 qMidiScoreToNSWProfMaps qms =     timeSigCheck qms 
@@ -229,29 +196,4 @@ timeSigCheck :: QMidiScore -> Either String QMidiScore
 timeSigCheck ms | hasTimeSigs (qMidiScore ms) = Right ms
                 | otherwise = Left "Has no valid time signature"
 
-  -- do ms <- readMidiScoreSafe fp
-     -- case ms of
-       -- Just x  -> 
-                  -- when (hasTimeSig x) 
-                    -- do putStrLn ((show . map getEvent . getTimeSig $ x) ++ ": " ++ fp)
-                       -- selectNSWProf x
-       -- Nothing -> return empty
-       
--- selectNSWProfIO x = 
-  -- case toNSWProfSegs x of
-    -- Right (d,p) ->  do let r = collectNSWProf p empty 
-                           -- -- putStrLn ("Q deviation: " ++ show d)
-                          -- -- mapM_ (putStrLn . showNSWProf) (toList r)
-                        -- r `seq` return r
-    -- Left  e ->  warning fp e >> return empty
-
-       
--- checkQuantDev :: Float -> a -> Either String a
--- checkQuantDev d a | d < 0.02  = Right a
-                  -- | otherwise = Left ("Quantisation deviation is to high: "
-                                       -- ++ show d)
-       
--- warnBind :: FilePath -> Either String a -> (a -> Either String b) -> IO (Either String b)
--- warnBind fp (Left  e) _ = warning fp e >> return (Left e)
--- warnBind fp (Right x) f = return (f x)
  
