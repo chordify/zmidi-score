@@ -88,8 +88,11 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
   toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, NSWeight) -> IO ()
   toStar os x (Timed g (se,w)) = 
     let (b, BarRat r) = getBeatInBar x tpb g
-    in putStrLn (printf ("%6d: %3d - %2d / %2d: " ++ show se ++ ": " ++ stars w) 
+    in putStrLn (printf ("%6d: %3d - %2d / %2d: " ++ showMSE se ++ ": " ++ stars w) 
                 (g+os) b (numerator r) (denominator r)) 
+                
+  showMSE :: Maybe ScoreEvent -> String
+  showMSE = maybe "   " (show . pitch) 
 
 stars :: NSWeight -> String
 stars w = replicate (round (20 * w)) '*' 
@@ -124,9 +127,9 @@ showNSWProf :: (TimeSig, NSWProf) -> String
 showNSWProf (ts, (bars, m)) = intercalate "\n" ( show ts : foldrWithKey shw [] m )
 
   where shw :: BarRat -> NSWeight -> [String] -> [String]
-        shw bt w r = let x = w / fromIntegral bars
-                     -- in printf "%6d: %3d "
-                     in (show bt ++ ": " ++ show x ++ "  " ++ stars x) : r
+        shw (BarRat br) w r = let x = w / fromIntegral bars
+                              in (printf ("%2d / %2d: %.3f" ++ stars x) 
+                                 (numerator br) (denominator br) x   ) : r
 
 -- | Collects all profiles sorted by time signature in one map
 collectNSWProf :: [NSWProfSeg] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
