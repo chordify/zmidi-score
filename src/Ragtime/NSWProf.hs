@@ -8,11 +8,13 @@ module Ragtime.NSWProf where
 import ZMidi.Score                    ( TimeSig, BarRat (..), Timed (..)
                                       , GridUnit(..) )
 import Ragtime.TimeSigSeg             ( TimedSeg (..) )
+import Ragtime.VectorNumerics     
 import Data.List                      ( intercalate )
 import Data.Ratio                     ( numerator, denominator, (%) )
 import qualified Data.Map.Strict as M ( map )
 import Data.Map.Strict                ( Map, insertWith, foldrWithKey
-                                      , unionWith  )
+                                      , unionWith, findWithDefault  )
+import Data.Vector                    ( Vector, generate )
 import Data.Binary                    ( Binary, encodeFile )
 import Text.Printf                    ( PrintfArg, printf )
 
@@ -66,14 +68,29 @@ mergeNSWProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
 normNSWProf :: NSWProf -> Map BarRat NSWeight
 normNSWProf (b, wp) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 
--- EuclDistNSWProf :: Map BarRat NSWeight -> Map BarRat NSWeight -> a
--- EuclDistNSWProf = 
 
--- NSWProfToVec :: Map BarRat NSWeight -> 
--- NSWProfToVec = undefined
+--------------------------------------------------------------------------------
+-- Matching IMA profiles
+--------------------------------------------------------------------------------
+
+euclDist :: Vector NSWeight -> Vector NSWeight -> Double
+euclDist a b = nsweight . normL2 $ (a - b)
+
+nSWProfToVec :: GridUnit -> Map BarRat NSWeight -> Vector NSWeight
+nSWProfToVec gu m = generate (gridUnit gu) getWeight where
+  
+  getWeight :: Int -> NSWeight
+  getWeight i = findWithDefault (NSWeight 0) (toBarRat gu i) m
+
 
 getBinIDs :: GridUnit -> [BarRat]
-getBinIDs (GridUnit gu) = map (BarRat . (% gu)) [0 .. pred gu]
+getBinIDs gu = map (toBarRat gu) [0 .. pred (gridUnit gu)]
+
+toBarRat :: GridUnit -> Int -> BarRat 
+toBarRat (GridUnit gu) i = BarRat (i % gu)
+
+toIx :: GridUnit -> BarRat -> Int 
+toIx (GridUnit gu) (BarRat br) = numerator (br * (gu % 1))
   
 
 --------------------------------------------------------------------------------

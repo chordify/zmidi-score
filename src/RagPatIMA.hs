@@ -17,7 +17,7 @@ import Data.Ratio                  ( numerator, denominator )
 import Data.Function               ( on )
 import Data.Map.Strict             ( empty, Map, insertWith, unionWith, toList )
 import Control.Arrow               ( first )
-import Text.Printf
+import Text.Printf                 ( printf )
 
                               
 type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeight)]
