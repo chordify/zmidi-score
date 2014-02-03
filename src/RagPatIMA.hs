@@ -2,36 +2,28 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Main where
 
-import ZMidi.Score         hiding (numerator, denominator)
-import ZMidi.IO.Common          ( readQMidiScoreSafe, mapDirInDir, mapDir, warning )
-import ZMidi.Skyline.MelFind                      ( mergeTracks )
+import ZMidi.Score         hiding ( numerator, denominator )
+import ZMidi.IO.Common            ( readQMidiScoreSafe, mapDirInDir, mapDir, warning )
+import ZMidi.Skyline.MelFind      ( mergeTracks )
 import Ragtime.TimeSigSeg
-import IMA.InnerMetricalAnalysis hiding ( Time(..) )
+import Ragtime.NSWProf
+
+import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
-import System.Environment           ( getArgs )
-import Data.List            ( nubBy, intercalate, foldl' )
-import Data.Ratio                   ( numerator, denominator )
-import Data.Function                ( on )
-import qualified Data.Map.Strict as M ( map )
-import Data.Map.Strict             ( empty, Map, insertWith, foldrWithKey
-                                   , unionWith, toList  )
-import Data.Binary                 ( Binary, encodeFile )
+
+import System.Environment          ( getArgs )
+import Data.List                   ( nubBy, foldl' )
+import Data.Ratio                  ( numerator, denominator )
+import Data.Function               ( on )
+import Data.Map.Strict             ( empty, Map, insertWith, unionWith, toList )
 import Control.Arrow               ( first )
 import Text.Printf
 
--- | Normalised spectral weights (value between 0 and 1)
-newtype NSWeight = NSWeight { nsweight :: Double }
-                     deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
-                              , Fractional, RealFloat, RealFrac, PrintfArg
-                              , Binary )
                               
 type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeight)]
 
 -- TODO create a MPMidiScore for monophonic MidiScores
 -- TODO create a QMPMidiScore for quantised monophonic MidiScores
-
--- matchMeterIMA :: ShortestNote -> MidiScore -> Either String [NSWMeterSeg]
--- matchMeterIMA sn = either Left matchMeterQIMA . quantiseSafe sn
 
 doIMA :: QMidiScore -> Either String [NSWMeterSeg]
 doIMA qms = 
@@ -102,23 +94,11 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
   showMSE :: Maybe ScoreEvent -> String
   showMSE = maybe "    " (show . pitch) 
 
-stars :: NSWeight -> String
-stars w = replicate (round (20 * w)) '*' 
 
---------------------------------------------------------------------------------
--- IMA profiles
---------------------------------------------------------------------------------
-
--- | Normalised Spectral Weight Profiles
-type NSWProfSeg  = TimedSeg TimeSig NSWProf
-type NSWProf     = (NrOfBars, Map BarRat NSWeight)
-
--- | Stores the number of bars
-newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg, Binary )
 
 toNSWProfSegs :: QMidiScore -> Either String [NSWProfSeg]
 toNSWProfSegs m = doIMA m >>= return . map (toNSWProf (ticksPerBeat . qMidiScore $ m))
+
 
 -- | Calculates sums the NSW profiles for a meter section
 toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
@@ -129,43 +109,9 @@ toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldl' toProf (1,empty) s) where
     let (br, bt) = getBeatInBar (getEvent ts) tpb g 
         m'       = insertWith (+) bt w m 
     in  m' `seq` (fromIntegral br, m')
+    
+    
 
--- | Plots an 'NSWProf'ile by calculating the average profile
-showNSWProf :: (TimeSig, NSWProf) -> String
-showNSWProf (ts, (bars, m)) = intercalate "\n" ( show ts : foldrWithKey shw [] m )
-
-  where shw :: BarRat -> NSWeight -> [String] -> [String]
-        shw (BarRat br) w r = let x = w / fromIntegral bars
-                              in (printf ("%2d / %2d: %.5f " ++ stars x) 
-                                 (numerator br) (denominator br) x   ) : r
-
--- | Collects all profiles sorted by time signature in one map
-collectNSWProf :: [NSWProfSeg] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-collectNSWProf s m = foldr doSeg m s where
-
-  doSeg :: NSWProfSeg -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-  doSeg (TimedSeg ts p) m' = insertWith mergeNSWProf (getEvent ts) p m'
-  
--- | merges two 'NSWProf's by summing its values
-mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
-mergeNSWProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
-
--- TODO create newtype around Map BarRat NSWeight and create a datatype
--- cumNSWProf for the current NSWProf
-normNSWProf :: NSWProf -> Map BarRat NSWeight
-normNSWProf (b, wp) = let b' = fromIntegral b in M.map (\x -> x / b') wp
-
-matchNSWProf :: Map BarRat NSWeight -> Map BarRat NSWeight -> a
-matchNSWProf = undefined
-
---------------------------------------------------------------------------------
--- exporting / importing IMA profiles
---------------------------------------------------------------------------------
-
--- exports a normalised inner metric analysis profiles to a binary file
-safeNSWProf :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
-safeNSWProf fp m = encodeFile fp m >> putStrLn ("written: " ++ fp) >> return m
-  
 -- testing
 main :: IO ()
 main = 
