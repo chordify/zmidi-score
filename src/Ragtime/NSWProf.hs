@@ -13,7 +13,7 @@ import Data.Ratio                     ( numerator, denominator, (%) )
 import qualified Data.Map.Strict as M ( map )
 import Data.Map.Strict                ( Map, foldrWithKey
                                       , unionWith, findWithDefault, toAscList )
-import Data.Vector                    ( Vector, generate )
+import Data.Vector                    ( Vector, generate, fromList, toList )
 import Data.Binary                    ( Binary, encodeFile, decodeFile )
 import Text.Printf                    ( PrintfArg, printf )
 
@@ -87,6 +87,9 @@ toIx (GridUnit gu) (BarRat br) = numerator (br * (gu % 1))
   
 toNSWVecSeg :: GridUnit -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
 toNSWVecSeg gu = toAscList . M.map (toNSWVec gu)
+
+showNSWVec :: (TimeSig, Vector NSWeight) -> String
+showNSWVec (ts, v) = show ts ++ (':' : concatMap (printf " %.2f") . toList $ v)
 
 --------------------------------------------------------------------------------
 -- exporting / importing IMA profiles

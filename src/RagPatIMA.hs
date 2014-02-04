@@ -19,7 +19,9 @@ main =
   do arg <- getArgs 
      case arg of
        ["-f", fp] -> readQMidiScoreSafe FourtyEighth fp 
-                        >>= return . either error id >>= void . printIMA 
+                        >>= return . either error id 
+                        >>= printIMA >>= return . (flip collectNSWProf) empty
+                        >>= printMeterStats
                             
        ["-a", fp] -> mapDirInDir (\x -> mapDir readProf x >>= unionNWProfMaps) fp
                         >>= unionNWProfMaps >>= writeNSWProf "nswProf.bin" 
@@ -31,9 +33,11 @@ main =
        ["-m", fp] -> do qm <- readQMidiScoreSafe FourtyEighth fp
                                 >>= return . either error id 
                         m  <- readNSWProf "ragtimeMeterProfiles_2013-01-30.bin" 
-                                >>= return . toNSWVecSeg (qGridUnit qm)
-                        void . printIMA $ qm 
-                        print . findMeter m $ qm
+                        let m' = toNSWVecSeg (qGridUnit qm) m
+                        -- void . printIMA $ qm 
+                        printMeterStats m
+                        mapM_ (putStrLn . showNSWVec) . toNSWVecSeg (qGridUnit qm) $ m
+                        print . findMeter m' $ qm
                         
        _    -> error "Please use -f <file> or -d <ragtime directory>"
    

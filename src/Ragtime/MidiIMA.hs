@@ -35,7 +35,7 @@ findMeter m qm = toNSWProfSegs qm >>= return . map updateSeg where
   bestMatch v = minimumBy (compare `on` snd) . map (second (euclDist v)) $ m
 
 --------------------------------------------------------------------------------
--- Performing the Inner Metrical Analysis
+-- Calculate Normalised Spectral Weight Profiles
 --------------------------------------------------------------------------------
 
 type NSWProfSeg = TimedSeg TimeSig NSWProf
