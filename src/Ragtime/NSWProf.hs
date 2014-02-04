@@ -88,8 +88,8 @@ toIx (GridUnit gu) (BarRat br) = numerator (br * (gu % 1))
 toNSWVecSeg :: GridUnit -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
 toNSWVecSeg gu = toAscList . M.map (toNSWVec gu)
 
-showNSWVec :: (TimeSig, Vector NSWeight) -> String
-showNSWVec (ts, v) = show ts ++ (':' : concatMap (printf " %.2f") . toList $ v)
+-- showNSWVec :: (TimeSig, Vector NSWeight) -> String
+-- showNSWVec (ts, v) = show ts ++ ':' : (concatMap (printf " %.2f") . toList $ v)
 
 --------------------------------------------------------------------------------
 -- exporting / importing IMA profiles

@@ -123,6 +123,10 @@ matchScore v s = match (map (first Time) s) v where
     where w'  = fromIntegral w / fromIntegral mx
           f t = t {getEvent = (Just $ getEvent t, w')}
           
+--------------------------------------------------------------------------------
+-- Printing the Inner Metrical Analysis
+--------------------------------------------------------------------------------
+
 printIMA :: QMidiScore -> IO ([NSWProfSeg])
 printIMA qm = do let tpb = ticksPerBeat . qMidiScore $ qm
                  mapM (toNSWProfPrint tpb) . either error id . doIMA $ qm where

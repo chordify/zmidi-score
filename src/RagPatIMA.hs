@@ -10,7 +10,7 @@ import Ragtime.NSWProf
 
 import System.Environment    ( getArgs )
 import Data.Map.Strict       ( empty, Map, unionWith, toList )
-import Control.Monad         ( void )
+-- import Control.Monad         ( void )
 import Text.Printf           ( printf )
 
 -- testing
@@ -36,8 +36,11 @@ main =
                         let m' = toNSWVecSeg (qGridUnit qm) m
                         -- void . printIMA $ qm 
                         printMeterStats m
-                        mapM_ (putStrLn . showNSWVec) . toNSWVecSeg (qGridUnit qm) $ m
+                        -- mapM_ (putStrLn . showNSWVec) . toNSWVecSeg (qGridUnit qm) $ m
                         print . findMeter m' $ qm
+                        printMeterStats . (flip collectNSWProf) empty 
+                                        . either error id . toNSWProfSegs $ qm
+                        
                         
        _    -> error "Please use -f <file> or -d <ragtime directory>"
    
