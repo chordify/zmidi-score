@@ -5,17 +5,15 @@
 -- it better fits Ragtime.*
 module Ragtime.NSWProf where
 
-import ZMidi.Score                    ( TimeSig, BarRat (..), Timed (..)
+import ZMidi.Score                    ( TimeSig, BarRat (..) 
                                       , GridUnit(..) )
-import Ragtime.TimeSigSeg             ( TimedSeg (..) )
 import Ragtime.VectorNumerics     
-import Data.List                      ( intercalate, maximumBy )
+import Data.List                      ( intercalate )
 import Data.Ratio                     ( numerator, denominator, (%) )
 import qualified Data.Map.Strict as M ( map )
-import Data.Map.Strict                ( Map, insertWith, foldrWithKey
+import Data.Map.Strict                ( Map, foldrWithKey
                                       , unionWith, findWithDefault, toAscList )
 import Data.Vector                    ( Vector, generate )
-import Data.Function                  ( on )
 import Data.Binary                    ( Binary, encodeFile, decodeFile )
 import Text.Printf                    ( PrintfArg, printf )
 
@@ -44,7 +42,7 @@ newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
 
 -- | Plots an 'NSWProf'ile by calculating the average profile
 showNSWProf :: (TimeSig, NSWProf) -> String
-showNSWProf (ts, (bars, m)) = intercalate "\n" ( show ts : foldrWithKey shw [] m )
+showNSWProf (ts, (bars, m)) = intercalate "\n" (show ts : foldrWithKey shw [] m)
 
   where shw :: BarRat -> NSWeight -> [String] -> [String]
         shw (BarRat br) w r = let x = w / fromIntegral bars

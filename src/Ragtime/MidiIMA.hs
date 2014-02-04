@@ -1,50 +1,44 @@
 
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
 module Ragtime.MidiIMA ( 
-                         collectNSWProf
-                       , findMeter
+                         findMeter
+                       , collectNSWProf
                        , toNSWProfSegs 
-                       , toNSWProf
-                       , doIMA
-                       , NSWMeterSeg
+                       , printIMA
                        ) where
 
 import ZMidi.Score         hiding ( numerator, denominator )
-import ZMidi.IO.Common            ( readQMidiScoreSafe, mapDirInDir, mapDir, warning )
 import ZMidi.Skyline.MelFind      ( mergeTracks )
-import Ragtime.TimeSigSeg
+import Ragtime.TimeSigSeg         ( TimedSeg (..), segment )
 import Ragtime.NSWProf
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
 
-import System.Environment          ( getArgs )
-import Data.List                   ( nubBy, foldl', maximumBy )
-import Data.Ratio                  ( numerator, denominator )
+import Data.List                   ( nubBy, foldl', minimumBy )
 import Data.Function               ( on )
-import Data.Map.Strict             ( empty, Map, insertWith, unionWith, toList )
+import Data.Map.Strict             ( empty, Map, insertWith )
 import Control.Arrow               ( first, second )
+import Data.Vector                 ( Vector )
 import Text.Printf                 ( printf )
-import Data.Vector                 ( Vector, generate )
+import Data.Ratio                  ( numerator, denominator, )
 
 
-
-
-findMeter :: [(TimeSig, Vector NSWeight)] -> QMidiScore -> Either String [TimedSeg TimeSig TimeSig]
+findMeter :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
+          -> Either String [TimedSeg TimeSig TimeSig]
 findMeter m qm = toNSWProfSegs qm >>= return . map updateSeg where
 
   updateSeg :: NSWProfSeg -> TimedSeg TimeSig TimeSig
   updateSeg p = p { seg = fst . bestMatch . toNSWVec (qGridUnit qm) . seg $ p }
   
   bestMatch :: Vector NSWeight -> (TimeSig, Double)
-  bestMatch v = maximumBy (compare `on` snd) . map (second (euclDist v)) $ m
+  bestMatch v = minimumBy (compare `on` snd) . map (second (euclDist v)) $ m
 
 --------------------------------------------------------------------------------
 -- Performing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
 
 type NSWProfSeg = TimedSeg TimeSig NSWProf
-type NSWVecSeg = TimedSeg TimeSig NSWProf
 
 -- | Collects all profiles sorted by time signature in one map
 collectNSWProf :: [NSWProfSeg] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
@@ -128,4 +122,29 @@ matchScore v s = match (map (first Time) s) v where
     
     where w'  = fromIntegral w / fromIntegral mx
           f t = t {getEvent = (Just $ getEvent t, w')}
+          
+printIMA :: QMidiScore -> IO ([NSWProfSeg])
+printIMA qm = do let tpb = ticksPerBeat . qMidiScore $ qm
+                 mapM (toNSWProfPrint tpb) . either error id . doIMA $ qm where
+                
+  toNSWProfPrint :: Time ->  NSWMeterSeg -> IO (NSWProfSeg)
+  toNSWProfPrint t s = starMeter t s >> return (toNSWProf t s)
+                
+          
+-- Prints an Inner metrical analysis
+starMeter :: Time -> NSWMeterSeg -> IO ()
+starMeter tpb (TimedSeg (Timed t ts) s) = 
+  do putStrLn . printf ("%6d: ======================= " ++ show ts 
+                         ++ " =======================" ) $ t
+     mapM_ (toStar t ts) s where
+                    
+  -- prints one line e.g. "1152 1 3 1C  ***************"
+  toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, NSWeight) -> IO ()
+  toStar os x (Timed g (se,w)) = 
+    let (b, BarRat r) = getBeatInBar x tpb g
+    in putStrLn (printf ("%6d: %3d - %2d / %2d: " ++ showMSE se ++ ": " ++ stars w) 
+                (g+os) b (numerator r) (denominator r)) 
+                
+  showMSE :: Maybe ScoreEvent -> String
+  showMSE = maybe "    " (show . pitch) 
           
