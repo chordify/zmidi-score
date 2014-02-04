@@ -9,13 +9,14 @@ import ZMidi.Score                    ( TimeSig, BarRat (..), Timed (..)
                                       , GridUnit(..) )
 import Ragtime.TimeSigSeg             ( TimedSeg (..) )
 import Ragtime.VectorNumerics     
-import Data.List                      ( intercalate )
+import Data.List                      ( intercalate, maximumBy )
 import Data.Ratio                     ( numerator, denominator, (%) )
 import qualified Data.Map.Strict as M ( map )
 import Data.Map.Strict                ( Map, insertWith, foldrWithKey
-                                      , unionWith, findWithDefault  )
+                                      , unionWith, findWithDefault, toAscList )
 import Data.Vector                    ( Vector, generate )
-import Data.Binary                    ( Binary, encodeFile )
+import Data.Function                  ( on )
+import Data.Binary                    ( Binary, encodeFile, decodeFile )
 import Text.Printf                    ( PrintfArg, printf )
 
 
@@ -34,14 +35,12 @@ stars w = replicate (round (20 * w)) '*'
 --------------------------------------------------------------------------------
 
 -- | Normalised Spectral Weight Profiles
-type NSWProfSeg  = TimedSeg TimeSig NSWProf
 type NSWProf     = (NrOfBars, Map BarRat NSWeight)
 
 -- | Stores the number of bars
 newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral
                              , PrintfArg, Binary )
-
 
 -- | Plots an 'NSWProf'ile by calculating the average profile
 showNSWProf :: (TimeSig, NSWProf) -> String
@@ -51,13 +50,6 @@ showNSWProf (ts, (bars, m)) = intercalate "\n" ( show ts : foldrWithKey shw [] m
         shw (BarRat br) w r = let x = w / fromIntegral bars
                               in (printf ("%2d / %2d: %.5f " ++ stars x) 
                                  (numerator br) (denominator br) x   ) : r
-
--- | Collects all profiles sorted by time signature in one map
-collectNSWProf :: [NSWProfSeg] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-collectNSWProf s m = foldr doSeg m s where
-
-  doSeg :: NSWProfSeg -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-  doSeg (TimedSeg ts p) m' = insertWith mergeNSWProf (getEvent ts) p m'
   
 -- | merges two 'NSWProf's by summing its values
 mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
@@ -76,11 +68,14 @@ normNSWProf (b, wp) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 euclDist :: Vector NSWeight -> Vector NSWeight -> Double
 euclDist a b = nsweight . normL2 $ (a - b)
 
-nSWProfToVec :: GridUnit -> Map BarRat NSWeight -> Vector NSWeight
-nSWProfToVec gu m = generate (gridUnit gu) getWeight where
+toNSWVec :: GridUnit -> NSWProf -> Vector NSWeight
+toNSWVec gu p = generate (gridUnit gu) getWeight where
   
   getWeight :: Int -> NSWeight
   getWeight i = findWithDefault (NSWeight 0) (toBarRat gu i) m
+  
+  m :: Map BarRat NSWeight
+  m = normNSWProf p
 
 
 getBinIDs :: GridUnit -> [BarRat]
@@ -92,12 +87,17 @@ toBarRat (GridUnit gu) i = BarRat (i % gu)
 toIx :: GridUnit -> BarRat -> Int 
 toIx (GridUnit gu) (BarRat br) = numerator (br * (gu % 1))
   
+toNSWVecSeg :: GridUnit -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
+toNSWVecSeg gu = toAscList . M.map (toNSWVec gu)
 
 --------------------------------------------------------------------------------
 -- exporting / importing IMA profiles
 --------------------------------------------------------------------------------
 
 -- exports a normalised inner metric analysis profiles to a binary file
-safeNSWProf :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
-safeNSWProf fp m = encodeFile fp m >> putStrLn ("written: " ++ fp) >> return m
+writeNSWProf :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
+writeNSWProf fp m = encodeFile fp m >> putStrLn ("written: " ++ fp) >> return m
+  
+readNSWProf :: FilePath -> IO (Map TimeSig NSWProf)
+readNSWProf fp = putStrLn ("read: " ++ fp) >> decodeFile fp  
   
