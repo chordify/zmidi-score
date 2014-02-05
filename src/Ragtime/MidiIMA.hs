@@ -32,7 +32,8 @@ findMeter :: [(TimeSig, Vector NSWeight)] -> QMidiScore
 findMeter m qm = toNSWProfSegs qm >>= return . map updateSeg where
 
   updateSeg :: NSWProfSeg -> TimedSeg TimeSig TimeSig
-  updateSeg p = p { seg = fst . bestMatch . toNSWVec (qGridUnit qm) . seg $ p }
+  updateSeg (TimedSeg ts p) = 
+    TimedSeg ts (fst . bestMatch . toNSWVec (getEvent ts) (qGridUnit qm) $ p)
   
   bestMatch :: Vector NSWeight -> (TimeSig, Double)
   bestMatch v = minimumBy (compare `on` snd) . map (second (euclDist v)) $ m
@@ -45,7 +46,7 @@ meterMatch m qm = toNSWProfSegs qm >>= return . map match where
   match (TimedSeg ts pa) = case M.lookup (getEvent ts) m of
                              Nothing -> error ("TimeSig not found: " ++ show ts)
                              Just pb -> TimedSeg ts (euclDist (f pa) (f pb))
-                                where f = toNSWVec (qGridUnit qm)
+                                where f = toNSWVec (getEvent ts) (qGridUnit qm)
 
 
 
@@ -75,9 +76,9 @@ toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldl' toProf (1,empty) s) where
 
   toProf :: NSWProf -> Timed (Maybe ScoreEvent, NSWeight) -> NSWProf
   toProf (_b, m) (Timed g (_se,w)) = 
-    let (Bar br, Beat bib, bt) = getBeatInBar (getEvent ts) tpb g 
-        m'       = insertWith (+) bt w m 
-    in  m' `seq` (NrOfBars (br * bib), m')
+    let (Bar br, bib, bt) = getBeatInBar (getEvent ts) tpb g 
+        m'       = insertWith (+) (bib,bt) w m 
+    in  m' `seq` (NrOfBars br, m')
 
 --------------------------------------------------------------------------------
 -- Performing the Inner Metrical Analysis

@@ -2,7 +2,7 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Main where
 
-import ZMidi.Score.Datatypes ( TimeSig, hasTimeSigs, getTimeSig )
+import ZMidi.Score.Datatypes ( TimeSig, hasTimeSigs, getTimeSig, Timed (..) )
 import ZMidi.Score.Quantise  ( QMidiScore (..), ShortestNote (..), avgQDevQMS )
 import ZMidi.IO.Common       ( readQMidiScoreSafe, mapDirInDir, mapDir, warning)
 import Ragtime.MidiIMA
@@ -34,7 +34,8 @@ main =
        ["-m", fp] -> do qm <- readQMidiScoreSafe FourtyEighth fp
                                 >>= return . either error id 
                         m  <- readNSWProf "ragtimeMeterProfiles_2013-01-30.bin" 
-                        let m' = toNSWVecSeg (qGridUnit qm) m
+                        -- ... Might not be correct...
+                        let m' = toNSWVecSeg (getEvent . head . getTimeSig . qMidiScore $ qm) (qGridUnit qm) m
                         -- void . printIMA $ qm 
                         printMeterStats m
                         -- mapM_ (putStrLn . showNSWVec) . toNSWVecSeg (qGridUnit qm) $ m

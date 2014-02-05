@@ -122,7 +122,7 @@ newtype Time    = Time { time :: Int }
 newtype Bar     = Bar  { bar  :: Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
 newtype Beat    = Beat { beat :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg, Binary )
 newtype BeatRat  = BeatRat { beatRat  :: Ratio Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Binary )                    
                     
