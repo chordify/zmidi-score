@@ -164,7 +164,7 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
   -- prints one line e.g. "1152 1 3 1C  ***************"
   toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, NSWeight) -> IO ()
   toStar os x (Timed g (se,w)) = 
-    let (b, BarRat r) = getBeatInBar x tpb g
+    let (b, BeatRat r) = getBeatInBar x tpb g
     in putStrLn (printf ("%6d: %3d - %2d / %2d: " ++ showMSE se ++ ": " ++ stars w) 
                 (g+os) b (numerator r) (denominator r)) 
                 

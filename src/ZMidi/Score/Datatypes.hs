@@ -15,7 +15,7 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , Timed (..)
                   , Time (..)
                   , Bar (..)
-                  , BarRat (..)
+                  , BeatRat (..)
                   , ScoreEvent (..)
                   -- * Minimum length calculation
                   , buildTickMap
@@ -58,7 +58,7 @@ import Data.Word           ( Word8 )
 import Data.Int            ( Int8 )
 import Data.Char           ( toLower )
 import Data.Maybe          ( isJust )
-import Data.List           ( intercalate, sort, find )
+import Data.List           ( intercalate, find )
 import qualified Data.List.Ordered as Sort ( nub )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( insertWith, IntMap, keys )
@@ -120,7 +120,7 @@ newtype Time    = Time { time :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
 newtype Bar     = Bar  { bar  :: Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
-newtype BarRat  = BarRat { barRat  :: Ratio Int } 
+newtype BeatRat  = BeatRat { beatRat  :: Ratio Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Binary )                    
                     
 -- perhaps add duration??
@@ -392,10 +392,10 @@ invalidMidiNumberError w = error ("invalid MIDI note number" ++ show w)
 hasTimeSigs :: MidiScore -> Bool
 hasTimeSigs = not . null . filter (not . (== NoTimeSig) . getEvent) . getTimeSig
 
-getBeatInBar :: TimeSig -> Time -> Time -> (Bar, BarRat)
+getBeatInBar :: TimeSig -> Time -> Time -> (Bar, BeatRat)
 getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
 getBeatInBar (TimeSig _num _den _ _) (Time tpb) (Time o) = 
-  ((Bar . succ) *** (BarRat . (% tpb))) (o `divMod` tpb)
+  ((Bar . succ) *** (BeatRat . (% tpb))) (o `divMod` tpb)
     
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities

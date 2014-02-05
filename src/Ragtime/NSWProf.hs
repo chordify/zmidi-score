@@ -5,15 +5,14 @@
 -- it better fits Ragtime.*
 module Ragtime.NSWProf where
 
-import ZMidi.Score                    ( TimeSig, BarRat (..) 
-                                      , GridUnit(..) )
+import ZMidi.Score                    ( TimeSig, BeatRat (..), GridUnit(..) )
 import Ragtime.VectorNumerics     
 import Data.List                      ( intercalate )
 import Data.Ratio                     ( numerator, denominator, (%) )
 import qualified Data.Map.Strict as M ( map )
 import Data.Map.Strict                ( Map, foldrWithKey
                                       , unionWith, findWithDefault, toAscList )
-import Data.Vector                    ( Vector, generate, fromList, toList )
+import Data.Vector                    ( Vector, generate, fromList )
 import Data.Binary                    ( Binary, encodeFile, decodeFile )
 import Text.Printf                    ( PrintfArg, printf )
 
@@ -33,7 +32,7 @@ stars w = replicate (round (20 * w)) '*'
 --------------------------------------------------------------------------------
 
 -- | Normalised Spectral Weight Profiles
-type NSWProf     = (NrOfBars, Map BarRat NSWeight)
+type NSWProf     = (NrOfBars, Map BeatRat NSWeight)
 
 -- | Stores the number of bars
 newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
@@ -44,8 +43,8 @@ newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
 showNSWProf :: (TimeSig, NSWProf) -> String
 showNSWProf (ts, (bars, m)) = intercalate "\n" (show ts : foldrWithKey shw [] m)
 
-  where shw :: BarRat -> NSWeight -> [String] -> [String]
-        shw (BarRat br) w r = let x = w / fromIntegral bars
+  where shw :: BeatRat -> NSWeight -> [String] -> [String]
+        shw (BeatRat br) w r = let x = w / fromIntegral bars
                               in (printf ("%2d / %2d: %.5f " ++ stars x) 
                                  (numerator br) (denominator br) x   ) : r
   
@@ -53,9 +52,9 @@ showNSWProf (ts, (bars, m)) = intercalate "\n" (show ts : foldrWithKey shw [] m)
 mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
 mergeNSWProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
 
--- TODO create newtype around Map BarRat NSWeight and create a datatype
+-- TODO create newtype around Map BeatRat NSWeight and create a datatype
 -- cumNSWProf for the current NSWProf
-normNSWProf :: NSWProf -> Map BarRat NSWeight
+normNSWProf :: NSWProf -> Map BeatRat NSWeight
 normNSWProf (b, wp) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 
 
@@ -72,18 +71,18 @@ toNSWVec gu p = generate (gridUnit gu) getWeight where
   getWeight :: Int -> NSWeight
   getWeight i = findWithDefault (NSWeight 0) (toBarRat gu i) m
   
-  m :: Map BarRat NSWeight
+  m :: Map BeatRat NSWeight
   m = normNSWProf p
 
 
-getBinIDs :: GridUnit -> [BarRat]
+getBinIDs :: GridUnit -> [BeatRat]
 getBinIDs gu = map (toBarRat gu) [0 .. pred (gridUnit gu)]
 
-toBarRat :: GridUnit -> Int -> BarRat 
-toBarRat (GridUnit gu) i = BarRat (i % gu)
+toBarRat :: GridUnit -> Int -> BeatRat 
+toBarRat (GridUnit gu) i = BeatRat (i % gu)
 
-toIx :: GridUnit -> BarRat -> Int 
-toIx (GridUnit gu) (BarRat br) = numerator (br * (gu % 1))
+toIx :: GridUnit -> BeatRat -> Int 
+toIx (GridUnit gu) (BeatRat br) = numerator (br * (gu % 1))
   
 toNSWVecSeg :: GridUnit -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
 toNSWVecSeg gu = toAscList . M.map (toNSWVec gu)
