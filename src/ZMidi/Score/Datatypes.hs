@@ -15,6 +15,7 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , Timed (..)
                   , Time (..)
                   , Bar (..)
+                  , Beat (..)
                   , BeatRat (..)
                   , ScoreEvent (..)
                   -- * Minimum length calculation
@@ -119,6 +120,8 @@ newtype Velocity = Velocity { velocity :: Word8 }
 newtype Time    = Time { time :: Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
 newtype Bar     = Bar  { bar  :: Int } 
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
+newtype Beat    = Beat { beat :: Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
 newtype BeatRat  = BeatRat { beatRat  :: Ratio Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Binary )                    
@@ -392,10 +395,16 @@ invalidMidiNumberError w = error ("invalid MIDI note number" ++ show w)
 hasTimeSigs :: MidiScore -> Bool
 hasTimeSigs = not . null . filter (not . (== NoTimeSig) . getEvent) . getTimeSig
 
-getBeatInBar :: TimeSig -> Time -> Time -> (Bar, BeatRat)
+getBeatInBar :: TimeSig -> Time -> Time -> (Bar, Beat, BeatRat)
 getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
-getBeatInBar (TimeSig _num _den _ _) (Time tpb) (Time o) = 
-  ((Bar . succ) *** (BeatRat . (% tpb))) (o `divMod` tpb)
+getBeatInBar (TimeSig num _den _ _) (Time tpb) (Time o) = 
+  let (bt, rat) = getRatInBeat (Time tpb) (Time o)
+      (br, bib) = (succ *** succ) $ fromIntegral bt `divMod` num 
+  in (Bar br, Beat bib, rat)
+
+getRatInBeat :: Time -> Time -> (Beat, BeatRat)
+getRatInBeat (Time tpb) (Time o) = 
+  ((Beat) *** (BeatRat . (% tpb))) (o `divMod` tpb)
     
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities

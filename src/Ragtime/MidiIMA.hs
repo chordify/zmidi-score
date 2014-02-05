@@ -75,9 +75,9 @@ toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldl' toProf (1,empty) s) where
 
   toProf :: NSWProf -> Timed (Maybe ScoreEvent, NSWeight) -> NSWProf
   toProf (_b, m) (Timed g (_se,w)) = 
-    let (br, bt) = getBeatInBar (getEvent ts) tpb g 
+    let (Bar br, Beat bib, bt) = getBeatInBar (getEvent ts) tpb g 
         m'       = insertWith (+) bt w m 
-    in  m' `seq` (fromIntegral br, m')
+    in  m' `seq` (NrOfBars (br * bib), m')
 
 --------------------------------------------------------------------------------
 -- Performing the Inner Metrical Analysis
@@ -164,9 +164,9 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
   -- prints one line e.g. "1152 1 3 1C  ***************"
   toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, NSWeight) -> IO ()
   toStar os x (Timed g (se,w)) = 
-    let (b, BeatRat r) = getBeatInBar x tpb g
-    in putStrLn (printf ("%6d: %3d - %2d / %2d: " ++ showMSE se ++ ": " ++ stars w) 
-                (g+os) b (numerator r) (denominator r)) 
+    let (br, bib, BeatRat r) = getBeatInBar x tpb g
+    in putStrLn (printf ("%6d: %3d.%1d - %2d / %2d: " ++ showMSE se ++ ": " ++ stars w) 
+                (g+os) br bib (numerator r) (denominator r)) 
                 
   showMSE :: Maybe ScoreEvent -> String
   showMSE = maybe "    " (show . pitch) 
