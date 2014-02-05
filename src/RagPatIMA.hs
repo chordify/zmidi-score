@@ -10,7 +10,8 @@ import Ragtime.NSWProf
 
 import System.Environment    ( getArgs )
 import Data.Map.Strict       ( empty, Map, unionWith, toList )
--- import Control.Monad         ( void )
+import Data.List             ( intercalate )
+import Control.Monad         ( void )
 import Text.Printf           ( printf )
 
 -- testing
@@ -46,7 +47,10 @@ main =
                                 >>= return . (>>= meterMatch m)
                                 >>= return . either error id 
                         mapM_ (putStrLn . printMeterMatch) qm
-               
+       
+       ["-r", fp] -> do m  <- readNSWProf "ragtimeMeterProfiles_2013-01-30.bin" 
+                        void . mapDirInDir (mapDir (dirMeterMatch m)) $ fp
+
        _    -> error "Please use -f <file> or -d <ragtime directory>"
    
    
@@ -78,10 +82,21 @@ qMidiScoreToNSWProfMaps :: QMidiScore -> Either String (Map TimeSig NSWProf)
 qMidiScoreToNSWProfMaps qms =     timeSigCheck qms 
                               >>= toNSWProfSegs
                               >>= (\x -> return $ collectNSWProf x empty)
-       
+
+dirMeterMatch :: Map TimeSig NSWProf -> FilePath -> IO ()
+dirMeterMatch m fp = readQMidiScoreSafe FourtyEighth fp 
+                       >>= return . (>>= doMeterMatch m)
+                       >>= either (warning fp) (\x -> putStrLn (fp ++ "\t" ++x))
+                              
+doMeterMatch :: Map TimeSig NSWProf -> QMidiScore -> Either String String
+doMeterMatch m qm =  timeSigCheck qm >>= meterMatch m 
+                         >>= return . intercalate "\t" . map printMeterMatch
+                              
 -- Checks for a valid time siganture
 timeSigCheck :: QMidiScore -> Either String QMidiScore
 timeSigCheck ms | hasTimeSigs (qMidiScore ms) = Right ms
-                | otherwise = Left "Has no valid time signature"                
+                | otherwise = Left "Has no valid time signature" 
+
+                
                 
  

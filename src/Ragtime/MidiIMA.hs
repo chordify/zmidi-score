@@ -144,7 +144,7 @@ matchScore v s = match (map (first Time) s) v where
 --------------------------------------------------------------------------------
 
 printMeterMatch :: TimedSeg TimeSig Double -> String
-printMeterMatch (TimedSeg ts d) = printf ((show . getEvent $ ts) ++ ": %.2f ") d
+printMeterMatch (TimedSeg ts d) = printf ('\'' : (show . getEvent $ ts) ++ "\'\t%.2f ") d
 
 printIMA :: QMidiScore -> IO ([NSWProfSeg])
 printIMA qm = do let tpb = ticksPerBeat . qMidiScore $ qm
