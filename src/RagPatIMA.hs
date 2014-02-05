@@ -41,7 +41,12 @@ main =
                         printMeterStats . (flip collectNSWProf) empty 
                                         . either error id . toNSWProfSegs $ qm
                         
-                        
+       ["-c", fp] -> do m  <- readNSWProf "ragtimeMeterProfiles_2013-01-30.bin" 
+                        qm <- readQMidiScoreSafe FourtyEighth fp 
+                                >>= return . (>>= meterMatch m)
+                                >>= return . either error id 
+                        mapM_ (putStrLn . printMeterMatch) qm
+               
        _    -> error "Please use -f <file> or -d <ragtime directory>"
    
    

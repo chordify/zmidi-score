@@ -2,9 +2,11 @@
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
 module Ragtime.MidiIMA ( 
                          findMeter
+                       , meterMatch
                        , collectNSWProf
                        , toNSWProfSegs 
                        , printIMA
+                       , printMeterMatch
                        ) where
 
 import ZMidi.Score         hiding ( numerator, denominator )
@@ -18,6 +20,7 @@ import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
 import Data.List                   ( nubBy, foldl', minimumBy )
 import Data.Function               ( on )
 import Data.Map.Strict             ( empty, Map, insertWith )
+import qualified Data.Map.Strict as M ( lookup )
 import Control.Arrow               ( first, second )
 import Data.Vector                 ( Vector )
 import Text.Printf                 ( printf )
@@ -34,6 +37,19 @@ findMeter m qm = toNSWProfSegs qm >>= return . map updateSeg where
   bestMatch :: Vector NSWeight -> (TimeSig, Double)
   bestMatch v = minimumBy (compare `on` snd) . map (second (euclDist v)) $ m
 
+meterMatch :: Map TimeSig NSWProf -> QMidiScore 
+          -> Either String [TimedSeg TimeSig Double]
+meterMatch m qm = toNSWProfSegs qm >>= return . map match where
+
+  match :: TimedSeg TimeSig NSWProf -> TimedSeg TimeSig Double
+  match (TimedSeg ts pa) = case M.lookup (getEvent ts) m of
+                             Nothing -> error ("TimeSig not found: " ++ show ts)
+                             Just pb -> TimedSeg ts (euclDist (f pa) (f pb))
+                                where f = toNSWVec (qGridUnit qm)
+
+
+
+  
 --------------------------------------------------------------------------------
 -- Calculate Normalised Spectral Weight Profiles
 --------------------------------------------------------------------------------
@@ -126,6 +142,9 @@ matchScore v s = match (map (first Time) s) v where
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
+
+printMeterMatch :: TimedSeg TimeSig Double -> String
+printMeterMatch (TimedSeg ts d) = printf ((show . getEvent $ ts) ++ ": %.2f ") d
 
 printIMA :: QMidiScore -> IO ([NSWProfSeg])
 printIMA qm = do let tpb = ticksPerBeat . qMidiScore $ qm
