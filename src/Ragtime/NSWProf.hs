@@ -6,7 +6,6 @@
 module Ragtime.NSWProf where
 
 import ZMidi.Score             hiding (numerator, denominator)
-import Ragtime.VectorNumerics     
 import Data.List                      ( intercalate )
 import Data.Ratio                     ( numerator, denominator, (%) )
 import qualified Data.Map.Strict as M ( map )
@@ -65,8 +64,8 @@ normNSWProf (b, wp) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 --------------------------------------------------------------------------------
 
 -- TODO add check for Vectors of different lengths
-euclDist :: Vector NSWeight -> Vector NSWeight -> Double
-euclDist a b = nsweight . normL2 $ (a - b)
+-- euclDist :: Vector NSWeight -> Vector NSWeight -> Double
+-- euclDist a b = nsweight . normL2 $ (a - b)
 
 toNSWVec :: TimeSig -> GridUnit -> NSWProf -> Vector NSWeight
 toNSWVec (TimeSig num _ _ _) gu p = generate (num * gridUnit gu) getWeight where

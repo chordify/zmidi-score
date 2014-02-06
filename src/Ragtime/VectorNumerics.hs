@@ -5,6 +5,8 @@ module Ragtime.VectorNumerics (
                                 sum
                               , mean
                               , normL2
+                              , dot
+                              , cosSim
                               , Num ()
                               ) where
 
@@ -43,6 +45,11 @@ sum = V.foldr (+) 0
 mean :: (Fractional a, Num a) => Vector a -> a 
 mean v = sum v / fromIntegral (V.length v)
 
-normL2 :: Floating a => Vector a -> a
+normL2 :: (Floating b) => Vector b -> b
 normL2 = sqrt . sum . fmap (^ (2 :: Int))
+
+dot :: Num a => Vector a -> Vector a -> a
+dot a b = sum (a * b)
   
+cosSim :: Floating a => Vector a -> Vector a -> a
+cosSim a b = a `dot` b  /  (normL2 a * normL2 b)
