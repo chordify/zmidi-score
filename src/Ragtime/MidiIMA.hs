@@ -26,7 +26,7 @@ import Control.Arrow               ( first, second )
 import Data.Vector                 ( Vector )
 import Text.Printf                 ( printf )
 import Data.Ratio                  ( numerator, denominator, )
-import Ragtime.VectorNumerics      ( pearson )
+import Ragtime.VectorNumerics      ( cosSim, disp )
 
 findMeter :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
           -> Either String [TimedSeg TimeSig TimeSig]
@@ -37,7 +37,7 @@ findMeter m qm = toNSWProfSegs qm >>= return . map updateSeg where
     TimedSeg ts (fst . bestMatch . toNSWVec (getEvent ts) (qGridUnit qm) $ p)
   
   bestMatch :: Vector NSWeight -> (TimeSig, NSWeight)
-  bestMatch v = minimumBy (compare `on` snd) . map (second (pearson v)) $ m
+  bestMatch v = minimumBy (compare `on` snd) . map (second (cosSim v)) $ m
 
 meterMatch :: Map TimeSig NSWProf -> QMidiScore 
           -> Either String [TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)]
@@ -46,7 +46,7 @@ meterMatch m qm = toNSWProfSegs qm >>= return . map match where
   match :: TimedSeg TimeSig NSWProf -> TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)
   match (TimedSeg ts pa) = case M.lookup (getEvent ts) m of
                              Nothing -> error ("TimeSig not found: " ++ show ts)
-                             Just pb -> TimedSeg ts (pa, pb, pearson (f pa) (f pb))
+                             Just pb -> TimedSeg ts (pa, pb, cosSim (f pa) (f pb))
                                 where f = toNSWVec (getEvent ts) (qGridUnit qm)
 
 
@@ -148,9 +148,13 @@ printMeterMatchVerb :: TimedSeg TimeSig (NSWProf, NSWProf, NSWeight) -> String
 printMeterMatchVerb (TimedSeg ts (a,b,d)) = 
   "\nsong:\n"     ++ showNSWProf (getEvent ts, a) ++
   "\ntemplate:\n" ++ showNSWProf (getEvent ts, b) ++
+  -- | N.B. hardcoded Gridunit...
+  "\nsong:\n"     ++ disp (toNSWVec (getEvent ts) (GridUnit 12) a) ++
+  "\ntemplate:\n" ++ disp (toNSWVec (getEvent ts) (GridUnit 12) b) ++
   printf ('\n' : (show . getEvent $ ts) ++ "\t%.6f ") d
 
 
+  
 printMeterMatch :: TimedSeg TimeSig (NSWProf, NSWProf, NSWeight) -> String
 printMeterMatch (TimedSeg ts (_,_,d)) = 
   printf ('\'' : (show . getEvent $ ts) ++ "\'\t%.3f ") d

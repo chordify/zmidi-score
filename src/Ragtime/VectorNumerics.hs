@@ -14,6 +14,7 @@ module Ragtime.VectorNumerics
 
 import qualified Data.Vector as V
 import Data.Vector ( Vector )
+import Text.Printf ( PrintfArg, printf )
 import Prelude hiding (sum)
  
 --------------------------------------------------------------------------------
@@ -91,4 +92,8 @@ var :: Floating a => Vector a -> a
 var v = let m = negate (mean v) 
             v' = add v m 
         in sum (v' * v') / fromIntegral (V.length v - 1)
+
+-- | Displaying a vector
+disp :: PrintfArg a => Vector a -> String
+disp = concat . V.foldr (\j js -> printf "%.2f\t" j : js ) [] 
            
