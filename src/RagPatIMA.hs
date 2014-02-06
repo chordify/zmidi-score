@@ -33,7 +33,7 @@ main =
                         
        ["-m", fp] -> do qm <- readQMidiScoreSafe FourtyEighth fp
                                 >>= return . either error id 
-                        m  <- readNSWProf "ragtimeMeterProfiles_2013-01-30.bin" 
+                        m  <- readNSWProf "ragtimeMeterProfiles_2013-02-05.bin" 
                         -- ... Might not be correct...
                         let m' = toNSWVecSeg (getEvent . head . getTimeSig . qMidiScore $ qm) (qGridUnit qm) m
                         -- void . printIMA $ qm 
@@ -43,13 +43,13 @@ main =
                         printMeterStats . (flip collectNSWProf) empty 
                                         . either error id . toNSWProfSegs $ qm
                         
-       ["-c", fp] -> do m  <- readNSWProf "ragtimeMeterProfiles_2013-01-30.bin" 
+       ["-c", fp] -> do m  <- readNSWProf "ragtimeMeterProfiles_2013-02-05.bin" 
                         qm <- readQMidiScoreSafe FourtyEighth fp 
                                 >>= return . (>>= meterMatch m)
                                 >>= return . either error id 
                         mapM_ (putStrLn . printMeterMatch) qm
        
-       ["-r", fp] -> do m  <- readNSWProf "ragtimeMeterProfiles_2013-01-30.bin" 
+       ["-r", fp] -> do m  <- readNSWProf "ragtimeMeterProfiles_2013-02-05.bin" 
                         void . mapDirInDir (mapDir (dirMeterMatch m)) $ fp
 
        _    -> error "Please use -f <file> or -d <ragtime directory>"
