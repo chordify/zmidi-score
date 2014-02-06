@@ -7,6 +7,7 @@ module Ragtime.MidiIMA (
                        , toNSWProfSegs 
                        , printIMA
                        , printMeterMatch
+                       , printMeterMatchVerb
                        ) where
 
 import ZMidi.Score         hiding ( numerator, denominator )
@@ -23,9 +24,9 @@ import Data.Map.Strict             ( empty, Map, insertWith )
 import qualified Data.Map.Strict as M ( lookup )
 import Control.Arrow               ( first, second )
 import Data.Vector                 ( Vector )
-import Text.Printf                 ( printf, PrintfArg )
+import Text.Printf                 ( printf )
 import Data.Ratio                  ( numerator, denominator, )
-import Ragtime.VectorNumerics      ( cosSim )
+import Ragtime.VectorNumerics      ( pearson )
 
 findMeter :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
           -> Either String [TimedSeg TimeSig TimeSig]
@@ -36,16 +37,16 @@ findMeter m qm = toNSWProfSegs qm >>= return . map updateSeg where
     TimedSeg ts (fst . bestMatch . toNSWVec (getEvent ts) (qGridUnit qm) $ p)
   
   bestMatch :: Vector NSWeight -> (TimeSig, NSWeight)
-  bestMatch v = minimumBy (compare `on` snd) . map (second (cosSim v)) $ m
+  bestMatch v = minimumBy (compare `on` snd) . map (second (pearson v)) $ m
 
 meterMatch :: Map TimeSig NSWProf -> QMidiScore 
-          -> Either String [TimedSeg TimeSig NSWeight]
+          -> Either String [TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)]
 meterMatch m qm = toNSWProfSegs qm >>= return . map match where
 
-  match :: TimedSeg TimeSig NSWProf -> TimedSeg TimeSig NSWeight
+  match :: TimedSeg TimeSig NSWProf -> TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)
   match (TimedSeg ts pa) = case M.lookup (getEvent ts) m of
                              Nothing -> error ("TimeSig not found: " ++ show ts)
-                             Just pb -> TimedSeg ts (cosSim (f pa) (f pb))
+                             Just pb -> TimedSeg ts (pa, pb, pearson (f pa) (f pb))
                                 where f = toNSWVec (getEvent ts) (qGridUnit qm)
 
 
@@ -143,9 +144,16 @@ matchScore v s = match (map (first Time) s) v where
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
+printMeterMatchVerb :: TimedSeg TimeSig (NSWProf, NSWProf, NSWeight) -> String
+printMeterMatchVerb (TimedSeg ts (a,b,d)) = 
+  "\nsong:\n"     ++ showNSWProf (getEvent ts, a) ++
+  "\ntemplate:\n" ++ showNSWProf (getEvent ts, b) ++
+  printf ('\n' : (show . getEvent $ ts) ++ "\t%.6f ") d
 
-printMeterMatch :: (PrintfArg a, Floating a) => TimedSeg TimeSig a -> String
-printMeterMatch (TimedSeg ts d) = printf ('\'' : (show . getEvent $ ts) ++ "\'\t%.2f ") d
+
+printMeterMatch :: TimedSeg TimeSig (NSWProf, NSWProf, NSWeight) -> String
+printMeterMatch (TimedSeg ts (_,_,d)) = 
+  printf ('\'' : (show . getEvent $ ts) ++ "\'\t%.3f ") d
 
 printIMA :: QMidiScore -> IO ([NSWProfSeg])
 printIMA qm = do let tpb = ticksPerBeat . qMidiScore $ qm

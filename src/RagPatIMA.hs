@@ -47,7 +47,7 @@ main =
                         qm <- readQMidiScoreSafe FourtyEighth fp 
                                 >>= return . (>>= meterMatch m)
                                 >>= return . either error id 
-                        mapM_ (putStrLn . printMeterMatch) qm
+                        mapM_ (putStrLn . printMeterMatchVerb) qm
        
        ["-r", fp] -> do m  <- readNSWProf "ragtimeMeterProfiles_2013-02-05.bin" 
                         void . mapDirInDir (mapDir (dirMeterMatch m)) $ fp
