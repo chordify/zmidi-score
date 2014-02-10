@@ -26,7 +26,7 @@ import Control.Arrow               ( first, second )
 import Data.Vector                 ( Vector )
 import Text.Printf                 ( printf )
 import Data.Ratio                  ( numerator, denominator, )
-import Ragtime.VectorNumerics      ( cosSim, disp )
+import Ragtime.VectorNumerics      ( euclDist, disp )
 
 findMeter :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
           -> Either String [TimedSeg TimeSig TimeSig]
@@ -37,7 +37,7 @@ findMeter m qm = toNSWProfSegs qm >>= return . map updateSeg where
     TimedSeg ts (fst . bestMatch . toNSWVec (getEvent ts) (qGridUnit qm) $ p)
   
   bestMatch :: Vector NSWeight -> (TimeSig, NSWeight)
-  bestMatch v = minimumBy (compare `on` snd) . map (second (cosSim v)) $ m
+  bestMatch v = minimumBy (compare `on` snd) . map (second (euclDist v)) $ m
 
 meterMatch :: Map TimeSig NSWProf -> QMidiScore 
           -> Either String [TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)]
@@ -46,7 +46,7 @@ meterMatch m qm = toNSWProfSegs qm >>= return . map match where
   match :: TimedSeg TimeSig NSWProf -> TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)
   match (TimedSeg ts pa) = case M.lookup (getEvent ts) m of
                              Nothing -> error ("TimeSig not found: " ++ show ts)
-                             Just pb -> TimedSeg ts (pa, pb, cosSim (f pa) (f pb))
+                             Just pb -> TimedSeg ts (pa, pb, euclDist (f pa) (f pb))
                                 where f = toNSWVec (getEvent ts) (qGridUnit qm)
 
 

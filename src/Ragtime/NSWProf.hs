@@ -11,11 +11,11 @@ import Data.Ratio                     ( numerator, denominator, (%) )
 import qualified Data.Map.Strict as M ( map )
 import Data.Map.Strict                ( Map, foldrWithKey
                                       , unionWith, findWithDefault, toAscList )
-import Data.Vector                    ( Vector, generate, fromList )
+import Data.Vector                    ( Vector, generate )
 import Data.Binary                    ( Binary, encodeFile, decodeFile )
 import Text.Printf                    ( PrintfArg, printf )
-import Control.Arrow                  ( (***) )
 
+import Debug.Trace
 
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
@@ -63,25 +63,22 @@ normNSWProf (b, wp) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 -- Matching IMA profiles
 --------------------------------------------------------------------------------
 
--- TODO add check for Vectors of different lengths
--- euclDist :: Vector NSWeight -> Vector NSWeight -> Double
--- euclDist a b = nsweight . normL2 $ (a - b)
-
 toNSWVec :: TimeSig -> GridUnit -> NSWProf -> Vector NSWeight
-toNSWVec (TimeSig num _ _ _) gu p = generate (num * gridUnit gu) getWeight where
-  
-  getWeight :: Int -> NSWeight
-  getWeight i = findWithDefault (NSWeight 0) (toKey i) m
+toNSWVec ts@(TimeSig num _ _ _) gu p = generate (num * gridUnit gu) getWeight where
   
   toKey :: Int -> (Beat, BeatRat)
-  toKey i = (Beat *** toBeatRat gu) $ (i `divMod` num)
+  toKey i = case getBeatInBar ts (Time . gridUnit $ gu) (Time i) of
+              (1, b, br) -> (b, br)
+              _  -> error ("index out of bounds: " ++ show i)
+  
+  getWeight :: Int -> NSWeight
+  getWeight i = traceShow (toKey i) (findWithDefault (NSWeight 0) (toKey i) m)
   
   m :: Map (Beat, BeatRat) NSWeight
   m = normNSWProf p
 
-
-getBinIDs :: GridUnit -> [BeatRat]
-getBinIDs gu = map (toBeatRat gu) [0 .. pred (gridUnit gu)]
+-- getBinIDs :: GridUnit -> [BeatRat]
+-- getBinIDs gu = map (toBeatRat gu) [0 .. pred (gridUnit gu)]
 
 toBeatRat :: GridUnit -> Int -> BeatRat 
 toBeatRat (GridUnit gu) i = BeatRat (i % gu)
