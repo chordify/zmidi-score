@@ -15,8 +15,6 @@ import Data.Vector                    ( Vector, generate )
 import Data.Binary                    ( Binary, encodeFile, decodeFile )
 import Text.Printf                    ( PrintfArg, printf )
 
-import Debug.Trace
-
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
                      deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
@@ -64,6 +62,7 @@ normNSWProf (b, wp) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 --------------------------------------------------------------------------------
 
 toNSWVec :: TimeSig -> GridUnit -> NSWProf -> Vector NSWeight
+toNSWVec NoTimeSig _ _ = error "toNSWVec applied to NoTimeSig"
 toNSWVec ts@(TimeSig num _ _ _) gu p = generate (num * gridUnit gu) getWeight where
   
   toKey :: Int -> (Beat, BeatRat)
@@ -72,7 +71,7 @@ toNSWVec ts@(TimeSig num _ _ _) gu p = generate (num * gridUnit gu) getWeight wh
               _  -> error ("index out of bounds: " ++ show i)
   
   getWeight :: Int -> NSWeight
-  getWeight i = traceShow (toKey i) (findWithDefault (NSWeight 0) (toKey i) m)
+  getWeight i = findWithDefault (NSWeight 0) (toKey i) m
   
   m :: Map (Beat, BeatRat) NSWeight
   m = normNSWProf p
@@ -80,8 +79,8 @@ toNSWVec ts@(TimeSig num _ _ _) gu p = generate (num * gridUnit gu) getWeight wh
 -- getBinIDs :: GridUnit -> [BeatRat]
 -- getBinIDs gu = map (toBeatRat gu) [0 .. pred (gridUnit gu)]
 
-toBeatRat :: GridUnit -> Int -> BeatRat 
-toBeatRat (GridUnit gu) i = BeatRat (i % gu)
+-- toBeatRat :: GridUnit -> Int -> BeatRat 
+-- toBeatRat (GridUnit gu) i = BeatRat (i % gu)
 
 toIx :: GridUnit -> BeatRat -> Int 
 toIx (GridUnit gu) (BeatRat br) = numerator (br * (gu % 1))

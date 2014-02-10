@@ -24,9 +24,10 @@ import Data.Map.Strict             ( empty, Map, insertWith )
 import qualified Data.Map.Strict as M ( lookup )
 import Control.Arrow               ( first, second )
 import Data.Vector                 ( Vector )
+import qualified Data.Vector as V  ( length, splitAt, null )
 import Text.Printf                 ( printf )
 import Data.Ratio                  ( numerator, denominator, )
-import Ragtime.VectorNumerics      ( euclDist, disp )
+import Ragtime.VectorNumerics      ( cosSim, euclDist, disp )
 
 findMeter :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
           -> Either String [TimedSeg TimeSig TimeSig]
@@ -37,7 +38,7 @@ findMeter m qm = toNSWProfSegs qm >>= return . map updateSeg where
     TimedSeg ts (fst . bestMatch . toNSWVec (getEvent ts) (qGridUnit qm) $ p)
   
   bestMatch :: Vector NSWeight -> (TimeSig, NSWeight)
-  bestMatch v = minimumBy (compare `on` snd) . map (second (euclDist v)) $ m
+  bestMatch v = minimumBy (compare `on` snd) . map (second (dist (qGridUnit qm) v)) $ m
 
 meterMatch :: Map TimeSig NSWProf -> QMidiScore 
           -> Either String [TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)]
@@ -46,11 +47,25 @@ meterMatch m qm = toNSWProfSegs qm >>= return . map match where
   match :: TimedSeg TimeSig NSWProf -> TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)
   match (TimedSeg ts pa) = case M.lookup (getEvent ts) m of
                              Nothing -> error ("TimeSig not found: " ++ show ts)
-                             Just pb -> TimedSeg ts (pa, pb, euclDist (f pa) (f pb))
+                             Just pb -> TimedSeg ts (pa, pb, dist (qGridUnit qm) (f pa) (f pb))
                                 where f = toNSWVec (getEvent ts) (qGridUnit qm)
 
-
-
+dist :: (Show a, Floating a) => GridUnit -> Vector a -> Vector a -> a
+dist (GridUnit gu) a b 
+  | la /= lb     = error "dist: comparing Vectors of different lengths"
+  | laModGu /= 0 = error "dist: incompatible Vector length" 
+  | otherwise    = sumDistPerBar a b / fromIntegral nrOfBars where
+  
+      la = V.length a
+      lb = V.length b
+      (nrOfBars, laModGu) = la `divMod ` gu
+  
+      sumDistPerBar :: (Show a, Floating a) => Vector a -> Vector a -> a
+      sumDistPerBar xs ys
+        | V.null xs = 0 -- we check whether both Vectors are equally long above
+        | otherwise = let (x,xs') = V.splitAt gu xs
+                          (y,ys') = V.splitAt gu ys
+                      in euclDist x y + sumDistPerBar xs' ys'
   
 --------------------------------------------------------------------------------
 -- Calculate Normalised Spectral Weight Profiles
