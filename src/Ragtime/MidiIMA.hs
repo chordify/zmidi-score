@@ -1,4 +1,5 @@
-
+{-# OPTIONS_GHC -Wall                   #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
 module Ragtime.MidiIMA ( 
                          findMeter
@@ -25,10 +26,23 @@ import qualified Data.Map.Strict as M ( lookup )
 import Control.Arrow               ( first, second )
 import Data.Vector                 ( Vector )
 import qualified Data.Vector as V  ( length, splitAt, null )
-import Text.Printf                 ( printf )
+import Text.Printf                 ( printf, PrintfArg )
 import Data.Ratio                  ( numerator, denominator, )
 import Ragtime.VectorNumerics      ( cosSim, euclDist, disp )
 
+-- | Normalised spectral weights distance, obtained by matching two 'NSWProf's
+newtype NSWDist = NSWDist { nswdist :: Double }
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
+                             , Fractional, RealFloat, RealFrac, PrintfArg )
+
+data PMatch = PMatch { pmProf    :: NSWProf
+                     , pmTimeSig :: TimeSig
+                     , pmatch    :: NSWDist
+                     } deriving (Eq)
+                     
+instance Show PMatch where
+  show (PMatch p ts m) = printf (show ts ++ ": %1.4f\n" ++ show p) m 
+                             
 findMeter :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
           -> Either String [TimedSeg TimeSig TimeSig]
 findMeter m qm = toNSWProfSegs qm >>= return . map updateSeg where
@@ -53,15 +67,19 @@ meterMatch m qm = toNSWProfSegs qm >>= return . map match where
                              Just pb -> TimedSeg ts (pa, pb, dist (qGridUnit qm) (f pa) (f pb))
                                 where f = toNSWVec (qGridUnit qm) (getEvent ts)
 
+matchTS :: Map TimeSig NSWProf -> TimeSig -> TimedSeg TimeSig NSWProf
+        -> TimedSeg TimeSig PMatch
+matchTS = undefined
+                                
 dist :: (Show a, Floating a) => GridUnit -> Vector a -> Vector a -> a
 dist (GridUnit gu) a b 
   | la /= lb     = error "dist: comparing Vectors of different lengths"
   | laModGu /= 0 = error "dist: incompatible Vector length" 
-  | otherwise    = sumDistPerBar a b / fromIntegral nrOfBars where
+  | otherwise    = sumDistPerBar a b / fromIntegral nrBars where
   
       la = V.length a
       lb = V.length b
-      (nrOfBars, laModGu) = la `divMod ` gu
+      (nrBars, laModGu) = la `divMod ` gu
   
       sumDistPerBar :: (Show a, Floating a) => Vector a -> Vector a -> a
       sumDistPerBar xs ys
@@ -97,13 +115,15 @@ toNSWProf tpb seg = toNSWProfWithTS (boundary $ seg) tpb seg
 -- | Sums all NSW profiles per bar for a meter section using a specific meter
 toNSWProfWithTS :: Timed TimeSig -> Time ->  NSWMeterSeg -> NSWProfSeg
 toNSWProfWithTS (Timed _ NoTimeSig) _ _ = error "toNSWProfWithTS applied to NoTimeSig"
-toNSWProfWithTS ts tpb s = TimedSeg ts . foldl' toProf (1,empty) . seg $ s
+toNSWProfWithTS ts tpb s = TimedSeg ts . foldl' toProf e . seg $ s
 
-  where toProf :: NSWProf -> Timed (Maybe ScoreEvent, NSWeight) -> NSWProf
-        toProf (_b, m) (Timed g (_se,w)) = 
+  where e = NSWProf (1, empty)
+  
+        toProf :: NSWProf -> Timed (Maybe ScoreEvent, NSWeight) -> NSWProf
+        toProf (NSWProf (_b, m)) (Timed g (_se,w)) = 
           let (Bar br, bib, bt) = getBeatInBar (getEvent ts) tpb g 
               m'                = insertWith (+) (bib,bt) w m 
-          in  m' `seq` (NrOfBars br, m')
+          in  m' `seq` NSWProf (NrOfBars br, m')
 
 --------------------------------------------------------------------------------
 -- Performing the Inner Metrical Analysis
@@ -168,16 +188,15 @@ matchScore v s = match (map (first Time) s) v where
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
+
 printMeterMatchVerb :: TimedSeg TimeSig (NSWProf, NSWProf, NSWeight) -> String
-printMeterMatchVerb (TimedSeg ts (a,b,d)) = 
-  "\nsong:\n"     ++ showNSWProf (getEvent ts, a) ++
-  "\ntemplate:\n" ++ showNSWProf (getEvent ts, b) ++
+printMeterMatchVerb (TimedSeg (Timed _ ts) (a,b,d)) = 
+  "\nsong:\n"     ++ show ts ++ show a ++
+  "\ntemplate:\n" ++ show ts ++ show b ++
   -- | N.B. hardcoded Gridunit...
-  "\nsong:\n"     ++ disp (toNSWVec (GridUnit 12) (getEvent ts) a) ++
-  "\ntemplate:\n" ++ disp (toNSWVec (GridUnit 12) (getEvent ts) b) ++
-  printf ('\n' : (show . getEvent $ ts) ++ "\t%.6f ") d
-
-
+  "\nsong:\n"     ++ disp (toNSWVec (GridUnit 12) ts a) ++
+  "\ntemplate:\n" ++ disp (toNSWVec (GridUnit 12) ts b) ++
+  printf ('\n' : (show ts) ++ "\t%.6f ") d
   
 printMeterMatch :: TimedSeg TimeSig (NSWProf, NSWProf, NSWeight) -> String
 printMeterMatch (TimedSeg ts (_,_,d)) = 

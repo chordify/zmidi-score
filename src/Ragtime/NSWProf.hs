@@ -30,8 +30,20 @@ stars w = replicate (round (20 * w)) '*'
 --------------------------------------------------------------------------------
 
 -- | Normalised Spectral Weight Profiles
-type NSWProf     = (NrOfBars, Map (Beat, BeatRat) NSWeight)
+newtype NSWProf = NSWProf (NrOfBars, Map (Beat, BeatRat) NSWeight)
+                    deriving ( Eq, Binary )
 
+instance Show NSWProf where
+  show (NSWProf (bars, m)) = intercalate "\n" (hdr : foldrWithKey shw [] m)
+  
+    where hdr = "Bars: " ++ show (nrOfBars bars)
+    
+          shw :: (Beat, BeatRat) -> NSWeight -> [String] -> [String]
+          shw (Beat b, BeatRat br) w r = 
+            let x = w / fromIntegral bars
+            in (printf ("%1d - %2d / %2d: %.5f " ++ stars x) 
+                       b (numerator br) (denominator br) x ) : r
+                    
 -- | Stores the number of bars
 newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral
@@ -39,22 +51,17 @@ newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
 
 -- | Plots an 'NSWProf'ile by calculating the average profile
 showNSWProf :: (TimeSig, NSWProf) -> String
-showNSWProf (ts, (bars, m)) = intercalate "\n" (show ts : foldrWithKey shw [] m)
-
-  where shw :: (Beat, BeatRat) -> NSWeight -> [String] -> [String]
-        shw (Beat b, BeatRat br) w r = 
-          let x = w / fromIntegral bars
-          in (printf ("%1d - %2d / %2d: %.5f " ++ stars x) 
-                     b (numerator br) (denominator br) x ) : r
+showNSWProf (ts, p) = show ts ++ "\n" ++ show p
   
 -- | merges two 'NSWProf's by summing its values
 mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
-mergeNSWProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
+mergeNSWProf (NSWProf (a, ma)) (NSWProf (b, mb)) = 
+  let m = unionWith (+) ma mb in m `seq` (NSWProf (a + b, m))
 
 -- TODO create newtype around Map BeatRat NSWeight and create a datatype
 -- cumNSWProf for the current NSWProf
 normNSWProf :: NSWProf -> Map (Beat, BeatRat) NSWeight
-normNSWProf (b, wp) = let b' = fromIntegral b in M.map (\x -> x / b') wp
+normNSWProf (NSWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 
 
 --------------------------------------------------------------------------------
