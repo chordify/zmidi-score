@@ -3,14 +3,16 @@
 module Main where
 
 import ZMidi.Score.Datatypes ( TimeSig (..), hasTimeSigs, getTimeSig )
-import ZMidi.Score.Quantise  ( QMidiScore (..), ShortestNote (..), avgQDevQMS )
+import ZMidi.Score.Quantise  ( QMidiScore (..), ShortestNote (..), avgQDevQMS
+                             , toQBins, qToQBins )
 import ZMidi.IO.Common       ( readQMidiScoreSafe, mapDirInDir, mapDir, warning)
 import Ragtime.MidiIMA
 import Ragtime.NSWProf       ( vectorizeAll, NSWProf, writeNSWProf, readNSWProf
-                             , mergeNSWProf, showNSWProf )
+                             , mergeNSWProf, showNSWProf, NSWeight )
 
 import System.Environment    ( getArgs )
 import Data.Map.Strict       ( empty, Map, unionWith, toList )
+import Data.Vector           ( Vector )
 import Data.List             ( intercalate )
 import Control.Monad         ( void )
 import Text.Printf           ( printf )
@@ -19,6 +21,12 @@ import Text.Printf           ( printf )
 main :: IO ()
 main = 
   do arg <- getArgs 
+     let meters = [ TimeSig 4 4 0 0
+                  , TimeSig 2 4 0 0
+                  , TimeSig 2 2 0 0
+                  , TimeSig 3 4 0 0
+                  , TimeSig 6 8 0 0
+                  ]
      case arg of
        ["-f", fp] -> readQMidiScoreSafe FourtyEighth fp 
                         >>= return . either error id 
@@ -34,24 +42,21 @@ main =
                         
        ["-m", fp] -> do qm <- readQMidiScoreSafe FourtyEighth fp
                                 >>= return . either error id 
-                        m  <- readNSWProf "ragtimeMeterProfiles_2013-02-05.bin" 
-                                >>= return . selectMeters [ TimeSig 4 4 0 0
-                                                          , TimeSig 2 4 0 0
-                                                          , TimeSig 2 2 0 0
-                                                          , TimeSig 3 4 0 0
-                                                          , TimeSig 6 8 0 0
-                                                          ]
-                        let m' = vectorizeAll (qGridUnit qm) m
+                        m  <- readNSWProf "ragtimeMeterProfiles_2013-02-11.bin" 
+                                >>= return . selectMeters meters
+                        let m' = vectorizeAll (qToQBins qm) m
                         either error (mapM_ print) . matchMeters m' $ qm
                         -- printMeterStats m
 
-       ["-c", fp] -> do m  <- readNSWProf "ragtimeMeterProfiles_2013-02-05.bin" 
-                        qm <- readQMidiScoreSafe FourtyEighth fp 
-                                >>= return . (>>= meterMatch m)
+       ["-c", fp] -> do m  <- readNSWProf "ragtimeMeterProfiles_2013-02-11.bin" 
+                                >>= return . selectMeters meters
+                        mc <- readQMidiScoreSafe FourtyEighth fp 
+                                >>= return . (>>= meterCheck m)
                                 >>= return . either error id 
-                        mapM_ (putStrLn . printMeterMatchVerb) qm
+                        mapM_ (putStrLn . printMeterMatchVerb (toQBins FourtyEighth)) mc
        
-       ["-r", fp] -> do m  <- readNSWProf "ragtimeMeterProfiles_2013-02-05.bin" 
+       ["-r", fp] -> do m  <- readNSWProf "ragtimeMeterProfiles_2013-02-11.bin" 
+                                >>= return . selectMeters meters
                         void . mapDirInDir (mapDir (dirMeterMatch m)) $ fp
 
        _    -> error "Please use -f <file> or -d <ragtime directory>"
@@ -88,12 +93,13 @@ qMidiScoreToNSWProfMaps qms =     timeSigCheck qms
 
 dirMeterMatch :: Map TimeSig NSWProf -> FilePath -> IO ()
 dirMeterMatch m fp = readQMidiScoreSafe FourtyEighth fp 
-                       >>= return . (>>= doMeterMatch m)
+                       >>= return . (>>= doMeterMatch (vectorizeAll (toQBins FourtyEighth) m))
                        >>= either (warning fp) (\x -> putStrLn (fp ++ "\t" ++x))
-                              
-doMeterMatch :: Map TimeSig NSWProf -> QMidiScore -> Either String String
-doMeterMatch m qm =  timeSigCheck qm >>= meterMatch m 
-                         >>= return . intercalate "\t" . map printMeterMatch
+
+doMeterMatch :: [(TimeSig, Vector NSWeight)] -> QMidiScore -> Either String String
+doMeterMatch m qm = timeSigCheck qm 
+                       >>= matchMeters m >>= pickMeters
+                       >>= return . intercalate "\t" . map printPickMeter
                               
 -- Checks for a valid time siganture
 timeSigCheck :: QMidiScore -> Either String QMidiScore

@@ -84,14 +84,16 @@ showPats = intercalate "\n" . map show
 -- Converting to patterns
 --------------------------------------------------------------------------------
 
+--TODO re-examine this pattern code: QBins <-> GridUnit confusion etc.
+
 -- | Takes a midiscore, quantises it, finds the melody, and turns it into a 
 -- 'Pattern' list, where every 'Pattern' represents a beat
 toPatterns :: ShortestNote -> MidiScore -> [Pattern]
-toPatterns q ms = scoreToPatterns (getMinGridSize q ms) (toGridUnit q) 
+toPatterns q ms = scoreToPatterns (getMinGridSize q ms) (toQBins q) 
                 . findMelodyQuant q $ ms where
                 
-  scoreToPatterns :: Time -> GridUnit -> Voice -> [Pattern]
-  scoreToPatterns ml gu = groupEvery gu . toPat [0, ml .. ] . map onset where
+  scoreToPatterns :: Time -> QBins -> Voice -> [Pattern]
+  scoreToPatterns ml qb = groupEvery qb . toPat [0, ml .. ] . map onset where
   
     -- from onset Time to Onset type
     toPat :: [Time] -> [Time] -> [Onset]
@@ -105,9 +107,9 @@ toPatterns q ms = scoreToPatterns (getMinGridSize q ms) (toGridUnit q)
                                  
   -- | Groups a list of patterns in fixed size lists, if the last list is not 
   -- of the same length, the remainder is filled with 'X's
-  groupEvery :: GridUnit -> Pattern -> [Pattern]
-  groupEvery (GridUnit x) p | glen == x =  g : groupEvery (GridUnit x) r
-                            | otherwise = [g ++ replicate (x - glen) X]
+  groupEvery :: QBins -> Pattern -> [Pattern]
+  groupEvery (QBins x) p | glen == x =  g : groupEvery (QBins x) r
+                         | otherwise = [g ++ replicate (x - glen) X]
     where (g,r) = splitAt x p 
           glen  = length g
         

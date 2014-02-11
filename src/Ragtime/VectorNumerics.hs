@@ -60,18 +60,21 @@ normL2 = sqrt . sum . fmap (^ (2 :: Int))
 euclDist :: Floating a => Vector a -> Vector a -> a
 euclDist a b = normL2 $ (a - b)
 
+-- | dot product
 dot :: Num a => Vector a -> Vector a -> a
 dot a b = sum (a * b)
   
+-- | cosign similarity
 cosSim :: Floating a => Vector a -> Vector a -> a
 cosSim a b = a `dot` b  /  (normL2 a * normL2 b)
 
-correl :: Floating a => Vector a -> Vector a -> a
-correl a b = let a' = add a . negate . mean $ a 
-                 b' = add b . negate . mean $ b
-                 p2 x = x ^ (2 :: Int)
-             in sum (a' * b') 
-             / (sqrt ((sum . p2 $ a') * (sum . p2 $ b')))
+-- same as pearson
+-- correl :: Floating a => Vector a -> Vector a -> a
+-- correl a b = let a' = add a . negate . mean $ a 
+                 -- b' = add b . negate . mean $ b
+                 -- p2 x = x ^ (2 :: Int)
+             -- in sum (a' * b') 
+             -- / (sqrt ((sum . p2 $ a') * (sum . p2 $ b')))
 
 -- |Pearson's product-moment correlation coefficient
 pearson :: Floating a => Vector a -> Vector a -> a

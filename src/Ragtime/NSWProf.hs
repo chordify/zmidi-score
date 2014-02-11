@@ -89,30 +89,30 @@ normNSWProf (NSWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') 
 --------------------------------------------------------------------------------
 
 -- | Matches to 'Vectors' at every bar (i.e. every /x/ 'GridUnit's)
-dist :: (Show a, Floating a) => GridUnit -> Vector a -> Vector a -> a
-dist (GridUnit gu) a b 
+dist :: (Show a, Floating a) => QBins -> Vector a -> Vector a -> a
+dist (QBins qb) a b 
   | la /= lb     = error "dist: comparing Vectors of different lengths"
   | laModGu /= 0 = error "dist: incompatible Vector length" 
   | otherwise    = sumDistPerBar a b / fromIntegral nrBars where
   
       la = V.length a
       lb = V.length b
-      (nrBars, laModGu) = la `divMod ` gu
+      (nrBars, laModGu) = la `divMod ` qb
   
       sumDistPerBar :: (Show a, Floating a) => Vector a -> Vector a -> a
       sumDistPerBar xs ys
         | V.null xs = 0 -- we check whether both Vectors are equally long above
-        | otherwise = let (x,xs') = V.splitAt gu xs
-                          (y,ys') = V.splitAt gu ys
+        | otherwise = let (x,xs') = V.splitAt qb xs
+                          (y,ys') = V.splitAt qb ys
                       in euclDist x y + sumDistPerBar xs' ys'
                       
 -- | Vectorizes a 'NSWProf' for matching with 'dist'
-vectorize :: GridUnit -> TimeSig ->  NSWProf -> Vector NSWeight
+vectorize :: QBins -> TimeSig ->  NSWProf -> Vector NSWeight
 vectorize _  NoTimeSig _ = error "toNSWVec applied to NoTimeSig"
-vectorize gu ts@(TimeSig num _ _ _) p = generate (num * gridUnit gu) getWeight 
+vectorize (QBins qb) ts@(TimeSig num _ _ _) p = generate (num * qb) getWeight 
   
   where toKey :: Int -> (Beat, BeatRat)
-        toKey i = case getBeatInBar ts (Time . gridUnit $ gu) (Time i) of
+        toKey i = case getBeatInBar ts (Time qb) (Time i) of
                     (1, b, br) -> (b, br)
                     _  -> error ("index out of bounds: " ++ show i)
         
@@ -123,8 +123,8 @@ vectorize gu ts@(TimeSig num _ _ _) p = generate (num * gridUnit gu) getWeight
         m = normNSWProf p
 
 -- | Batch vectorizes a Map with 'NSWProf's
-vectorizeAll :: GridUnit -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
-vectorizeAll gu = toAscList . mapWithKey (vectorize gu)
+vectorizeAll :: QBins -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
+vectorizeAll qb = toAscList . mapWithKey (vectorize qb)
 
 -- showNSWVec :: (TimeSig, Vector NSWeight) -> String
 -- showNSWVec (ts, v) = show ts ++ ':' : (concatMap (printf " %.2f") . toList $ v)

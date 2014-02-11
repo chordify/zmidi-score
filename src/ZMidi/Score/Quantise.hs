@@ -4,6 +4,7 @@ module ZMidi.Score.Quantise ( -- * Quantisation specific datatypes
                               QMidiScore (..)
                             , ShortestNote (..)
                             , GridUnit (..)
+                            , QBins (..)
                             , QDev (..)
                             , QDevPerc (..)
                               -- * Quantisation functions
@@ -16,7 +17,8 @@ module ZMidi.Score.Quantise ( -- * Quantisation specific datatypes
                             , canBeQuantisedAt
                             , removeOverlap
                             , getMinGridSize
-                            , toGridUnit
+                            , qToQBins
+                            , toQBins
                             ) where
 
 import ZMidi.Score.Datatypes
@@ -37,12 +39,12 @@ acceptableQuantisationDeviation = 0.02
                       
 -- | QMidiScore wraps around a 'MidiScore' and stores some additional 
 -- information about the quantisation process.
-data QMidiScore = QMidiScore { qMidiScore   :: MidiScore 
-                             , shortestNote :: ShortestNote
-                             , qGridUnit    :: GridUnit
-                             , totDeviation :: QDev
+data QMidiScore = QMidiScore { qMidiScore    :: MidiScore 
+                             , qShortestNote :: ShortestNote
+                             , qGridUnit     :: GridUnit
+                             , totDeviation  :: QDev
                              } deriving (Show, Eq)
-
+                             
 -- | The 'ShortestNote' determines the minimal grid length of a quantised 
 -- 'QMidiScore', when quantised with 'quantise'.
 data ShortestNote = Eighth | Sixteenth | ThirtySecond 
@@ -50,11 +52,16 @@ data ShortestNote = Eighth | Sixteenth | ThirtySecond
                     deriving (Eq, Show)
 
 -- | The 'GridUnit' describes the minimal length of a quantised event and
--- is generally controlled by the 'ShortestNote' parameter. (see also:
--- 'toGridUnit' )
+-- is controlled by the number of 'QBins' 
 newtype GridUnit  = GridUnit { gridUnit :: Int } 
                       deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
-                      
+
+-- | The 'QBins' describes the number of quantisation bins per (annotated) beat 
+-- length and is generally controlled by the 'ShortestNote' parameter. 
+-- (see also: 'toQBins' )
+newtype QBins     = QBins    { qbins    :: Int } 
+                      deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+
 -- | Represents a quantisation deviation, i.e. the number of ticks that an
 -- event was moved to match the time grid.
 newtype QDev      = QDev     { qDev     :: Int }
@@ -100,7 +107,7 @@ quantiseSafe :: ShortestNote -> MidiScore -> Either String QMidiScore
 quantiseSafe sn (MidiScore k ts (Time dv) mf tp _md vs) =  
   -- the grid unit is the number of ticks per beat divided by the maximum
   -- number of notes in one beat
-  case dv `divMod` (gridUnit . toGridUnit $ sn) of
+  case dv `divMod` (qbins . toQBins $ sn) of
     (gu, 0) -> let -- snap all events to a grid, and remove possible overlaps 
                    (vs',d) = unzip . map (quantiseVoice . GridUnit $ gu) $ vs 
                    -- the minimum duration might have changed
@@ -111,7 +118,7 @@ quantiseSafe sn (MidiScore k ts (Time dv) mf tp _md vs) =
                    ms' = MidiScore k ts' (Time dv) mf tp md' vs'
                in Right (QMidiScore ms' sn (GridUnit gu) (sum d))
     _       ->    Left ("MidiFile cannot be quantised: " ++ show dv ++ 
-                        " cannot be divided by " ++ show (toGridUnit sn))
+                        " cannot be divided by " ++ show (toQBins sn))
   
 -- | quantises a 'Timed' event
 snapTimed :: GridUnit -> Timed a -> Timed a
@@ -146,7 +153,7 @@ snap gu t | m == 0  = (t, 0)          -- score event is on the grid
 -- maximal number of quantisation bins.
 canBeQuantisedAt :: ShortestNote -> MidiScore -> Bool
 canBeQuantisedAt sn ms =   ((time . ticksPerBeat   $ ms)
-                      `mod` (gridUnit . toGridUnit $ sn)) == 0
+                      `mod` (qbins . toQBins $ sn)) == 0
     
 -- | Although 'quantise' also quantises the duration of 'NoteEvents', it can
 -- happen that melody notes do still overlap. This function removes the overlap
@@ -173,16 +180,20 @@ removeOverlap = foldr step [] where
 -- N.B. this function does not check whether a file is quantised.
 getMinGridSize :: ShortestNote -> MidiScore -> Time
 getMinGridSize q ms = case (time . ticksPerBeat  $ ms) `divMod` 
-                           (gridUnit . toGridUnit $ q) of
+                           (qbins . toQBins $ q) of
                         (d,0) -> Time d
                         _     -> error "getMinGridSize: invalid quantisation"
+      
+-- | Applies 'toQBins' to the 'ShortestNote' in a 'QMidiScore'
+qToQBins :: QMidiScore -> QBins
+qToQBins = toQBins . qShortestNote
       
 -- | takes the quantisation granularity parameter 'ShortestNote' and returns
 -- a the 'GridUnit' that the beat length should be divided by. The resulting 
 -- value we name 'GridUnit'; it describes the minimal length of an event.
-toGridUnit :: ShortestNote -> GridUnit
-toGridUnit Eighth       = GridUnit 2
-toGridUnit Sixteenth    = GridUnit 4
-toGridUnit ThirtySecond = GridUnit 8
-toGridUnit FourtyEighth = GridUnit 12
-toGridUnit SixtyFourth  = GridUnit 16
+toQBins :: ShortestNote -> QBins
+toQBins Eighth       = QBins 2
+toQBins Sixteenth    = QBins 4
+toQBins ThirtySecond = QBins 8
+toQBins FourtyEighth = QBins 12
+toQBins SixtyFourth  = QBins 16

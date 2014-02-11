@@ -396,8 +396,8 @@ hasTimeSigs = not . null . filter (not . (== NoTimeSig) . getEvent) . getTimeSig
 
 getBeatInBar :: TimeSig -> Time -> Time -> (Bar, Beat, BeatRat)
 getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
-getBeatInBar (TimeSig num _den _ _) (Time tpb) (Time o) = 
-  let (bt, rat) = getRatInBeat (Time tpb) (Time o)
+getBeatInBar (TimeSig num _den _ _) tpb o = 
+  let (bt, rat) = getRatInBeat tpb o
       (br, bib) = (succ *** succ) $ fromIntegral bt `divMod` num 
   in (Bar br, Beat bib, rat)
 
