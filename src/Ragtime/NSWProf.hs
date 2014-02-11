@@ -31,7 +31,7 @@ stars w = replicate (round (20 * w)) '*'
 --------------------------------------------------------------------------------
 
 -- | Normalised Spectral Weight Profiles
-newtype NSWProf = NSWProf (NrOfBars, Map (Beat, BeatRat) NSWeight)
+newtype NSWProf = NSWProf {nswprof :: (NrOfBars, Map (Beat, BeatRat) NSWeight)}
                     deriving ( Eq, Binary )
 
 instance Show NSWProf where

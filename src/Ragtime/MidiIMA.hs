@@ -46,7 +46,7 @@ instance Show PMatch where
                  
 pickMeters :: Either String [TimedSeg TimeSig [PMatch]] 
            -> Either String [TimedSeg TimeSig  PMatch ]
-pickMeters =fmap (map (fmap (minimumBy (compare `on` pmatch))))
+pickMeters = fmap (map (fmap (minimumBy (compare `on` pmatch))))
                  
 matchMeters :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
             -> Either String [TimedSeg TimeSig [PMatch]]
@@ -103,8 +103,11 @@ collectNSWProf :: [NSWProfSeg] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
 collectNSWProf s m = foldr doSeg m s where
 
   doSeg :: NSWProfSeg -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-  doSeg (TimedSeg ts p) m' = insertWith mergeNSWProf (getEvent ts) p m'
-  
+  doSeg (TimedSeg ts p) m' 
+    -- we require at least 4 bars 
+    -- TODO: we could log which segments we are not using
+    | fst (nswprof p) > 4  = insertWith mergeNSWProf (getEvent ts) p m'
+    | otherwise            = m'
   
 -- | Transforms a quantised midi score into a set of meter profiles segmented
 -- by the time signatures as prescribed in the midi file.
@@ -126,6 +129,9 @@ toNSWProfWithTS ts tpb td = foldl' toProf (NSWProf (1, empty)) td
         toProf (NSWProf (_b, m)) (Timed g (_se,w)) = 
           let (Bar br, bib, bt) = getBeatInBar ts tpb g 
               m'                = insertWith (+) (bib,bt) w m 
+              -- Every iteration we update the number of bars (lazily) 
+              -- Hence, the last call to toProf will contain the final 
+              -- number of bars correctly
           in  m' `seq` NSWProf (NrOfBars br, m')
 
 --------------------------------------------------------------------------------
