@@ -37,7 +37,7 @@ main =
                         -- ... Might not be correct...
                         let m' = toNSWVecSeg (getEvent . head . getTimeSig . qMidiScore $ qm) (qGridUnit qm) m
                         -- void . printIMA $ qm 
-                        printMeterStats m
+                        -- printMeterStats m
                         -- mapM_ (putStrLn . showNSWVec) . toNSWVecSeg (qGridUnit qm) $ m
                         print . findMeter m' $ qm
                         printMeterStats . (flip collectNSWProf) empty 

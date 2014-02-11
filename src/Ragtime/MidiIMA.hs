@@ -33,12 +33,15 @@ findMeter :: [(TimeSig, Vector NSWeight)] -> QMidiScore
           -> Either String [TimedSeg TimeSig TimeSig]
 findMeter m qm = toNSWProfSegs qm >>= return . map updateSeg where
 
-  updateSeg :: NSWProfSeg -> TimedSeg TimeSig TimeSig
-  updateSeg (TimedSeg ts p) = 
-    TimedSeg ts (fst . bestMatch . toNSWVec (getEvent ts) (qGridUnit qm) $ p)
+  updateSeg = undefined
+  -- updateSeg :: NSWProfSeg -> TimedSeg TimeSig TimeSig
+  -- updateSeg (TimedSeg ts p) = 
+    -- -- TimedSeg ts (fst . bestMatch . toNSWVec (qGridUnit qm) (getEvent ts) $ p)
+    -- let (ts', s) = bestMatch . toNSWVecWith (qGridUnit qm) (getEvent ts) $ p
+    -- in TimedSeg (fmap (const ts') ts) s
   
-  bestMatch :: Vector NSWeight -> (TimeSig, NSWeight)
-  bestMatch v = minimumBy (compare `on` snd) . map (second (dist (qGridUnit qm) v)) $ m
+  -- bestMatch :: Vector NSWeight -> (TimeSig, NSWeight)
+  -- bestMatch v = minimumBy (compare `on` snd) . map (second (dist (qGridUnit qm) v)) $ m
 
 meterMatch :: Map TimeSig NSWProf -> QMidiScore 
           -> Either String [TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)]
@@ -48,7 +51,7 @@ meterMatch m qm = toNSWProfSegs qm >>= return . map match where
   match (TimedSeg ts pa) = case M.lookup (getEvent ts) m of
                              Nothing -> error ("TimeSig not found: " ++ show ts)
                              Just pb -> TimedSeg ts (pa, pb, dist (qGridUnit qm) (f pa) (f pb))
-                                where f = toNSWVec (getEvent ts) (qGridUnit qm)
+                                where f = toNSWVec (qGridUnit qm) (getEvent ts)
 
 dist :: (Show a, Floating a) => GridUnit -> Vector a -> Vector a -> a
 dist (GridUnit gu) a b 
@@ -86,15 +89,21 @@ collectNSWProf s m = foldr doSeg m s where
 toNSWProfSegs :: QMidiScore -> Either String [NSWProfSeg]
 toNSWProfSegs m = doIMA m >>= return . map (toNSWProf (ticksPerBeat . qMidiScore $ m))
 
--- | Calculates sums the NSW profiles for a meter section
+-- | Sums all NSW profiles per bar for a meter section using the annotated
+-- meter of that section
 toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
-toNSWProf tpb (TimedSeg ts s) = TimedSeg ts (foldl' toProf (1,empty) s) where
+toNSWProf tpb seg = toNSWProfWithTS (boundary $ seg) tpb seg
 
-  toProf :: NSWProf -> Timed (Maybe ScoreEvent, NSWeight) -> NSWProf
-  toProf (_b, m) (Timed g (_se,w)) = 
-    let (Bar br, bib, bt) = getBeatInBar (getEvent ts) tpb g 
-        m'       = insertWith (+) (bib,bt) w m 
-    in  m' `seq` (NrOfBars br, m')
+-- | Sums all NSW profiles per bar for a meter section using a specific meter
+toNSWProfWithTS :: Timed TimeSig -> Time ->  NSWMeterSeg -> NSWProfSeg
+toNSWProfWithTS (Timed _ NoTimeSig) _ _ = error "toNSWProfWithTS applied to NoTimeSig"
+toNSWProfWithTS ts tpb s = TimedSeg ts . foldl' toProf (1,empty) . seg $ s
+
+  where toProf :: NSWProf -> Timed (Maybe ScoreEvent, NSWeight) -> NSWProf
+        toProf (_b, m) (Timed g (_se,w)) = 
+          let (Bar br, bib, bt) = getBeatInBar (getEvent ts) tpb g 
+              m'                = insertWith (+) (bib,bt) w m 
+          in  m' `seq` (NrOfBars br, m')
 
 --------------------------------------------------------------------------------
 -- Performing the Inner Metrical Analysis
@@ -164,8 +173,8 @@ printMeterMatchVerb (TimedSeg ts (a,b,d)) =
   "\nsong:\n"     ++ showNSWProf (getEvent ts, a) ++
   "\ntemplate:\n" ++ showNSWProf (getEvent ts, b) ++
   -- | N.B. hardcoded Gridunit...
-  "\nsong:\n"     ++ disp (toNSWVec (getEvent ts) (GridUnit 12) a) ++
-  "\ntemplate:\n" ++ disp (toNSWVec (getEvent ts) (GridUnit 12) b) ++
+  "\nsong:\n"     ++ disp (toNSWVec (GridUnit 12) (getEvent ts) a) ++
+  "\ntemplate:\n" ++ disp (toNSWVec (GridUnit 12) (getEvent ts) b) ++
   printf ('\n' : (show . getEvent $ ts) ++ "\t%.6f ") d
 
 

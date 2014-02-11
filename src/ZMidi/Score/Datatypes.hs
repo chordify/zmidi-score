@@ -331,7 +331,6 @@ isTempoChange :: Timed ScoreEvent -> Bool
 isTempoChange (Timed _ (TempoChange _ )) = True
 isTempoChange _                          = False
 
-
 -- | Returns True if the 'ScoreEvent' is a 'NoteEvent'
 isNoteEvent :: Timed ScoreEvent -> Bool
 isNoteEvent (Timed _ (NoteEvent _ _ _ _ )) = True

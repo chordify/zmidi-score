@@ -9,7 +9,7 @@ import ZMidi.Score             hiding (numerator, denominator)
 import Data.List                      ( intercalate )
 import Data.Ratio                     ( numerator, denominator, (%) )
 import qualified Data.Map.Strict as M ( map )
-import Data.Map.Strict                ( Map, foldrWithKey
+import Data.Map.Strict                ( Map, foldrWithKey, mapWithKey
                                       , unionWith, findWithDefault, toAscList )
 import Data.Vector                    ( Vector, generate )
 import Data.Binary                    ( Binary, encodeFile, decodeFile )
@@ -61,20 +61,20 @@ normNSWProf (b, wp) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 -- Matching IMA profiles
 --------------------------------------------------------------------------------
 
-toNSWVec :: TimeSig -> GridUnit -> NSWProf -> Vector NSWeight
-toNSWVec NoTimeSig _ _ = error "toNSWVec applied to NoTimeSig"
-toNSWVec ts@(TimeSig num _ _ _) gu p = generate (num * gridUnit gu) getWeight where
+toNSWVec :: GridUnit -> TimeSig ->  NSWProf -> Vector NSWeight
+toNSWVec _  NoTimeSig _ = error "toNSWVec applied to NoTimeSig"
+toNSWVec gu ts@(TimeSig num _ _ _) p = generate (num * gridUnit gu) getWeight 
   
-  toKey :: Int -> (Beat, BeatRat)
-  toKey i = case getBeatInBar ts (Time . gridUnit $ gu) (Time i) of
-              (1, b, br) -> (b, br)
-              _  -> error ("index out of bounds: " ++ show i)
-  
-  getWeight :: Int -> NSWeight
-  getWeight i = findWithDefault (NSWeight 0) (toKey i) m
-  
-  m :: Map (Beat, BeatRat) NSWeight
-  m = normNSWProf p
+  where toKey :: Int -> (Beat, BeatRat)
+        toKey i = case getBeatInBar ts (Time . gridUnit $ gu) (Time i) of
+                    (1, b, br) -> (b, br)
+                    _  -> error ("index out of bounds: " ++ show i)
+        
+        getWeight :: Int -> NSWeight
+        getWeight i = findWithDefault (NSWeight 0) (toKey i) m
+        
+        m :: Map (Beat, BeatRat) NSWeight
+        m = normNSWProf p
 
 -- getBinIDs :: GridUnit -> [BeatRat]
 -- getBinIDs gu = map (toBeatRat gu) [0 .. pred (gridUnit gu)]
@@ -86,7 +86,7 @@ toIx :: GridUnit -> BeatRat -> Int
 toIx (GridUnit gu) (BeatRat br) = numerator (br * (gu % 1))
   
 toNSWVecSeg :: TimeSig -> GridUnit -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
-toNSWVecSeg ts gu = toAscList . M.map (toNSWVec ts gu)
+toNSWVecSeg ts gu = toAscList . mapWithKey (toNSWVec gu)
 
 -- showNSWVec :: (TimeSig, Vector NSWeight) -> String
 -- showNSWVec (ts, v) = show ts ++ ':' : (concatMap (printf " %.2f") . toList $ v)
