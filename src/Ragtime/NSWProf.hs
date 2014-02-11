@@ -10,7 +10,8 @@ import Data.List                      ( intercalate )
 import Data.Ratio                     ( numerator, denominator, (%) )
 import qualified Data.Map.Strict as M ( map )
 import Data.Map.Strict                ( Map, foldrWithKey, mapWithKey
-                                      , unionWith, findWithDefault, toAscList )
+                                      , unionWith, findWithDefault
+                                      , toAscList, filterWithKey )
 import Data.Vector                    ( Vector, generate )
 import Data.Binary                    ( Binary, encodeFile, decodeFile )
 import Text.Printf                    ( PrintfArg, printf )
@@ -88,6 +89,9 @@ toIx (GridUnit gu) (BeatRat br) = numerator (br * (gu % 1))
   
 toNSWVecSeg :: GridUnit -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
 toNSWVecSeg gu = toAscList . mapWithKey (toNSWVec gu)
+
+selectMeters :: [TimeSig] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
+selectMeters ts = filterWithKey (\k _ -> k `elem` ts)
 
 -- showNSWVec :: (TimeSig, Vector NSWeight) -> String
 -- showNSWVec (ts, v) = show ts ++ ':' : (concatMap (printf " %.2f") . toList $ v)

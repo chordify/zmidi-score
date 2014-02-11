@@ -58,14 +58,6 @@ matchMeters m qm = doIMA qm >>= return . map matchAll where
   match :: [Timed (Maybe ScoreEvent, NSWeight)] -> (TimeSig, Vector NSWeight) 
         -> PMatch
   match td v = matchTS (qGridUnit qm) (ticksPerBeat . qMidiScore $ qm) td v
-  -- updateSeg :: NSWProfSeg -> TimedSeg TimeSig TimeSig
-  -- updateSeg (TimedSeg ts p) = 
-    -- -- TimedSeg ts (fst . bestMatch . toNSWVec (qGridUnit qm) (getEvent ts) $ p)
-    -- let (ts', s) = bestMatch . toNSWVecWith (qGridUnit qm) (getEvent ts) $ p
-    -- in TimedSeg (fmap (const ts') ts) s
-  
-  -- bestMatch :: Vector NSWeight -> (TimeSig, NSWeight)
-  -- bestMatch v = minimumBy (compare `on` snd) . map (second (dist (qGridUnit qm) v)) $ m
 
 meterMatch :: Map TimeSig NSWProf -> QMidiScore 
           -> Either String [TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)]
