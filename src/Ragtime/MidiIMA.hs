@@ -2,7 +2,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
 module Ragtime.MidiIMA ( 
-                         findMeter
+                         pickMeters
+                       , matchMeters
                        , meterMatch
                        , collectNSWProf
                        , toNSWProfSegs 
@@ -35,19 +36,28 @@ newtype NSWDist = NSWDist { nswdist :: Double }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
                              , Fractional, RealFloat, RealFrac, PrintfArg )
 
-data PMatch = PMatch { pmProf    :: NSWProf
-                     , pmTimeSig :: TimeSig
+data PMatch = PMatch { pmTimeSig :: TimeSig
                      , pmatch    :: NSWDist
+                     , pmProf    :: NSWProf
                      } deriving (Eq)
                      
 instance Show PMatch where
-  show (PMatch p ts m) = printf (show ts ++ ": %1.4f\n" ++ show p) m 
-                             
-findMeter :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
-          -> Either String [TimedSeg TimeSig TimeSig]
-findMeter m qm = toNSWProfSegs qm >>= return . map updateSeg where
+  show (PMatch ts m p) = printf (show ts ++ ": %1.4f\n" ++ show p) m 
+                 
+pickMeters :: Either String [TimedSeg TimeSig [PMatch]] 
+           -> Either String [TimedSeg TimeSig  PMatch ]
+pickMeters =fmap (map (fmap (minimumBy (compare `on` pmatch))))
+                 
+matchMeters :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
+            -> Either String [TimedSeg TimeSig [PMatch]]
+matchMeters m qm = doIMA qm >>= return . map matchAll where
 
-  updateSeg = undefined
+  matchAll :: NSWMeterSeg -> TimedSeg TimeSig [PMatch]
+  matchAll = fmap (\td -> map (match td) m) 
+  
+  match :: [Timed (Maybe ScoreEvent, NSWeight)] -> (TimeSig, Vector NSWeight) 
+        -> PMatch
+  match td v = matchTS (qGridUnit qm) (ticksPerBeat . qMidiScore $ qm) td v
   -- updateSeg :: NSWProfSeg -> TimedSeg TimeSig TimeSig
   -- updateSeg (TimedSeg ts p) = 
     -- -- TimedSeg ts (fst . bestMatch . toNSWVec (qGridUnit qm) (getEvent ts) $ p)
@@ -67,9 +77,11 @@ meterMatch m qm = toNSWProfSegs qm >>= return . map match where
                              Just pb -> TimedSeg ts (pa, pb, dist (qGridUnit qm) (f pa) (f pb))
                                 where f = toNSWVec (qGridUnit qm) (getEvent ts)
 
-matchTS :: Map TimeSig NSWProf -> TimeSig -> TimedSeg TimeSig NSWProf
-        -> TimedSeg TimeSig PMatch
-matchTS = undefined
+matchTS :: GridUnit -> Time -> [Timed (Maybe ScoreEvent, NSWeight)] 
+        -> (TimeSig, Vector NSWeight) -> PMatch
+matchTS gu tpb td (ts,v) = let p = toNSWProfWithTS ts tpb td
+                               m = dist gu v (toNSWVec gu ts p)
+                           in  PMatch ts (NSWDist . nsweight $ m) p
                                 
 dist :: (Show a, Floating a) => GridUnit -> Vector a -> Vector a -> a
 dist (GridUnit gu) a b 
@@ -110,18 +122,17 @@ toNSWProfSegs m = doIMA m >>= return . map (toNSWProf (ticksPerBeat . qMidiScore
 -- | Sums all NSW profiles per bar for a meter section using the annotated
 -- meter of that section
 toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
-toNSWProf tpb seg = toNSWProfWithTS (boundary $ seg) tpb seg
+toNSWProf tpb seg = fmap (toNSWProfWithTS (getEvent . boundary $ seg) tpb) seg
 
 -- | Sums all NSW profiles per bar for a meter section using a specific meter
-toNSWProfWithTS :: Timed TimeSig -> Time ->  NSWMeterSeg -> NSWProfSeg
-toNSWProfWithTS (Timed _ NoTimeSig) _ _ = error "toNSWProfWithTS applied to NoTimeSig"
-toNSWProfWithTS ts tpb s = TimedSeg ts . foldl' toProf e . seg $ s
+toNSWProfWithTS :: TimeSig -> Time -> [Timed (Maybe ScoreEvent, NSWeight)] 
+                -> NSWProf
+toNSWProfWithTS NoTimeSig _ _ = error "toNSWProfWithTS applied to NoTimeSig"
+toNSWProfWithTS ts tpb td = foldl' toProf (NSWProf (1, empty)) td
 
-  where e = NSWProf (1, empty)
-  
-        toProf :: NSWProf -> Timed (Maybe ScoreEvent, NSWeight) -> NSWProf
+  where toProf :: NSWProf -> Timed (Maybe ScoreEvent, NSWeight) -> NSWProf
         toProf (NSWProf (_b, m)) (Timed g (_se,w)) = 
-          let (Bar br, bib, bt) = getBeatInBar (getEvent ts) tpb g 
+          let (Bar br, bib, bt) = getBeatInBar ts tpb g 
               m'                = insertWith (+) (bib,bt) w m 
           in  m' `seq` NSWProf (NrOfBars br, m')
 

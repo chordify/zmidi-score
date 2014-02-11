@@ -34,12 +34,7 @@ main =
        ["-m", fp] -> do qm <- readQMidiScoreSafe FourtyEighth fp
                                 >>= return . either error id 
                         m  <- readNSWProf "ragtimeMeterProfiles_2013-02-05.bin" 
-                        -- ... Might not be correct...
-                        let m' = toNSWVecSeg (getEvent . head . getTimeSig . qMidiScore $ qm) (qGridUnit qm) m
-                        -- void . printIMA $ qm 
-                        -- printMeterStats m
-                        -- mapM_ (putStrLn . showNSWVec) . toNSWVecSeg (qGridUnit qm) $ m
-                        print . findMeter m' $ qm
+                        print . pickMeters . matchMeters (toNSWVecSeg (qGridUnit qm) m) $ qm
                         printMeterStats . (flip collectNSWProf) empty 
                                         . either error id . toNSWProfSegs $ qm
                         

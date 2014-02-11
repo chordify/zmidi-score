@@ -83,17 +83,11 @@ toNSWVec gu ts@(TimeSig num _ _ _) p = generate (num * gridUnit gu) getWeight
         m :: Map (Beat, BeatRat) NSWeight
         m = normNSWProf p
 
--- getBinIDs :: GridUnit -> [BeatRat]
--- getBinIDs gu = map (toBeatRat gu) [0 .. pred (gridUnit gu)]
-
--- toBeatRat :: GridUnit -> Int -> BeatRat 
--- toBeatRat (GridUnit gu) i = BeatRat (i % gu)
-
 toIx :: GridUnit -> BeatRat -> Int 
 toIx (GridUnit gu) (BeatRat br) = numerator (br * (gu % 1))
   
-toNSWVecSeg :: TimeSig -> GridUnit -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
-toNSWVecSeg ts gu = toAscList . mapWithKey (toNSWVec gu)
+toNSWVecSeg :: GridUnit -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
+toNSWVecSeg gu = toAscList . mapWithKey (toNSWVec gu)
 
 -- showNSWVec :: (TimeSig, Vector NSWeight) -> String
 -- showNSWVec (ts, v) = show ts ++ ':' : (concatMap (printf " %.2f") . toList $ v)
