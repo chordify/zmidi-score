@@ -5,6 +5,7 @@ module Ragtime.MidiIMA (
                          pickMeters
                        , matchMeters
                        , meterMatch
+                       , selectMeters
                        , collectNSWProf
                        , toNSWProfSegs 
                        , printIMA
@@ -12,42 +13,46 @@ module Ragtime.MidiIMA (
                        , printMeterMatchVerb
                        ) where
 
+import Ragtime.NSWProf 
 import ZMidi.Score         hiding ( numerator, denominator )
 import ZMidi.Skyline.MelFind      ( mergeTracks )
 import Ragtime.TimeSigSeg         ( TimedSeg (..), segment )
-import Ragtime.NSWProf
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
 
 import Data.List                   ( nubBy, foldl', minimumBy )
 import Data.Function               ( on )
-import Data.Map.Strict             ( empty, Map, insertWith )
+import Data.Map.Strict             ( empty, Map, insertWith, filterWithKey )
 import qualified Data.Map.Strict as M ( lookup )
-import Control.Arrow               ( first, second )
+import Control.Arrow               ( first )
 import Data.Vector                 ( Vector )
-import qualified Data.Vector as V  ( length, splitAt, null )
+
 import Text.Printf                 ( printf, PrintfArg )
 import Data.Ratio                  ( numerator, denominator, )
-import Ragtime.VectorNumerics      ( cosSim, euclDist, disp )
+
 
 -- | Normalised spectral weights distance, obtained by matching two 'NSWProf's
-newtype NSWDist = NSWDist { nswdist :: Double }
+-- newtype NSWDist = NSWDist { nswdist :: Double }
+newtype NSWDist = NSWDist Double 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
                              , Fractional, RealFloat, RealFrac, PrintfArg )
 
-data PMatch = PMatch { pmTimeSig :: TimeSig
-                     , pmatch    :: NSWDist
-                     , pmProf    :: NSWProf
+data PMatch = PMatch { _pmTimeSig :: TimeSig
+                     ,  pmatch    :: NSWDist
+                     , _pmProf    :: NSWProf
                      } deriving (Eq)
                      
 instance Show PMatch where
   show (PMatch ts m p) = printf (show ts ++ ": %1.4f\n" ++ show p) m 
                  
-pickMeters :: Either String [TimedSeg TimeSig [PMatch]] 
-           -> Either String [TimedSeg TimeSig  PMatch ]
-pickMeters = fmap (map (fmap (minimumBy (compare `on` pmatch))))
-                 
+-- | Picks the best matching profile
+pickMeters :: [TimedSeg TimeSig [PMatch]] 
+           -> Either String [TimedSeg TimeSig PMatch]
+pickMeters = Right . map (fmap (minimumBy (compare `on` pmatch)))
+
+-- | Given 'vectorize'd NSWProf'es, matches every meter segment in 
+-- a 'QMidiScore' to the vectorized profiles
 matchMeters :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
             -> Either String [TimedSeg TimeSig [PMatch]]
 matchMeters m qm = doIMA qm >>= return . map matchAll where
@@ -67,30 +72,15 @@ meterMatch m qm = toNSWProfSegs qm >>= return . map match where
   match (TimedSeg ts pa) = case M.lookup (getEvent ts) m of
                              Nothing -> error ("TimeSig not found: " ++ show ts)
                              Just pb -> TimedSeg ts (pa, pb, dist (qGridUnit qm) (f pa) (f pb))
-                                where f = toNSWVec (qGridUnit qm) (getEvent ts)
+                                where f = vectorize (qGridUnit qm) (getEvent ts)
 
 matchTS :: GridUnit -> Time -> [Timed (Maybe ScoreEvent, NSWeight)] 
         -> (TimeSig, Vector NSWeight) -> PMatch
 matchTS gu tpb td (ts,v) = let p = toNSWProfWithTS ts tpb td
-                               m = dist gu v (toNSWVec gu ts p)
+                               m = dist gu v (vectorize gu ts p)
                            in  PMatch ts (NSWDist . nsweight $ m) p
                                 
-dist :: (Show a, Floating a) => GridUnit -> Vector a -> Vector a -> a
-dist (GridUnit gu) a b 
-  | la /= lb     = error "dist: comparing Vectors of different lengths"
-  | laModGu /= 0 = error "dist: incompatible Vector length" 
-  | otherwise    = sumDistPerBar a b / fromIntegral nrBars where
-  
-      la = V.length a
-      lb = V.length b
-      (nrBars, laModGu) = la `divMod ` gu
-  
-      sumDistPerBar :: (Show a, Floating a) => Vector a -> Vector a -> a
-      sumDistPerBar xs ys
-        | V.null xs = 0 -- we check whether both Vectors are equally long above
-        | otherwise = let (x,xs') = V.splitAt gu xs
-                          (y,ys') = V.splitAt gu ys
-                      in euclDist x y + sumDistPerBar xs' ys'
+
   
 --------------------------------------------------------------------------------
 -- Calculate Normalised Spectral Weight Profiles
@@ -117,7 +107,7 @@ toNSWProfSegs m = doIMA m >>= return . map (toNSWProf (ticksPerBeat . qMidiScore
 -- | Sums all NSW profiles per bar for a meter section using the annotated
 -- meter of that section
 toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
-toNSWProf tpb seg = fmap (toNSWProfWithTS (getEvent . boundary $ seg) tpb) seg
+toNSWProf tpb s = fmap (toNSWProfWithTS (getEvent . boundary $ s) tpb) s
 
 -- | Sums all NSW profiles per bar for a meter section using a specific meter
 toNSWProfWithTS :: TimeSig -> Time -> [Timed (Maybe ScoreEvent, NSWeight)] 
@@ -134,6 +124,11 @@ toNSWProfWithTS ts tpb td = foldl' toProf (NSWProf (1, empty)) td
               -- number of bars correctly
           in  m' `seq` NSWProf (NrOfBars br, m')
 
+-- | Removes the 'NSWProf's from the map of which the keys are not in the 
+-- list of 'TimeSig's
+selectMeters :: [TimeSig] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
+selectMeters ts = filterWithKey (\k _ -> k `elem` ts)
+          
 --------------------------------------------------------------------------------
 -- Performing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
@@ -203,8 +198,8 @@ printMeterMatchVerb (TimedSeg (Timed _ ts) (a,b,d)) =
   "\nsong:\n"     ++ show ts ++ show a ++
   "\ntemplate:\n" ++ show ts ++ show b ++
   -- | N.B. hardcoded Gridunit...
-  "\nsong:\n"     ++ disp (toNSWVec (GridUnit 12) ts a) ++
-  "\ntemplate:\n" ++ disp (toNSWVec (GridUnit 12) ts b) ++
+  "\nsong:\n"     ++ disp (vectorize (GridUnit 12) ts a) ++
+  "\ntemplate:\n" ++ disp (vectorize (GridUnit 12) ts b) ++
   printf ('\n' : (show ts) ++ "\t%.6f ") d
   
 printMeterMatch :: TimedSeg TimeSig (NSWProf, NSWProf, NSWeight) -> String

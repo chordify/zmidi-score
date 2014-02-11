@@ -2,11 +2,12 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Main where
 
-import ZMidi.Score.Datatypes ( TimeSig (..), hasTimeSigs, getTimeSig, Timed (..) )
+import ZMidi.Score.Datatypes ( TimeSig (..), hasTimeSigs, getTimeSig )
 import ZMidi.Score.Quantise  ( QMidiScore (..), ShortestNote (..), avgQDevQMS )
 import ZMidi.IO.Common       ( readQMidiScoreSafe, mapDirInDir, mapDir, warning)
 import Ragtime.MidiIMA
-import Ragtime.NSWProf
+import Ragtime.NSWProf       ( vectorizeAll, NSWProf, writeNSWProf, readNSWProf
+                             , mergeNSWProf, showNSWProf )
 
 import System.Environment    ( getArgs )
 import Data.Map.Strict       ( empty, Map, unionWith, toList )
@@ -40,7 +41,7 @@ main =
                                                           , TimeSig 3 4 0 0
                                                           , TimeSig 6 8 0 0
                                                           ]
-                        let m' = toNSWVecSeg (qGridUnit qm) m
+                        let m' = vectorizeAll (qGridUnit qm) m
                         either error (mapM_ print) . matchMeters m' $ qm
                         -- printMeterStats m
 

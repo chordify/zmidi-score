@@ -3,18 +3,37 @@
 -- This module could also be part of the IMA module because it hardly based on
 -- any ZMidi.* code, but since it is only used in Ragtime research, I think
 -- it better fits Ragtime.*
-module Ragtime.NSWProf where
+module Ragtime.NSWProf ( -- | Newtypes
+                         NSWeight (..)
+                       , NSWProf (..)
+                       , NrOfBars (..)
+                         -- | NSW profile functions
+                       , mergeNSWProf
+                       , normNSWProf
+                         -- | Vector conversion and matching
+                       , dist 
+                       , vectorize  
+                       , vectorizeAll  
+                         -- | Printing
+                       , showNSWProf
+                       , stars
+                       , disp
+                         -- | Serialization
+                       , writeNSWProf  
+                       , readNSWProf 
+                       )where
 
 import ZMidi.Score             hiding (numerator, denominator)
 import Data.List                      ( intercalate )
-import Data.Ratio                     ( numerator, denominator, (%) )
+import Data.Ratio                     ( numerator, denominator )
 import qualified Data.Map.Strict as M ( map )
 import Data.Map.Strict                ( Map, foldrWithKey, mapWithKey
-                                      , unionWith, findWithDefault
-                                      , toAscList, filterWithKey )
+                                      , unionWith, findWithDefault, toAscList )
+import qualified Data.Vector     as V ( length, splitAt, null )
 import Data.Vector                    ( Vector, generate )
 import Data.Binary                    ( Binary, encodeFile, decodeFile )
 import Text.Printf                    ( PrintfArg, printf )
+import Ragtime.VectorNumerics         ( euclDist, disp )
 
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
@@ -22,7 +41,7 @@ newtype NSWeight = NSWeight { nsweight :: Double }
                               , Fractional, RealFloat, RealFrac, PrintfArg
                               , Binary )
 
-
+-- | prints a 'NSWeight' as a sequence of asterisks 
 stars :: NSWeight -> String
 stars w = replicate (round (20 * w)) '*' 
 
@@ -69,9 +88,28 @@ normNSWProf (NSWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') 
 -- Matching IMA profiles
 --------------------------------------------------------------------------------
 
-toNSWVec :: GridUnit -> TimeSig ->  NSWProf -> Vector NSWeight
-toNSWVec _  NoTimeSig _ = error "toNSWVec applied to NoTimeSig"
-toNSWVec gu ts@(TimeSig num _ _ _) p = generate (num * gridUnit gu) getWeight 
+-- | Matches to 'Vectors' at every bar (i.e. every /x/ 'GridUnit's)
+dist :: (Show a, Floating a) => GridUnit -> Vector a -> Vector a -> a
+dist (GridUnit gu) a b 
+  | la /= lb     = error "dist: comparing Vectors of different lengths"
+  | laModGu /= 0 = error "dist: incompatible Vector length" 
+  | otherwise    = sumDistPerBar a b / fromIntegral nrBars where
+  
+      la = V.length a
+      lb = V.length b
+      (nrBars, laModGu) = la `divMod ` gu
+  
+      sumDistPerBar :: (Show a, Floating a) => Vector a -> Vector a -> a
+      sumDistPerBar xs ys
+        | V.null xs = 0 -- we check whether both Vectors are equally long above
+        | otherwise = let (x,xs') = V.splitAt gu xs
+                          (y,ys') = V.splitAt gu ys
+                      in euclDist x y + sumDistPerBar xs' ys'
+                      
+-- | Vectorizes a 'NSWProf' for matching with 'dist'
+vectorize :: GridUnit -> TimeSig ->  NSWProf -> Vector NSWeight
+vectorize _  NoTimeSig _ = error "toNSWVec applied to NoTimeSig"
+vectorize gu ts@(TimeSig num _ _ _) p = generate (num * gridUnit gu) getWeight 
   
   where toKey :: Int -> (Beat, BeatRat)
         toKey i = case getBeatInBar ts (Time . gridUnit $ gu) (Time i) of
@@ -84,14 +122,9 @@ toNSWVec gu ts@(TimeSig num _ _ _) p = generate (num * gridUnit gu) getWeight
         m :: Map (Beat, BeatRat) NSWeight
         m = normNSWProf p
 
-toIx :: GridUnit -> BeatRat -> Int 
-toIx (GridUnit gu) (BeatRat br) = numerator (br * (gu % 1))
-  
-toNSWVecSeg :: GridUnit -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
-toNSWVecSeg gu = toAscList . mapWithKey (toNSWVec gu)
-
-selectMeters :: [TimeSig] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-selectMeters ts = filterWithKey (\k _ -> k `elem` ts)
+-- | Batch vectorizes a Map with 'NSWProf's
+vectorizeAll :: GridUnit -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
+vectorizeAll gu = toAscList . mapWithKey (vectorize gu)
 
 -- showNSWVec :: (TimeSig, Vector NSWeight) -> String
 -- showNSWVec (ts, v) = show ts ++ ':' : (concatMap (printf " %.2f") . toList $ v)
