@@ -94,14 +94,16 @@ qMidiScoreToNSWProfMaps qm =   timeSigCheck qm
 dirMeterMatch :: Map TimeSig NSWProf -> FilePath -> IO ()
 dirMeterMatch m fp = readQMidiScoreSafe FourtyEighth fp 
                        >>= return . (>>= doMeterMatch (vectorizeAll (toQBins FourtyEighth) m))
-                       >>= either (warning fp) (\x -> putStrLn (fp ++ "\t" ++x))
+                       >>= either (warning fp) putStrLn
 
-doMeterMatch :: [(TimeSig, Vector NSWeight)] -> QMidiScore -> Either String String
-doMeterMatch m qm = timeSigCheck qm 
-                       >>= matchMeters m >>= pickMeters
-                       >>= return . intercalate "\t" . map printPickMeter
+  where doMeterMatch :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
+                     -> Either String String
+        doMeterMatch m qm = timeSigCheck qm 
+                          >>= matchMeters m >>= pickMeters
+                          >>= return . intercalate "\n" 
+                                     . map (\x -> fp ++ "\t" ++ printPickMeter x)
                               
--- Checks for a valid time siganture
+-- Checks for a valid time signature
 timeSigCheck :: QMidiScore -> Either String QMidiScore
 timeSigCheck ms | hasTimeSigs (qMidiScore ms) = Right ms
                 | otherwise = Left "Has no valid time signature" 
