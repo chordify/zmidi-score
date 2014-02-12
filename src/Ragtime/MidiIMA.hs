@@ -6,6 +6,7 @@ module Ragtime.MidiIMA (
                        , matchMeters
                        , meterCheck
                        , selectMeters
+                       , fourBarFilter
                        , collectNSWProf
                        , toNSWProfSegs 
                        , printIMA
@@ -55,14 +56,15 @@ pickMeters = Right . map (fmap (minimumBy (compare `on` pmatch)))
 -- a 'QMidiScore' to the vectorized profiles
 matchMeters :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
             -> Either String [TimedSeg TimeSig [PMatch]]
-matchMeters m qm = doIMA qm >>= return . map matchAll where
+matchMeters m qm = doIMA qm >>= fourBarFilter tpb >>= return . map matchAll where
+
+  tpb = ticksPerBeat . qMidiScore $ qm
 
   matchAll :: NSWMeterSeg -> TimedSeg TimeSig [PMatch]
   matchAll = fmap (\td -> map (match td) m) 
   
-  match :: [Timed (Maybe ScoreEvent, NSWeight)] -> (TimeSig, Vector NSWeight) 
-        -> PMatch
-  match td v = matchTS (qToQBins qm) (ticksPerBeat . qMidiScore $ qm) td v
+  match :: [Timed (Maybe ScoreEvent, NSWeight)] -> (TimeSig, Vector NSWeight) -> PMatch
+  match td v = matchTS (qToQBins qm) tpb td v
   
 -- | Calculates the match between an annotated and IMA estimated meter
 meterCheck :: Map TimeSig NSWProf -> QMidiScore 
@@ -94,16 +96,14 @@ collectNSWProf :: [NSWProfSeg] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
 collectNSWProf s m = foldr doSeg m s where
 
   doSeg :: NSWProfSeg -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-  doSeg (TimedSeg ts p) m' 
-    -- we require at least 4 bars 
-    -- TODO: we could log which segments we are not using
-    | fst (nswprof p) > 4  = insertWith mergeNSWProf (getEvent ts) p m'
-    | otherwise            = m'
+  doSeg (TimedSeg ts p) m' = insertWith mergeNSWProf (getEvent ts) p m'
   
 -- | Transforms a quantised midi score into a set of meter profiles segmented
 -- by the time signatures as prescribed in the midi file.
 toNSWProfSegs :: QMidiScore -> Either String [NSWProfSeg]
-toNSWProfSegs m = doIMA m >>= return . map (toNSWProf (ticksPerBeat . qMidiScore $ m))
+toNSWProfSegs m =   doIMA m 
+                >>= fourBarFilter (ticksPerBeat . qMidiScore $ m)
+                >>= return . map (toNSWProf (ticksPerBeat . qMidiScore $ m))
 
 -- | Sums all NSW profiles per bar for a meter section using the annotated
 -- meter of that section
@@ -134,19 +134,20 @@ selectMeters ts = filterWithKey (\k _ -> k `elem` ts)
 -- Performing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
 
-minBarLenFilter :: Time -> NrOfBars -> [NSWMeterSeg] -> Either String [NSWMeterSeg]
+fourBarFilter :: Time -> [NSWMeterSeg] -> Either String [NSWMeterSeg]
+fourBarFilter tpb = minBarLenFilter tpb (NrOfBars 4)
+
+minBarLenFilter :: Time -> NrOfBars -> [TimedSeg TimeSig [Timed a]] 
+                -> Either String [TimedSeg TimeSig [Timed a]]
 minBarLenFilter tpb bs s = 
   case filter (\x -> getNrOfBars tpb x > bs) s of
     [] -> Left "minBarLenFilter: "
     s' -> Right s'
   
-getNrOfBars :: Time -> NSWMeterSeg -> NrOfBars
+getNrOfBars :: Time -> TimedSeg TimeSig [Timed a] -> NrOfBars
 getNrOfBars tpb (TimedSeg ts x) = 
   let (br, _beat, _btrat) = getBeatInBar (getEvent ts) tpb (onset . last $ x)
   in  NrOfBars (bar br)
-
-
-
 
 type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeight)]
 -- TODO create a MPMidiScore for monophonic MidiScores

@@ -87,9 +87,9 @@ readProf fp = do qm <- readQMidiScoreSafe FourtyEighth fp
                  
 -- Transforms quantised midi into an inner metric analysis or a failure warning
 qMidiScoreToNSWProfMaps :: QMidiScore -> Either String (Map TimeSig NSWProf)
-qMidiScoreToNSWProfMaps qms =     timeSigCheck qms 
-                              >>= toNSWProfSegs
-                              >>= (\x -> return $ collectNSWProf x empty)
+qMidiScoreToNSWProfMaps qm =   timeSigCheck qm 
+                           >>= toNSWProfSegs
+                           >>= (\x -> return $ collectNSWProf x empty)
 
 dirMeterMatch :: Map TimeSig NSWProf -> FilePath -> IO ()
 dirMeterMatch m fp = readQMidiScoreSafe FourtyEighth fp 
