@@ -140,15 +140,20 @@ fourBarFilter tpb = minBarLenFilter tpb (NrOfBars 4)
 minBarLenFilter :: Time -> NrOfBars -> [TimedSeg TimeSig [Timed a]] 
                 -> Either String [TimedSeg TimeSig [Timed a]]
 minBarLenFilter tpb bs s = 
-  case filter (\x -> getNrOfBars tpb x > bs) s of
-    [] -> Left "minBarLenFilter: "
+  case filter (\x -> notEmpty x && getNrOfBars tpb x > bs) s of
+    [] -> Left ("minBarLenFilter: no segments longer then " ++ show bs)
     s' -> Right s'
   
 getNrOfBars :: Time -> TimedSeg TimeSig [Timed a] -> NrOfBars
-getNrOfBars tpb (TimedSeg ts x) = 
+getNrOfBars tpb (TimedSeg ts []) = error "getNrOfBeats: empty List"
+getNrOfBars tpb (TimedSeg ts x ) = 
   let (br, _beat, _btrat) = getBeatInBar (getEvent ts) tpb (onset . last $ x)
   in  NrOfBars (bar br)
 
+notEmpty :: TimedSeg a [b] -> Bool
+notEmpty (TimedSeg _ []) = False
+notEmpty _               = True
+  
 type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeight)]
 -- TODO create a MPMidiScore for monophonic MidiScores
 -- TODO create a QMPMidiScore for quantised monophonic MidiScores
