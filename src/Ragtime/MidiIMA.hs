@@ -134,6 +134,20 @@ selectMeters ts = filterWithKey (\k _ -> k `elem` ts)
 -- Performing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
 
+minBarLenFilter :: Time -> NrOfBars -> [NSWMeterSeg] -> Either String [NSWMeterSeg]
+minBarLenFilter tpb bs s = 
+  case filter (\x -> getNrOfBars tpb x > bs) s of
+    [] -> Left "minBarLenFilter: "
+    s' -> Right s'
+  
+getNrOfBars :: Time -> NSWMeterSeg -> NrOfBars
+getNrOfBars tpb (TimedSeg ts x) = 
+  let (br, _beat, _btrat) = getBeatInBar (getEvent ts) tpb (onset . last $ x)
+  in  NrOfBars (bar br)
+
+
+
+
 type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeight)]
 -- TODO create a MPMidiScore for monophonic MidiScores
 -- TODO create a QMPMidiScore for quantised monophonic MidiScores
