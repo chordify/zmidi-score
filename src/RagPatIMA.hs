@@ -27,6 +27,7 @@ main =
                   , TimeSig 3 4 0 0
                   , TimeSig 6 8 0 0
                   ]
+         profIn = "ragtimeMeterProfiles_2013-02-11.bin"
      case arg of
        ["-f", fp] -> readQMidiScoreSafe FourtyEighth fp 
                         >>= return . either error id 
@@ -42,23 +43,26 @@ main =
                         
        ["-m", fp] -> do qm <- readQMidiScoreSafe FourtyEighth fp
                                 >>= return . either error id 
-                        m  <- readNSWProf "ragtimeMeterProfiles_2013-02-11.bin" 
+                        m  <- readNSWProf profIn
                                 >>= return . selectMeters meters
                         let m' = vectorizeAll (qToQBins qm) m
                         either error (mapM_ print) . matchMeters m' $ qm
                         -- printMeterStats m
 
-       ["-c", fp] -> do m  <- readNSWProf "ragtimeMeterProfiles_2013-02-11.bin" 
+       ["-c", fp] -> do m  <- readNSWProf profIn
                                 >>= return . selectMeters meters
                         mc <- readQMidiScoreSafe FourtyEighth fp 
                                 >>= return . (>>= meterCheck m)
                                 >>= return . either error id 
                         mapM_ (putStrLn . printMeterMatchVerb (toQBins FourtyEighth)) mc
        
-       ["-r", fp] -> do m  <- readNSWProf "ragtimeMeterProfiles_2013-02-11.bin" 
+       ["-r", fp] -> do m  <- readNSWProf profIn
                                 >>= return . selectMeters meters
                         void . mapDirInDir (mapDir (dirMeterMatch m)) $ fp
 
+       ["-p"    ] ->    readNSWProf profIn >>= return . selectMeters meters
+                                           >>= printMeterStats
+                        
        _    -> error "Please use -f <file> or -d <ragtime directory>"
    
    
