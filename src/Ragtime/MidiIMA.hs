@@ -46,6 +46,7 @@ data PMatch = PMatch {  pmTimeSig :: TimeSig
                      
 instance Show PMatch where
   show (PMatch ts m p) = printf (show ts ++ ": %1.4f\n" ++ show p) m 
+  showList l s = s ++ (intercalate "\n" . map show $ l)
                  
 -- | Picks the best matching profile
 pickMeters :: [TimedSeg TimeSig [PMatch]] 
