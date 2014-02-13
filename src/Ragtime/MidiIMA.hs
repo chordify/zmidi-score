@@ -8,7 +8,7 @@ module Ragtime.MidiIMA (
                        , selectMeters
                        , fourBarFilter
                        , collectNSWProf
-                       , toNSWProfSegs 
+                       , toSWProfSegs 
                        , printIMA
                        , printPickMeter
                        , printMeterMatchVerb
@@ -41,7 +41,7 @@ newtype NSWDist = NSWDist Double
 
 data PMatch = PMatch {  pmTimeSig :: TimeSig
                      ,  pmatch    :: NSWDist
-                     , _pmProf    :: SWProf
+                     , _pmProf    :: NSWProf
                      } deriving (Eq)
                      
 instance Show PMatch where
@@ -68,11 +68,12 @@ matchMeters m qm = doIMA qm >>= fourBarFilter tpb >>= return . map matchAll wher
   match td v = matchTS (qToQBins qm) tpb td v
   
 -- | Calculates the match between an annotated and IMA estimated meter
-meterCheck :: Map TimeSig SWProf -> QMidiScore 
-          -> Either String [TimedSeg TimeSig (SWProf, SWProf, NSWeight)]
-meterCheck m qm = toNSWProfSegs qm >>= return . map match where
+meterCheck :: Map TimeSig NSWProf -> QMidiScore 
+          -> Either String [TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)]
+meterCheck m qm = toSWProfSegs qm >>= return . map (fmap normSWProf)
+                                  >>= return . map match where
 
-  match :: TimedSeg TimeSig SWProf -> TimedSeg TimeSig (SWProf, SWProf, NSWeight)
+  match :: TimedSeg TimeSig NSWProf -> TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)
   match (TimedSeg ts pa) = case M.lookup (getEvent ts) m of
                              Nothing -> error ("TimeSig not found: " ++ show ts)
                              Just pb -> TimedSeg ts (pa, pb, dist (qToQBins qm) (f pa) (f pb))
@@ -80,7 +81,7 @@ meterCheck m qm = toNSWProfSegs qm >>= return . map match where
 
 matchTS :: QBins -> Time -> [Timed (Maybe ScoreEvent, SWeight)] 
         -> (TimeSig, Vector NSWeight) -> PMatch
-matchTS qb tpb td (ts,v) = let p = toNSWProfWithTS ts tpb td
+matchTS qb tpb td (ts,v) = let p = normSWProf (toNSWProfWithTS ts tpb td)
                                m = dist qb v (vectorize qb ts p)
                            in  PMatch ts (NSWDist . nsweight $ m) p
                                 
@@ -90,25 +91,26 @@ matchTS qb tpb td (ts,v) = let p = toNSWProfWithTS ts tpb td
 -- Calculate Normalised Spectral Weight Profiles
 --------------------------------------------------------------------------------
 
-type NSWProfSeg = TimedSeg TimeSig SWProf
+type SWProfSeg = TimedSeg TimeSig SWProf
 
 -- | Collects all profiles sorted by time signature in one map
-collectNSWProf :: [NSWProfSeg] -> Map TimeSig SWProf -> Map TimeSig SWProf
+collectNSWProf :: [SWProfSeg] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
 collectNSWProf s m = foldr doSeg m s where
 
-  doSeg :: NSWProfSeg -> Map TimeSig SWProf -> Map TimeSig SWProf
-  doSeg (TimedSeg ts p) m' = insertWith mergeNSWProf (getEvent ts) p m'
+  doSeg :: SWProfSeg -> Map TimeSig NSWProf -> Map TimeSig NSWProf
+  doSeg (TimedSeg ts p) m' = insertWith mergeNSWProf (getEvent ts) (normSWProf p) m'
+ 
   
 -- | Transforms a quantised midi score into a set of meter profiles segmented
 -- by the time signatures as prescribed in the midi file.
-toNSWProfSegs :: QMidiScore -> Either String [NSWProfSeg]
-toNSWProfSegs m =   doIMA m 
+toSWProfSegs :: QMidiScore -> Either String [SWProfSeg]
+toSWProfSegs m =   doIMA m 
                 >>= fourBarFilter (ticksPerBeat . qMidiScore $ m)
                 >>= return . map (toNSWProf (ticksPerBeat . qMidiScore $ m))
 
 -- | Sums all NSW profiles per bar for a meter section using the annotated
 -- meter of that section
-toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
+toNSWProf :: Time ->  NSWMeterSeg -> SWProfSeg
 toNSWProf tpb s = fmap (toNSWProfWithTS (getEvent . boundary $ s) tpb) s
 
 -- | Sums all NSW profiles per bar for a meter section using a specific meter
@@ -128,7 +130,7 @@ toNSWProfWithTS ts tpb td = foldl' toProf (SWProf (1, empty)) td
 
 -- | Removes the 'SWProf's from the map of which the keys are not in the 
 -- list of 'TimeSig's
-selectMeters :: [TimeSig] -> Map TimeSig SWProf -> Map TimeSig SWProf
+selectMeters :: [TimeSig] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
 selectMeters ts = filterWithKey (\k _ -> k `elem` ts)
           
 --------------------------------------------------------------------------------
@@ -216,7 +218,7 @@ matchScore v s = match (map (first Time) s) v where
 -- Printing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
 
-printMeterMatchVerb :: QBins -> TimedSeg TimeSig (SWProf, SWProf, NSWeight) -> String
+printMeterMatchVerb :: QBins -> TimedSeg TimeSig (NSWProf, NSWProf, NSWeight) -> String
 printMeterMatchVerb qb (TimedSeg (Timed _ ts) (a,b,d)) = 
   "\nsong:\n"     ++ show ts ++ show a ++
   "\ntemplate:\n" ++ show ts ++ show b ++
@@ -235,11 +237,11 @@ printPickMeter (TimedSeg ts m) =
   
   in printf s (pmatch m)
 
-printIMA :: QMidiScore -> IO ([NSWProfSeg])
+printIMA :: QMidiScore -> IO ([SWProfSeg])
 printIMA qm = do let tpb = ticksPerBeat . qMidiScore $ qm
                  mapM (toNSWProfPrint tpb) . either error id . doIMA $ qm where
                 
-  toNSWProfPrint :: Time ->  NSWMeterSeg -> IO (NSWProfSeg)
+  toNSWProfPrint :: Time ->  NSWMeterSeg -> IO (SWProfSeg)
   toNSWProfPrint t s = starMeter t s >> return (toNSWProf t s)
                 
           

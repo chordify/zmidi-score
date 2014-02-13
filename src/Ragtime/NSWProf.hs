@@ -5,11 +5,13 @@
 -- it better fits Ragtime.*
 module Ragtime.NSWProf ( -- | Newtypes
                          NSWeight (..)
+                       , NSWProf (..)
                        , SWProf (..)
                        , NrOfBars (..)
                          -- | NSW profile functions
+                       , mergeProf
                        , mergeNSWProf
-                       -- , normNSWProf
+                       , normSWProf
                          -- | Vector conversion and matching
                        , dist 
                        , vectorize  
@@ -54,14 +56,18 @@ stars w = show w
 --------------------------------------------------------------------------------
 
 -- | Normalised Spectral Weight Profiles
-newtype SWProf = SWProf {nswprof :: (NrOfBars, Map (Beat, BeatRat) SWeight)}
-                    deriving ( Eq, Binary )
+newtype SWProf = SWProf {swprof :: (NrOfBars, Map (Beat, BeatRat) SWeight)}
+                    deriving ( Eq, Binary, Show )
 
-instance Show SWProf where
-  show n@(SWProf (bars, m)) = intercalate "\n" (hdr : foldrWithKey shw [] m')
+
+-- | Normalised Spectral Weight Profiles
+newtype NSWProf = NSWProf {nswprof :: (NrOfBars, Map (Beat, BeatRat) NSWeight)}
+                    deriving ( Eq, Binary )
+                    
+instance Show NSWProf where
+  show (NSWProf (bars, m)) = intercalate "\n" (hdr : foldrWithKey shw [] m)
   
-    where m'  = normSWProf n
-          hdr = "Bars: " ++ show (nrOfBars bars)
+    where hdr = "Bars: " ++ show (nrOfBars bars)
     
           shw :: (Beat, BeatRat) -> NSWeight -> [String] -> [String]
           shw (Beat b, BeatRat br) w r = 
@@ -76,13 +82,18 @@ newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
                              , PrintfArg, Binary )
 
 -- | Plots an 'SWProf'ile by calculating the average profile
-showNSWProf :: (TimeSig, SWProf) -> String
+showNSWProf :: (TimeSig, NSWProf) -> String
 showNSWProf (ts, p) = show ts ++ "\n" ++ show p
   
+mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
+mergeNSWProf (NSWProf a) (NSWProf b) = NSWProf (mergeProf a b)  
+  
 -- | merges two 'SWProf's by summing its values
-mergeNSWProf :: SWProf -> SWProf -> SWProf
-mergeNSWProf (SWProf (a, ma)) (SWProf (b, mb)) = 
-  let m = unionWith (+) ma mb in m `seq` (SWProf (a + b, m))
+-- mergeNSWProf :: SWProf -> SWProf -> SWProf
+mergeProf :: Num a => (NrOfBars, Map (Beat, BeatRat) a) 
+                   -> (NrOfBars, Map (Beat, BeatRat) a)
+                   -> (NrOfBars, Map (Beat, BeatRat) a)
+mergeProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
 
 -- TODO create newtype around Map BeatRat NSWeight and create a datatype
 -- cumNSWProf for the current SWProf
@@ -90,10 +101,14 @@ mergeNSWProf (SWProf (a, ma)) (SWProf (b, mb)) =
 -- normNSWProf (SWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 
 
-normSWProf :: SWProf -> Map (Beat, BeatRat) NSWeight
+normSWProf :: SWProf -> NSWProf 
 normSWProf (SWProf (b, wp)) = let b' = fromIntegral b 
-                                  -- m  = fst (mapAccum (\v w -> (max v w, w)) 0 wp)
-                               in M.map (\x -> fromIntegral x / (b' )) wp
+                                  -- This is not correct....
+                                  m  = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
+                               in NSWProf (b, M.map (\x -> fromIntegral x / (b' * m)) wp)
+
+normNSWProf :: NSWProf -> Map (Beat, BeatRat) NSWeight
+normNSWProf (NSWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 
 --------------------------------------------------------------------------------
 -- Matching IMA profiles
@@ -119,7 +134,7 @@ dist (QBins qb) a b
                                (euclDist x y + sumDistPerBar xs' ys')
                       
 -- | Vectorizes a 'SWProf' for matching with 'dist'
-vectorize :: QBins -> TimeSig ->  SWProf -> Vector NSWeight
+vectorize :: QBins -> TimeSig ->  NSWProf -> Vector NSWeight
 vectorize _  NoTimeSig _ = error "toNSWVec applied to NoTimeSig"
 vectorize (QBins qb) ts@(TimeSig num _ _ _) p = generate (num * qb) getWeight 
   
@@ -132,10 +147,10 @@ vectorize (QBins qb) ts@(TimeSig num _ _ _) p = generate (num * qb) getWeight
         getWeight i = findWithDefault (NSWeight 0) (toKey i) m
         
         m :: Map (Beat, BeatRat) NSWeight
-        m = normSWProf p
+        m = normNSWProf p
 
 -- | Batch vectorizes a Map with 'SWProf's
-vectorizeAll :: QBins -> Map TimeSig SWProf -> [(TimeSig, Vector NSWeight)]
+vectorizeAll :: QBins -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
 vectorizeAll qb = toAscList . mapWithKey (vectorize qb)
 
 -- showNSWVec :: (TimeSig, Vector NSWeight) -> String
@@ -146,9 +161,9 @@ vectorizeAll qb = toAscList . mapWithKey (vectorize qb)
 --------------------------------------------------------------------------------
 
 -- exports a normalised inner metric analysis profiles to a binary file
-writeNSWProf :: FilePath -> Map TimeSig SWProf -> IO (Map TimeSig SWProf)
+writeNSWProf :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
 writeNSWProf fp m = encodeFile fp m >> putStrLn ("written: " ++ fp) >> return m
   
-readNSWProf :: FilePath -> IO (Map TimeSig SWProf)
+readNSWProf :: FilePath -> IO (Map TimeSig NSWProf)
 readNSWProf fp = putStrLn ("read: " ++ fp) >> decodeFile fp  
   
