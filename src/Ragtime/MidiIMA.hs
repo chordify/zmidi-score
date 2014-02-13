@@ -64,7 +64,7 @@ matchMeters m qm = doIMA qm >>= fourBarFilter tpb >>= return . map matchAll wher
   matchAll :: NSWMeterSeg -> TimedSeg TimeSig [PMatch]
   matchAll = fmap (\td -> map (match td) m) 
   
-  match :: [Timed (Maybe ScoreEvent, NSWeight)] -> (TimeSig, Vector NSWeight) -> PMatch
+  match :: [Timed (Maybe ScoreEvent, SWeight)] -> (TimeSig, Vector NSWeight) -> PMatch
   match td v = matchTS (qToQBins qm) tpb td v
   
 -- | Calculates the match between an annotated and IMA estimated meter
@@ -78,7 +78,7 @@ meterCheck m qm = toNSWProfSegs qm >>= return . map match where
                              Just pb -> TimedSeg ts (pa, pb, dist (qToQBins qm) (f pa) (f pb))
                                 where f = vectorize (qToQBins qm) (getEvent ts)
 
-matchTS :: QBins -> Time -> [Timed (Maybe ScoreEvent, NSWeight)] 
+matchTS :: QBins -> Time -> [Timed (Maybe ScoreEvent, SWeight)] 
         -> (TimeSig, Vector NSWeight) -> PMatch
 matchTS qb tpb td (ts,v) = let p = toNSWProfWithTS ts tpb td
                                m = dist qb v (vectorize qb ts p)
@@ -112,12 +112,12 @@ toNSWProf :: Time ->  NSWMeterSeg -> NSWProfSeg
 toNSWProf tpb s = fmap (toNSWProfWithTS (getEvent . boundary $ s) tpb) s
 
 -- | Sums all NSW profiles per bar for a meter section using a specific meter
-toNSWProfWithTS :: TimeSig -> Time -> [Timed (Maybe ScoreEvent, NSWeight)] 
+toNSWProfWithTS :: TimeSig -> Time -> [Timed (Maybe ScoreEvent, SWeight)] 
                 -> NSWProf
 toNSWProfWithTS NoTimeSig _ _ = error "toNSWProfWithTS applied to NoTimeSig"
 toNSWProfWithTS ts tpb td = foldl' toProf (NSWProf (1, empty)) td
 
-  where toProf :: NSWProf -> Timed (Maybe ScoreEvent, NSWeight) -> NSWProf
+  where toProf :: NSWProf -> Timed (Maybe ScoreEvent, SWeight) -> NSWProf
         toProf (NSWProf (_b, m)) (Timed g (_se,w)) = 
           let (Bar br, bib, bt) = getBeatInBar ts tpb g 
               m'                = insertWith (+) (bib,bt) w m 
@@ -155,7 +155,7 @@ notEmpty :: TimedSeg a [b] -> Bool
 notEmpty (TimedSeg _ []) = False
 notEmpty _               = True
   
-type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, NSWeight)]
+type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
 -- TODO create a MPMidiScore for monophonic MidiScores
 -- TODO create a QMPMidiScore for quantised monophonic MidiScores
 
@@ -186,7 +186,7 @@ toIMAOnset :: Voice -> [IMA.Time]
 toIMAOnset = map fromIntegral . toOnsets 
 
 -- combines a 'Voice' with its spectral weights
-matchScore :: Voice -> [(Int, SWeight)] -> [Timed (Maybe ScoreEvent, NSWeight)]
+matchScore :: Voice -> [(Int, SWeight)] -> [Timed (Maybe ScoreEvent, SWeight)]
 matchScore v s = match (map (first Time) s) v where
 
   -- The maximum 'Weight' found among the weights
@@ -194,7 +194,7 @@ matchScore v s = match (map (first Time) s) v where
   
   -- | matches a grid with spectral weights with the onsets that created the
   -- weights. 
-  match :: [(Time, SWeight)] -> Voice -> [Timed (Maybe ScoreEvent, NSWeight)]
+  match :: [(Time, SWeight)] -> Voice -> [Timed (Maybe ScoreEvent, SWeight)]
   match [] []              = []
   match ((g, w):ws) []     =          addWeight w (Left g) : match ws []
   match ((g, w):ws) (t:ts) | g <  o = addWeight w (Left g) : match ws (t:ts)
@@ -205,13 +205,12 @@ matchScore v s = match (map (first Time) s) v where
 
   -- Normalises a spectral weight and combines it with a possible score event
   addWeight :: SWeight -> Either Time (Timed ScoreEvent) 
-            -> Timed (Maybe ScoreEvent, NSWeight)
-  addWeight w e = either ((flip Timed) (Nothing, w')) f e
+            -> Timed (Maybe ScoreEvent, SWeight)
+  addWeight w e = either ((flip Timed) (Nothing, w)) f e
     
     -- where w'  = fromIntegral w / fromIntegral mx
-    where w'  = fromIntegral w -- / fromIntegral mx
-          -- f t = t {getEvent = (Just $ getEvent t, w')}
-          f = fmap (\x -> (Just x, w'))
+    where -- f t = t {getEvent = (Just $ getEvent t, w')}
+          f = fmap (\x -> (Just x, w))
           
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
@@ -252,7 +251,7 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
      mapM_ (toStar t ts) s where
                     
   -- prints one line e.g. "1152 1 3 1C  ***************"
-  toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, NSWeight) -> IO ()
+  toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, SWeight) -> IO ()
   toStar os x (Timed g (se,w)) = 
     let (br, bib, BeatRat r) = getBeatInBar x tpb g
     in putStrLn (printf ("%6d: %3d.%1d - %2d / %2d: " ++ showMSE se ++ ": " ++ stars w) 

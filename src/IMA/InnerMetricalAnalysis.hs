@@ -46,6 +46,7 @@ import Data.Vector.Mutable   as MV ( unsafeRead, unsafeWrite )
 import Data.Foldable              ( foldrM )
 import Control.Monad.ST
 import Control.Monad.Primitive
+import Data.Binary                ( Binary )
 
 import IMA.LocalMeter
 
@@ -171,9 +172,9 @@ isMax (Period f) m (Period pb) tb (Len lb) =
 --------------------------------------------------------------------------------
 
 newtype SWeight = SWeight {sweight :: Int} 
-                  deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+                  deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary )
 newtype MWeight = MWeight {mweight :: Int}
-                  deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+                  deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary )
  
 type MWeightMap = IntMap MWeight
 type OnsetMap   = IntMap Len

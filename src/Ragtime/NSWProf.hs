@@ -23,6 +23,7 @@ module Ragtime.NSWProf ( -- | Newtypes
                        , readNSWProf 
                        )where
 
+import IMA.InnerMetricalAnalysis      ( SWeight )
 import ZMidi.Score             hiding (numerator, denominator)
 import Data.List                      ( intercalate )
 import Data.Ratio                     ( numerator, denominator )
@@ -44,7 +45,7 @@ newtype NSWeight = NSWeight { nsweight :: Double }
                               , Binary )
 
 -- | prints a 'NSWeight' as a sequence of asterisks 
-stars :: NSWeight -> String
+stars :: (Show a, Num a) => a -> String
 -- stars w = replicate (round (20 * w)) '*' 
 stars w = show w
 
@@ -53,7 +54,7 @@ stars w = show w
 --------------------------------------------------------------------------------
 
 -- | Normalised Spectral Weight Profiles
-newtype NSWProf = NSWProf {nswprof :: (NrOfBars, Map (Beat, BeatRat) NSWeight)}
+newtype NSWProf = NSWProf {nswprof :: (NrOfBars, Map (Beat, BeatRat) SWeight)}
                     deriving ( Eq, Binary )
 
 instance Show NSWProf where
@@ -85,14 +86,14 @@ mergeNSWProf (NSWProf (a, ma)) (NSWProf (b, mb)) =
 
 -- TODO create newtype around Map BeatRat NSWeight and create a datatype
 -- cumNSWProf for the current NSWProf
-normNSWProf :: NSWProf -> Map (Beat, BeatRat) NSWeight
-normNSWProf (NSWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') wp
+-- normNSWProf :: NSWProf -> Map (Beat, BeatRat) NSWeight
+-- normNSWProf (NSWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 
 
 normSWProf :: NSWProf -> Map (Beat, BeatRat) NSWeight
 normSWProf (NSWProf (b, wp)) = let b' = fromIntegral b 
                                   -- m  = fst (mapAccum (\v w -> (max v w, w)) 0 wp)
-                               in M.map (\x -> x / (b' )) wp
+                               in M.map (\x -> fromIntegral x / (b' )) wp
 
 --------------------------------------------------------------------------------
 -- Matching IMA profiles
