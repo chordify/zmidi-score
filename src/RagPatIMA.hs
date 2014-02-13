@@ -47,7 +47,6 @@ main =
                                 >>= return . selectMeters meters
                         let m' = vectorizeAll (qToQBins qm) m
                         either error (mapM_ print) . matchMeters m' $ qm
-                        -- printMeterStats m
 
        ["-c", fp] -> do m  <- readNSWProf profIn
                                 >>= return . selectMeters meters
@@ -85,7 +84,7 @@ readProf fp = do qm <- readQMidiScoreSafe FourtyEighth fp
                  case qm >>= qMidiScoreToNSWProfMaps of
                    Right w -> do putStrLn fp 
                                  -- either error printSongStats qm
-                                 -- printMeterStats w
+                                 printMeterStats w
                                  qm `seq` w `seq` return w
                    Left  e -> warning fp e >> return empty
                  

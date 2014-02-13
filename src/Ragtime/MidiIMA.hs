@@ -208,8 +208,10 @@ matchScore v s = match (map (first Time) s) v where
             -> Timed (Maybe ScoreEvent, NSWeight)
   addWeight w e = either ((flip Timed) (Nothing, w')) f e
     
-    where w'  = fromIntegral w / fromIntegral mx
-          f t = t {getEvent = (Just $ getEvent t, w')}
+    -- where w'  = fromIntegral w / fromIntegral mx
+    where w'  = fromIntegral w -- / fromIntegral mx
+          -- f t = t {getEvent = (Just $ getEvent t, w')}
+          f = fmap (\x -> (Just x, w'))
           
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis

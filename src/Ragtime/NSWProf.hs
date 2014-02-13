@@ -9,7 +9,7 @@ module Ragtime.NSWProf ( -- | Newtypes
                        , NrOfBars (..)
                          -- | NSW profile functions
                        , mergeNSWProf
-                       , normNSWProf
+                       -- , normNSWProf
                          -- | Vector conversion and matching
                        , dist 
                        , vectorize  
@@ -27,7 +27,7 @@ import ZMidi.Score             hiding (numerator, denominator)
 import Data.List                      ( intercalate )
 import Data.Ratio                     ( numerator, denominator )
 import qualified Data.Map.Strict as M ( map )
-import Data.Map.Strict                ( Map, foldrWithKey, mapWithKey
+import Data.Map.Strict                ( Map, foldrWithKey, mapWithKey, mapAccum
                                       , unionWith, findWithDefault, toAscList )
 import qualified Data.Vector     as V ( length, splitAt, null )
 import Data.Vector                    ( Vector, generate )
@@ -45,7 +45,8 @@ newtype NSWeight = NSWeight { nsweight :: Double }
 
 -- | prints a 'NSWeight' as a sequence of asterisks 
 stars :: NSWeight -> String
-stars w = replicate (round (20 * w)) '*' 
+-- stars w = replicate (round (20 * w)) '*' 
+stars w = show w
 
 --------------------------------------------------------------------------------
 -- IMA profiles
@@ -56,12 +57,14 @@ newtype NSWProf = NSWProf {nswprof :: (NrOfBars, Map (Beat, BeatRat) NSWeight)}
                     deriving ( Eq, Binary )
 
 instance Show NSWProf where
-  show (NSWProf (bars, m)) = intercalate "\n" (hdr : foldrWithKey shw [] m)
+  show n@(NSWProf (bars, m)) = intercalate "\n" (hdr : foldrWithKey shw [] m')
   
-    where hdr = "Bars: " ++ show (nrOfBars bars)
+    where m'  = normSWProf n
+          hdr = "Bars: " ++ show (nrOfBars bars)
     
           shw :: (Beat, BeatRat) -> NSWeight -> [String] -> [String]
           shw (Beat b, BeatRat br) w r = 
+            -- TODO replace the code below by nromNSWProf
             let x = w / fromIntegral bars
             in (printf ("%1d - %2d / %2d: %.5f " ++ stars x) 
                        b (numerator br) (denominator br) x ) : r
@@ -85,6 +88,11 @@ mergeNSWProf (NSWProf (a, ma)) (NSWProf (b, mb)) =
 normNSWProf :: NSWProf -> Map (Beat, BeatRat) NSWeight
 normNSWProf (NSWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 
+
+normSWProf :: NSWProf -> Map (Beat, BeatRat) NSWeight
+normSWProf (NSWProf (b, wp)) = let b' = fromIntegral b 
+                                  -- m  = fst (mapAccum (\v w -> (max v w, w)) 0 wp)
+                               in M.map (\x -> x / (b' )) wp
 
 --------------------------------------------------------------------------------
 -- Matching IMA profiles
@@ -123,7 +131,7 @@ vectorize (QBins qb) ts@(TimeSig num _ _ _) p = generate (num * qb) getWeight
         getWeight i = findWithDefault (NSWeight 0) (toKey i) m
         
         m :: Map (Beat, BeatRat) NSWeight
-        m = normNSWProf p
+        m = normSWProf p
 
 -- | Batch vectorizes a Map with 'NSWProf's
 vectorizeAll :: QBins -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
