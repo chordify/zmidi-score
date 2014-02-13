@@ -7,7 +7,7 @@ import ZMidi.Score.Quantise  ( QMidiScore (..), ShortestNote (..), avgQDevQMS
                              , toQBins, qToQBins )
 import ZMidi.IO.Common       ( readQMidiScoreSafe, mapDirInDir, mapDir, warning)
 import Ragtime.MidiIMA
-import Ragtime.NSWProf       ( vectorizeAll, NSWProf, writeNSWProf, readNSWProf
+import Ragtime.NSWProf       ( vectorizeAll, SWProf, writeNSWProf, readNSWProf
                              , mergeNSWProf, showNSWProf, NSWeight )
 
 import System.Environment    ( getArgs )
@@ -66,12 +66,12 @@ main =
    
    
 -- combines two inner metrical analysis maps into one, summing all results
-unionNWProfMaps :: [Map TimeSig NSWProf] -> IO (Map TimeSig NSWProf)
+unionNWProfMaps :: [Map TimeSig SWProf] -> IO (Map TimeSig SWProf)
 unionNWProfMaps m = do let r = foldr (unionWith mergeNSWProf) empty m
                        r `seq` return r
 
 -- Prints the average normalised inner metric analysis profiles to the user
-printMeterStats :: Map TimeSig NSWProf -> IO ()
+printMeterStats :: Map TimeSig SWProf -> IO ()
 printMeterStats = mapM_ (putStrLn . showNSWProf) . toList 
    
 printSongStats :: QMidiScore -> IO ()
@@ -79,7 +79,7 @@ printSongStats m = let s = "q: %.3f ts: " ++ (show . getTimeSig . qMidiScore $ m
                    in  putStrLn . printf s . avgQDevQMS $ m
    
 -- Reads a file and does an inner metric analysis per time signature segment
-readProf :: FilePath -> IO (Map TimeSig NSWProf)
+readProf :: FilePath -> IO (Map TimeSig SWProf)
 readProf fp = do qm <- readQMidiScoreSafe FourtyEighth fp 
                  case qm >>= qMidiScoreToNSWProfMaps of
                    Right w -> do putStrLn fp 
@@ -89,12 +89,12 @@ readProf fp = do qm <- readQMidiScoreSafe FourtyEighth fp
                    Left  e -> warning fp e >> return empty
                  
 -- Transforms quantised midi into an inner metric analysis or a failure warning
-qMidiScoreToNSWProfMaps :: QMidiScore -> Either String (Map TimeSig NSWProf)
+qMidiScoreToNSWProfMaps :: QMidiScore -> Either String (Map TimeSig SWProf)
 qMidiScoreToNSWProfMaps qm =   timeSigCheck qm 
                            >>= toNSWProfSegs
                            >>= (\x -> return $ collectNSWProf x empty)
 
-dirMeterMatch :: Map TimeSig NSWProf -> FilePath -> IO ()
+dirMeterMatch :: Map TimeSig SWProf -> FilePath -> IO ()
 dirMeterMatch m fp = readQMidiScoreSafe FourtyEighth fp 
                        >>= return . (>>= doMeterMatch (vectorizeAll (toQBins FourtyEighth) m))
                        >>= either (warning fp) putStrLn

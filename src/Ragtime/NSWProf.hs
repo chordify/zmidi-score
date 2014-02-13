@@ -5,7 +5,7 @@
 -- it better fits Ragtime.*
 module Ragtime.NSWProf ( -- | Newtypes
                          NSWeight (..)
-                       , NSWProf (..)
+                       , SWProf (..)
                        , NrOfBars (..)
                          -- | NSW profile functions
                        , mergeNSWProf
@@ -54,11 +54,11 @@ stars w = show w
 --------------------------------------------------------------------------------
 
 -- | Normalised Spectral Weight Profiles
-newtype NSWProf = NSWProf {nswprof :: (NrOfBars, Map (Beat, BeatRat) SWeight)}
+newtype SWProf = SWProf {nswprof :: (NrOfBars, Map (Beat, BeatRat) SWeight)}
                     deriving ( Eq, Binary )
 
-instance Show NSWProf where
-  show n@(NSWProf (bars, m)) = intercalate "\n" (hdr : foldrWithKey shw [] m')
+instance Show SWProf where
+  show n@(SWProf (bars, m)) = intercalate "\n" (hdr : foldrWithKey shw [] m')
   
     where m'  = normSWProf n
           hdr = "Bars: " ++ show (nrOfBars bars)
@@ -75,23 +75,23 @@ newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral
                              , PrintfArg, Binary )
 
--- | Plots an 'NSWProf'ile by calculating the average profile
-showNSWProf :: (TimeSig, NSWProf) -> String
+-- | Plots an 'SWProf'ile by calculating the average profile
+showNSWProf :: (TimeSig, SWProf) -> String
 showNSWProf (ts, p) = show ts ++ "\n" ++ show p
   
--- | merges two 'NSWProf's by summing its values
-mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
-mergeNSWProf (NSWProf (a, ma)) (NSWProf (b, mb)) = 
-  let m = unionWith (+) ma mb in m `seq` (NSWProf (a + b, m))
+-- | merges two 'SWProf's by summing its values
+mergeNSWProf :: SWProf -> SWProf -> SWProf
+mergeNSWProf (SWProf (a, ma)) (SWProf (b, mb)) = 
+  let m = unionWith (+) ma mb in m `seq` (SWProf (a + b, m))
 
 -- TODO create newtype around Map BeatRat NSWeight and create a datatype
--- cumNSWProf for the current NSWProf
--- normNSWProf :: NSWProf -> Map (Beat, BeatRat) NSWeight
--- normNSWProf (NSWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') wp
+-- cumNSWProf for the current SWProf
+-- normNSWProf :: SWProf -> Map (Beat, BeatRat) NSWeight
+-- normNSWProf (SWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 
 
-normSWProf :: NSWProf -> Map (Beat, BeatRat) NSWeight
-normSWProf (NSWProf (b, wp)) = let b' = fromIntegral b 
+normSWProf :: SWProf -> Map (Beat, BeatRat) NSWeight
+normSWProf (SWProf (b, wp)) = let b' = fromIntegral b 
                                   -- m  = fst (mapAccum (\v w -> (max v w, w)) 0 wp)
                                in M.map (\x -> fromIntegral x / (b' )) wp
 
@@ -118,8 +118,8 @@ dist (QBins qb) a b
                       in trace ("matching:\n" ++ disp x ++ "\n" ++disp y ++ show (euclDist x y ))
                                (euclDist x y + sumDistPerBar xs' ys')
                       
--- | Vectorizes a 'NSWProf' for matching with 'dist'
-vectorize :: QBins -> TimeSig ->  NSWProf -> Vector NSWeight
+-- | Vectorizes a 'SWProf' for matching with 'dist'
+vectorize :: QBins -> TimeSig ->  SWProf -> Vector NSWeight
 vectorize _  NoTimeSig _ = error "toNSWVec applied to NoTimeSig"
 vectorize (QBins qb) ts@(TimeSig num _ _ _) p = generate (num * qb) getWeight 
   
@@ -134,8 +134,8 @@ vectorize (QBins qb) ts@(TimeSig num _ _ _) p = generate (num * qb) getWeight
         m :: Map (Beat, BeatRat) NSWeight
         m = normSWProf p
 
--- | Batch vectorizes a Map with 'NSWProf's
-vectorizeAll :: QBins -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
+-- | Batch vectorizes a Map with 'SWProf's
+vectorizeAll :: QBins -> Map TimeSig SWProf -> [(TimeSig, Vector NSWeight)]
 vectorizeAll qb = toAscList . mapWithKey (vectorize qb)
 
 -- showNSWVec :: (TimeSig, Vector NSWeight) -> String
@@ -146,9 +146,9 @@ vectorizeAll qb = toAscList . mapWithKey (vectorize qb)
 --------------------------------------------------------------------------------
 
 -- exports a normalised inner metric analysis profiles to a binary file
-writeNSWProf :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
+writeNSWProf :: FilePath -> Map TimeSig SWProf -> IO (Map TimeSig SWProf)
 writeNSWProf fp m = encodeFile fp m >> putStrLn ("written: " ++ fp) >> return m
   
-readNSWProf :: FilePath -> IO (Map TimeSig NSWProf)
+readNSWProf :: FilePath -> IO (Map TimeSig SWProf)
 readNSWProf fp = putStrLn ("read: " ++ fp) >> decodeFile fp  
   
