@@ -47,9 +47,10 @@ newtype NSWeight = NSWeight { nsweight :: Double }
                               , Binary )
 
 -- | prints a 'NSWeight' as a sequence of asterisks 
-stars :: (Show a, Num a) => a -> String
--- stars w = replicate (round (20 * w)) '*' 
-stars w = show w
+-- stars :: (Show a, Num a) => a -> String
+stars :: (Show a, RealFrac a) => a -> String
+stars w = replicate (round (20 * w)) '*' 
+-- stars w = show w
 
 --------------------------------------------------------------------------------
 -- IMA profiles
@@ -72,7 +73,7 @@ instance Show NSWProf where
           shw :: (Beat, BeatRat) -> NSWeight -> [String] -> [String]
           shw (Beat b, BeatRat br) w r = 
             -- TODO replace the code below by nromNSWProf
-            let x = w / fromIntegral bars
+            let x = w -- / fromIntegral bars
             in (printf ("%1d - %2d / %2d: %.5f " ++ stars x) 
                        b (numerator br) (denominator br) x ) : r
 
@@ -102,10 +103,8 @@ mergeProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
 
 
 normSWProf :: SWProf -> NSWProf 
-normSWProf (SWProf (b, wp)) = let b' = fromIntegral b 
-                                  -- This is not correct....
-                                  m  = trace ("max: " ++ show a) a where a = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
-                                 -- m  = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
+normSWProf (SWProf (b, wp)) = let -- m  = trace ("max: " ++ show a) a where a = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
+                                  m = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
                                in NSWProf (b, M.map (\x -> fromIntegral x / m) wp)
 
 normNSWProf :: NSWProf -> Map (Beat, BeatRat) NSWeight
@@ -131,7 +130,7 @@ dist (QBins qb) a b
         | V.null xs = 0 -- we check whether both Vectors are equally long above
         | otherwise = let (x,xs') = V.splitAt qb xs
                           (y,ys') = V.splitAt qb ys
-                      in trace ("matching:\n" ++ disp x ++ "\n" ++disp y ++ show (euclDist x y ))
+                      in -- trace ("matching:\n" ++ disp x ++ "\n" ++disp y ++ show (euclDist x y ))
                                (euclDist x y + sumDistPerBar xs' ys')
                       
 -- | Vectorizes a 'SWProf' for matching with 'dist'

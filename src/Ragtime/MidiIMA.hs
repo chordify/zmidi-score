@@ -57,12 +57,12 @@ pickMeters = Right . map (fmap (minimumBy (compare `on` pmatch)))
 -- a 'QMidiScore' to the vectorized profiles
 matchMeters :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
             -> Either String [TimedSeg TimeSig [PMatch]]
-matchMeters m qm = doIMA qm >>= fourBarFilter tpb >>= return . map matchAll where
+matchMeters vs qm = doIMA qm >>= fourBarFilter tpb >>= return . map matchAll where
 
   tpb = ticksPerBeat . qMidiScore $ qm
 
   matchAll :: SWMeterSeg -> TimedSeg TimeSig [PMatch]
-  matchAll = fmap (\td -> map (match td) m) 
+  matchAll = fmap (\td -> map (match td) vs)
   
   match :: [Timed (Maybe ScoreEvent, SWeight)] -> (TimeSig, Vector NSWeight) -> PMatch
   match td v = matchTS (qToQBins qm) tpb td v
@@ -104,7 +104,7 @@ collectNSWProf s m = foldr doSeg m s where
 -- | Transforms a quantised midi score into a set of meter profiles segmented
 -- by the time signatures as prescribed in the midi file.
 toSWProfSegs :: QMidiScore -> Either String [SWProfSeg]
-toSWProfSegs m =   doIMA m 
+toSWProfSegs m =    doIMA m 
                 >>= fourBarFilter (ticksPerBeat . qMidiScore $ m)
                 >>= return . map (toNSWProf (ticksPerBeat . qMidiScore $ m))
 
@@ -137,6 +137,8 @@ selectMeters ts = filterWithKey (\k _ -> k `elem` ts)
 -- Performing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
 
+-- Filters all segments that are at least 4 bars long. If the list does
+-- not contain any segments longer then 4 bars Left is returned.
 fourBarFilter :: Time -> [SWMeterSeg] -> Either String [SWMeterSeg]
 fourBarFilter tpb = minBarLenFilter tpb (NrOfBars 4)
 
@@ -169,7 +171,9 @@ doIMA qms =
      >>= addMaxPerCheck 
      >>= return . getSpectralWeight md
      -- >>= return . getMetricWeightGrid md
+     -- First we calculate the IMA for the complete piece
      >>= return . matchScore v
+     -- Then we segment the piece according to the annotated meters
      >>= return . segment (getTimeSig . qMidiScore $ qms)
                 
 
@@ -256,7 +260,7 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
   toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, SWeight) -> IO ()
   toStar os x (Timed g (se,w)) = 
     let (br, bib, BeatRat r) = getBeatInBar x tpb g
-    in putStrLn (printf ("%6d: %3d.%1d - %2d / %2d: " ++ showMSE se ++ ": " ++ stars w) 
+    in putStrLn (printf ("%6d: %3d.%1d - %2d / %2d: " ++ showMSE se ++ ": " ++ show w) 
                 (g+os) br bib (numerator r) (denominator r)) 
                 
   showMSE :: Maybe ScoreEvent -> String

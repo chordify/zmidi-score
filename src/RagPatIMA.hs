@@ -86,7 +86,7 @@ readProf fp = do qm <- readQMidiScoreSafe FourtyEighth fp
                  case qm >>= qMidiScoreToNSWProfMaps of
                    Right w -> do putStrLn fp 
                                  -- either error printSongStats qm
-                                 printMeterStats w
+                                 -- printMeterStats w
                                  qm `seq` w `seq` return w
                    Left  e -> warning fp e >> return empty
                  
