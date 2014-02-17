@@ -7,7 +7,7 @@ module Ragtime.MidiIMA (
                        , meterCheck
                        , selectMeters
                        , fourBarFilter
-                       , collectNSWProf
+                       , collectSWProf
                        , toSWProfSegs 
                        , printIMA
                        , printPickMeter
@@ -94,11 +94,11 @@ matchTS qb tpb td (ts,v) = let p = normSWProf (toNSWProfWithTS ts tpb td)
 type SWProfSeg = TimedSeg TimeSig SWProf
 
 -- | Collects all profiles sorted by time signature in one map
-collectNSWProf :: [SWProfSeg] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-collectNSWProf s m = foldr doSeg m s where
+collectSWProf :: [SWProfSeg] -> Map TimeSig SWProf -> Map TimeSig SWProf
+collectSWProf s m = foldr doSeg m s where
 
-  doSeg :: SWProfSeg -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-  doSeg (TimedSeg ts p) m' = insertWith mergeNSWProf (getEvent ts) (normSWProf p) m'
+  doSeg :: SWProfSeg -> Map TimeSig SWProf -> Map TimeSig SWProf
+  doSeg (TimedSeg ts p) m' = insertWith mergeSWProf (getEvent ts) p m'
  
   
 -- | Transforms a quantised midi score into a set of meter profiles segmented

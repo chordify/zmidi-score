@@ -10,7 +10,7 @@ module Ragtime.NSWProf ( -- | Newtypes
                        , NrOfBars (..)
                          -- | NSW profile functions
                        , mergeProf
-                       , mergeNSWProf
+                       , mergeSWProf
                        , normSWProf
                          -- | Vector conversion and matching
                        , dist 
@@ -37,8 +37,6 @@ import Data.Vector                    ( Vector, generate )
 import Data.Binary                    ( Binary, encodeFile, decodeFile )
 import Text.Printf                    ( PrintfArg, printf )
 import Ragtime.VectorNumerics         ( euclDist, disp )
-
-import Debug.Trace
 
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
@@ -86,8 +84,8 @@ newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
 showNSWProf :: (TimeSig, NSWProf) -> String
 showNSWProf (ts, p) = show ts ++ "\n" ++ show p
   
-mergeNSWProf :: NSWProf -> NSWProf -> NSWProf
-mergeNSWProf (NSWProf a) (NSWProf b) = NSWProf (mergeProf a b)  
+mergeSWProf :: SWProf -> SWProf -> SWProf
+mergeSWProf (SWProf a) (SWProf b) = SWProf (mergeProf a b)  
   
 -- | merges two 'SWProf's by summing its values
 -- mergeNSWProf :: SWProf -> SWProf -> SWProf
@@ -96,19 +94,16 @@ mergeProf :: Num a => (NrOfBars, Map (Beat, BeatRat) a)
                    -> (NrOfBars, Map (Beat, BeatRat) a)
 mergeProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
 
--- TODO create newtype around Map BeatRat NSWeight and create a datatype
--- cumNSWProf for the current SWProf
--- normNSWProf :: SWProf -> Map (Beat, BeatRat) NSWeight
--- normNSWProf (SWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') wp
-
+-- normSWProfs :: Map TimeSig SWProf -> Map TimeSig NSWProf 
+-- normSWProfs m = M.map normSWProf
 
 normSWProf :: SWProf -> NSWProf 
 normSWProf (SWProf (b, wp)) = let -- m  = trace ("max: " ++ show a) a where a = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
                                   m = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
                                in NSWProf (b, M.map (\x -> fromIntegral x / m) wp)
 
-normNSWProf :: NSWProf -> Map (Beat, BeatRat) NSWeight
-normNSWProf (NSWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') wp
+-- normNSWProf :: NSWProf -> Map (Beat, BeatRat) NSWeight
+-- normNSWProf (NSWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') wp
 
 --------------------------------------------------------------------------------
 -- Matching IMA profiles
@@ -147,7 +142,8 @@ vectorize (QBins qb) ts@(TimeSig num _ _ _) p = generate (num * qb) getWeight
         getWeight i = findWithDefault (NSWeight 0) (toKey i) m
         
         m :: Map (Beat, BeatRat) NSWeight
-        m = normNSWProf p
+        -- m = normNSWProf p
+        m = snd (nswprof p)
 
 -- | Batch vectorizes a Map with 'SWProf's
 vectorizeAll :: QBins -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]

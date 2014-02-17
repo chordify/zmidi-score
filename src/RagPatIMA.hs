@@ -8,11 +8,12 @@ import ZMidi.Score.Quantise  ( QMidiScore (..), ShortestNote (..), avgQDevQMS
 import ZMidi.IO.Common       ( readQMidiScoreSafe, mapDirInDir, mapDir, warning)
 import Ragtime.MidiIMA
 import Ragtime.NSWProf       ( vectorizeAll, SWProf, writeNSWProf, readNSWProf
-                             , mergeNSWProf, showNSWProf, NSWeight, normSWProf 
+                             , mergeSWProf, showNSWProf, NSWeight, normSWProf 
                              , NSWProf )
 
 import System.Environment    ( getArgs )
 import Data.Map.Strict       ( empty, Map, unionWith, toList )
+import qualified Data.Map.Strict as M ( map )
 import Data.Vector           ( Vector )
 import Data.List             ( intercalate )
 import Control.Monad         ( void )
@@ -31,15 +32,16 @@ main =
          profIn = "ragtimeMeterProfiles_2013-02-11.bin"
      case arg of
        ["-f", fp] -> readQMidiScoreSafe FourtyEighth fp 
-                        >>= return . either error id 
-                        >>= printIMA >>= return . (flip collectNSWProf) empty
+                        >>= return . either error id >>= printIMA
+                        >>= return . M.map normSWProf . (flip collectSWProf) empty
                         >>= printMeterStats
                             
-       ["-a", fp] -> mapDirInDir (\x -> mapDir readProf x >>= unionNSWProfMaps) fp
-                        >>= unionNSWProfMaps >>= writeNSWProf "nswProf.bin" 
-                        >>= printMeterStats
+       ["-a", fp] -> mapDirInDir (\x -> mapDir readProf x >>= unionSWProfMaps) fp
+                        >>= unionSWProfMaps >>= return . M.map normSWProf 
+                        >>= writeNSWProf "nswProf.bin" >>= printMeterStats
                             
-       ["-d", fp] -> mapDir readProf fp >>= unionNSWProfMaps 
+       ["-d", fp] -> mapDir readProf fp >>= unionSWProfMaps 
+                        >>= return . M.map normSWProf
                         >>= writeNSWProf "nswProf.bin" >>= printMeterStats    
                         
        ["-m", fp] -> do qm <- readQMidiScoreSafe FourtyEighth fp
@@ -67,10 +69,10 @@ main =
    
    
 -- combines two inner metrical analysis maps into one, summing all results
-unionNSWProfMaps :: [Map TimeSig NSWProf] -> IO (Map TimeSig NSWProf)
-unionNSWProfMaps m = do let r = foldr (unionWith mergeNSWProf) empty m
+unionSWProfMaps :: [Map TimeSig SWProf] -> IO (Map TimeSig SWProf)
+unionSWProfMaps m = do let r = foldr (unionWith mergeSWProf) empty m
                             -- step a b = unionWith mergeProf a b
-                        r `seq` return r
+                       r `seq` return r
 
 -- Prints the average normalised inner metric analysis profiles to the user
 printMeterStats :: Map TimeSig NSWProf -> IO ()
@@ -81,9 +83,9 @@ printSongStats m = let s = "q: %.3f ts: " ++ (show . getTimeSig . qMidiScore $ m
                    in  putStrLn . printf s . avgQDevQMS $ m
    
 -- Reads a file and does an inner metric analysis per time signature segment
-readProf :: FilePath -> IO (Map TimeSig NSWProf)
+readProf :: FilePath -> IO (Map TimeSig SWProf)
 readProf fp = do qm <- readQMidiScoreSafe FourtyEighth fp 
-                 case qm >>= qMidiScoreToNSWProfMaps of
+                 case qm >>= qMidiScoreToSWProfMaps of
                    Right w -> do putStrLn fp 
                                  -- either error printSongStats qm
                                  -- printMeterStats w
@@ -91,10 +93,10 @@ readProf fp = do qm <- readQMidiScoreSafe FourtyEighth fp
                    Left  e -> warning fp e >> return empty
                  
 -- Transforms quantised midi into an inner metric analysis or a failure warning
-qMidiScoreToNSWProfMaps :: QMidiScore -> Either String (Map TimeSig NSWProf)
-qMidiScoreToNSWProfMaps qm =   timeSigCheck qm 
+qMidiScoreToSWProfMaps :: QMidiScore -> Either String (Map TimeSig SWProf)
+qMidiScoreToSWProfMaps qm =    timeSigCheck qm 
                            >>= toSWProfSegs
-                           >>= (\x -> return $ collectNSWProf x empty)
+                           >>= (\x -> return $ collectSWProf x empty)
 
 dirMeterMatch :: Map TimeSig NSWProf -> FilePath -> IO ()
 dirMeterMatch m fp = readQMidiScoreSafe FourtyEighth fp 
