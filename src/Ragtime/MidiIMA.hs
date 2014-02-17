@@ -61,7 +61,7 @@ matchMeters m qm = doIMA qm >>= fourBarFilter tpb >>= return . map matchAll wher
 
   tpb = ticksPerBeat . qMidiScore $ qm
 
-  matchAll :: NSWMeterSeg -> TimedSeg TimeSig [PMatch]
+  matchAll :: SWMeterSeg -> TimedSeg TimeSig [PMatch]
   matchAll = fmap (\td -> map (match td) m) 
   
   match :: [Timed (Maybe ScoreEvent, SWeight)] -> (TimeSig, Vector NSWeight) -> PMatch
@@ -110,7 +110,7 @@ toSWProfSegs m =   doIMA m
 
 -- | Sums all NSW profiles per bar for a meter section using the annotated
 -- meter of that section
-toNSWProf :: Time ->  NSWMeterSeg -> SWProfSeg
+toNSWProf :: Time ->  SWMeterSeg -> SWProfSeg
 toNSWProf tpb s = fmap (toNSWProfWithTS (getEvent . boundary $ s) tpb) s
 
 -- | Sums all NSW profiles per bar for a meter section using a specific meter
@@ -137,7 +137,7 @@ selectMeters ts = filterWithKey (\k _ -> k `elem` ts)
 -- Performing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
 
-fourBarFilter :: Time -> [NSWMeterSeg] -> Either String [NSWMeterSeg]
+fourBarFilter :: Time -> [SWMeterSeg] -> Either String [SWMeterSeg]
 fourBarFilter tpb = minBarLenFilter tpb (NrOfBars 4)
 
 minBarLenFilter :: Time -> NrOfBars -> [TimedSeg TimeSig [Timed a]] 
@@ -157,11 +157,11 @@ notEmpty :: TimedSeg a [b] -> Bool
 notEmpty (TimedSeg _ []) = False
 notEmpty _               = True
   
-type NSWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
+type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
 -- TODO create a MPMidiScore for monophonic MidiScores
 -- TODO create a QMPMidiScore for quantised monophonic MidiScores
 
-doIMA :: QMidiScore -> Either String [NSWMeterSeg]
+doIMA :: QMidiScore -> Either String [SWMeterSeg]
 doIMA qms = 
   let v    = toMonoVoice . qMidiScore $ qms
       md   = fromIntegral . minDur . qMidiScore $ qms
@@ -241,12 +241,12 @@ printIMA :: QMidiScore -> IO ([SWProfSeg])
 printIMA qm = do let tpb = ticksPerBeat . qMidiScore $ qm
                  mapM (toNSWProfPrint tpb) . either error id . doIMA $ qm where
                 
-  toNSWProfPrint :: Time ->  NSWMeterSeg -> IO (SWProfSeg)
+  toNSWProfPrint :: Time ->  SWMeterSeg -> IO (SWProfSeg)
   toNSWProfPrint t s = starMeter t s >> return (toNSWProf t s)
                 
           
 -- Prints an Inner metrical analysis
-starMeter :: Time -> NSWMeterSeg -> IO ()
+starMeter :: Time -> SWMeterSeg -> IO ()
 starMeter tpb (TimedSeg (Timed t ts) s) = 
   do putStrLn . printf ("%6d: ======================= " ++ show ts 
                          ++ " =======================" ) $ t
