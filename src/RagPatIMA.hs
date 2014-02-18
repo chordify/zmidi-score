@@ -29,7 +29,8 @@ main =
                   , TimeSig 3 4 0 0
                   , TimeSig 6 8 0 0
                   ]
-         profIn = "ragtimeMeterProfiles_2013-02-11.bin"
+         -- profIn = "ragtimeMeterProfiles_2013-02-11.bin"
+         profIn = "nswProf.bin"
      case arg of
        ["-f", fp] -> readQMidiScoreSafe FourtyEighth fp 
                         >>= return . either error id >>= printIMA
@@ -71,7 +72,6 @@ main =
 -- combines two inner metrical analysis maps into one, summing all results
 unionSWProfMaps :: [Map TimeSig SWProf] -> IO (Map TimeSig SWProf)
 unionSWProfMaps m = do let r = foldr (unionWith mergeSWProf) empty m
-                            -- step a b = unionWith mergeProf a b
                        r `seq` return r
 
 -- Prints the average normalised inner metric analysis profiles to the user
@@ -88,7 +88,7 @@ readProf fp = do qm <- readQMidiScoreSafe FourtyEighth fp
                  case qm >>= qMidiScoreToSWProfMaps of
                    Right w -> do putStrLn fp 
                                  -- either error printSongStats qm
-                                 return (M.map normSWProf w) >>= printMeterStats 
+                                 -- return (M.map normSWProf w) >>= printMeterStats 
                                  qm `seq` w `seq` return w
                    Left  e -> warning fp e >> return empty
                  

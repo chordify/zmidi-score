@@ -38,6 +38,8 @@ import Data.Binary                    ( Binary, encodeFile, decodeFile )
 import Text.Printf                    ( PrintfArg, printf )
 import Ragtime.VectorNumerics         ( euclDist, disp )
 
+import Debug.Trace
+
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
                      deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
@@ -70,10 +72,8 @@ instance Show NSWProf where
     
           shw :: (Beat, BeatRat) -> NSWeight -> [String] -> [String]
           shw (Beat b, BeatRat br) w r = 
-            -- TODO replace the code below by nromNSWProf
-            let x = w -- / fromIntegral bars
-            in (printf ("%1d - %2d / %2d: %.5f " ++ stars x) 
-                       b (numerator br) (denominator br) x ) : r
+            let x = w in printf ("%1d - %2d / %2d: %.5f " ++ stars x) 
+                           b (numerator br) (denominator br) x : r
 
 -- | Stores the number of bars
 newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
@@ -88,22 +88,16 @@ mergeSWProf :: SWProf -> SWProf -> SWProf
 mergeSWProf (SWProf a) (SWProf b) = SWProf (mergeProf a b)  
   
 -- | merges two 'SWProf's by summing its values
--- mergeNSWProf :: SWProf -> SWProf -> SWProf
 mergeProf :: Num a => (NrOfBars, Map (Beat, BeatRat) a) 
                    -> (NrOfBars, Map (Beat, BeatRat) a)
                    -> (NrOfBars, Map (Beat, BeatRat) a)
 mergeProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
 
--- normSWProfs :: Map TimeSig SWProf -> Map TimeSig NSWProf 
--- normSWProfs m = M.map normSWProf
-
 normSWProf :: SWProf -> NSWProf 
-normSWProf (SWProf (b, wp)) = let -- m  = trace ("max: " ++ show a) a where a = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
-                                  m = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
-                               in NSWProf (b, M.map (\x -> fromIntegral x / m) wp)
-
--- normNSWProf :: NSWProf -> Map (Beat, BeatRat) NSWeight
--- normNSWProf (NSWProf (b, wp)) = let b' = fromIntegral b in M.map (\x -> x / b') wp
+normSWProf (SWProf (b, wp)) = 
+  let m  = trace ("max: " ++ show a) a where a = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
+      -- m = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
+  in NSWProf (b, M.map (\x -> fromIntegral x / m) wp)
 
 --------------------------------------------------------------------------------
 -- Matching IMA profiles

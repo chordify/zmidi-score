@@ -172,7 +172,7 @@ isMax (Period f) m (Period pb) tb (Len lb) =
 -- Inner Metrical Analysis Weights
 --------------------------------------------------------------------------------
 
-newtype SWeight = SWeight {sweight :: Int} 
+newtype SWeight = SWeight {sweight :: Integer} 
                   deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg )
 newtype MWeight = MWeight {mweight :: Int}
                   deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg )
@@ -292,7 +292,7 @@ getSpectralVec ml mP ons grid = runST $ (initVec >>= process >>= freeze) where
      oneMeter (t, Len l) mv = foldrM addWeight mv $ spectralGrid t p where
        
        -- addWeigth is executed very often, hence we pre-compute some values
-       w  = SWeight (l ^ (2 :: Int))
+       w  = SWeight $ fromIntegral (l ^ (2 :: Int))
      
        -- adds the spectral onsets to the weight vector
        addWeight :: (PrimMonad m) => Int -> MVecSW m -> m (MVecSW m)
