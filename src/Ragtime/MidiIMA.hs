@@ -250,14 +250,19 @@ starMeter :: TPB -> SWMeterSeg -> IO ()
 starMeter tb (TimedSeg (Timed t ts) s) = 
   do putStrLn . printf ("%6d: ======================= " ++ show ts 
                          ++ " =======================" ) $ t
-     mapM_ (toStar t ts) s where
+     mapM_ (toLine t ts) s where
                     
   -- prints one line e.g. "1152 1 3 1C  ***************"
-  toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, SWeight) -> IO ()
-  toStar os x (Timed g (se,w)) = 
+  toLine :: Time -> TimeSig -> Timed (Maybe ScoreEvent, SWeight) -> IO ()
+  toLine os x (Timed g (se,w)) = 
     let (br, bib, BeatRat r) = getBeatInBar x tb g
-    in putStrLn (printf ("%6d: %3d.%1d - %2d / %2d: " ++ showMSE se ++ ": " ++ show w) 
-                (g+os) br bib (numerator r) (denominator r)) 
+    in putStrLn (printf ("%6d: %3d.%1d - %2d / %2d" ++ showMSE se ++ ": %6d " ++ toStar w) 
+                (g+os) br bib (numerator r) (denominator r) w)
+                
+  m = fromIntegral . maximum . map (snd . getEvent) $ s :: Double
+  
+  toStar :: SWeight -> String
+  toStar x = stars (fromIntegral x / m)
                 
   showMSE :: Maybe ScoreEvent -> String
   showMSE = maybe "    " (show . pitch) 
