@@ -17,10 +17,13 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , Bar (..)
                   , Beat (..)
                   , BeatRat (..)
+                  , TPB (..)
                   , ScoreEvent (..)
                   -- * Minimum length calculation
                   , buildTickMap
                   , gcIOId
+                  -- * Bar and beat positions
+                  , getBeatInBar
                   -- * Utilities
                   , isTempoChange
                   , isTimeSig
@@ -36,7 +39,6 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , changePitch
                   , pitchClass
                   , hasTimeSigs
-                  , getBeatInBar
                   -- * MidiFile Utilities
                   , hasNotes 
                   , isNoteOnEvent
@@ -79,7 +81,7 @@ data MidiScore  = MidiScore     { -- | The 'Key's of the piece with time stamps
                                   -- | The 'TimeSig'natures of the piece with time stamps
                                 , getTimeSig :: [Timed TimeSig]
                                   -- | The number of MIDI-ticks-per-beat
-                                , ticksPerBeat :: Time  
+                                , ticksPerBeat :: TPB  
                                   -- | The kind of midi file that created this score
                                 , midiFormat :: MidiFormat
                                   -- | The microseconds per quarter note
@@ -123,8 +125,10 @@ newtype Bar     = Bar  { bar  :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
 newtype Beat    = Beat { beat :: Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg, Binary )
-newtype BeatRat  = BeatRat { beatRat  :: Ratio Int } 
+newtype BeatRat = BeatRat { beatRat  :: Ratio Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Binary )                    
+newtype TPB     = TPB { tpb :: Int } 
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
                     
 -- perhaps add duration??
 data Timed a    = Timed         { onset       :: Time 
@@ -224,9 +228,9 @@ showPitch n  = invalidMidiNumberError n
 
 -- Show a MidiScore in a readable way
 showMidiScore :: MidiScore -> String
-showMidiScore ms@(MidiScore k ts tpb mf tp st _vs) = "Key: "      ++ show k 
+showMidiScore ms@(MidiScore k ts tb mf tp st _vs) = "Key: "      ++ show k 
                                      ++ "\nMeter: "  ++ show ts
-                                     ++ "\nTicks per Beat: "  ++ show tpb 
+                                     ++ "\nTicks per Beat: "  ++ show tb 
                                      ++ "\nMidi format: " ++ show mf 
                                      ++ "\nTempo: "  ++ show tp 
                                      ++ "\nShortest tick: "   ++ show st
@@ -308,6 +312,26 @@ buildTickMap = foldr oneVoice M.empty where
   -- showTick :: (Int, Time) -> String
   -- showTick (i, t) = show i ++ ": " ++ show t ++ "\n"
 
+--------------------------------------------------------------------------------
+-- Bar & Beat position
+--------------------------------------------------------------------------------
+
+-- Within a 'MidiScore' we can musically describe every (quantised)
+-- position in time in 'Bar', Beat, and 'BarRat'. Therefore, we need the 
+-- 'TimeSig'nature, the length of a beat ('TPB', in ticks), and the actual
+-- 'Time' stamp.
+-- TODO move these newtypes to the Quantise module?
+getBeatInBar :: TimeSig -> TPB -> Time -> (Bar, Beat, BeatRat)
+getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
+getBeatInBar (TimeSig num _den _ _) t o = 
+  let (bt, rat) = getRatInBeat t o
+      (br, bib) = (succ *** succ) $ fromIntegral bt `divMod` num 
+  in (Bar br, Beat bib, rat)
+
+-- | Returns the position within a 'Bar', see 'getBeatInBar'.
+getRatInBeat :: TPB -> Time -> (Beat, BeatRat)
+getRatInBeat (TPB t) (Time o) = 
+  ((Beat) *** (BeatRat . (% t))) (o `divMod` t)
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
@@ -394,16 +418,6 @@ invalidMidiNumberError w = error ("invalid MIDI note number" ++ show w)
 hasTimeSigs :: MidiScore -> Bool
 hasTimeSigs = not . null . filter (not . (== NoTimeSig) . getEvent) . getTimeSig
 
-getBeatInBar :: TimeSig -> Time -> Time -> (Bar, Beat, BeatRat)
-getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
-getBeatInBar (TimeSig num _den _ _) tpb o = 
-  let (bt, rat) = getRatInBeat tpb o
-      (br, bib) = (succ *** succ) $ fromIntegral bt `divMod` num 
-  in (Bar br, Beat bib, rat)
-
-getRatInBeat :: Time -> Time -> (Beat, BeatRat)
-getRatInBeat (Time tpb) (Time o) = 
-  ((Beat) *** (BeatRat . (% tpb))) (o `divMod` tpb)
     
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities

@@ -133,8 +133,12 @@ vectorize :: QBins -> TimeSig ->  NSWProf -> Vector NSWeight
 vectorize _  NoTimeSig _ = error "toNSWVec applied to NoTimeSig"
 vectorize (QBins qb) ts@(TimeSig num _ _ _) p = generate (num * qb) getWeight 
   
-  where toKey :: Int -> (Beat, BeatRat)
-        toKey i = case getBeatInBar ts (Time qb) (Time i) of
+  where -- Given the number of quantisation bins toKey maps an index to 
+        -- a (Beat, Bar) tuple of a NSWProf. N.B. the each index maps to a
+        -- (Beat, Bar) bin. Hence, the ticks per beat equals the number of 
+        -- quantisation bins
+        toKey :: Int -> (Beat, BeatRat)
+        toKey i = case getBeatInBar ts (TPB qb) (Time i) of
                     (1, b, br) -> (b, br)
                     _  -> error ("index out of bounds: " ++ show i)
         

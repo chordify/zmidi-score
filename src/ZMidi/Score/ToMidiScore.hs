@@ -15,7 +15,8 @@ import ZMidi.Core          ( MidiFile (..), MidiEvent (..)
                            , MidiTimeDivision (..)
                            )
 
-import ZMidi.Score.Datatypes
+import ZMidi.Score.Datatypes hiding         ( TPB (..) )
+import qualified ZMidi.Score.Datatypes as S ( TPB (..) )
 
 --------------------------------------------------------------------------------
 -- Converting a MidiFile
@@ -26,13 +27,13 @@ midiFileToMidiScore :: MidiFile -> MidiScore
 midiFileToMidiScore mf = MidiScore (select isKeyChange keyChange NoKey meta) 
                                    -- (map (updTimeSig tpb) . nub $ select isTimeSig tsChange NoTimeSig meta) 
                                    (nub $ select isTimeSig tsChange NoTimeSig meta) 
-                                   tpb
+                                   tb
                                    (hdr_format  . mf_header $ mf)
                                    (select isTempoChange tempChange 500000 meta)
                                    (gcIOId . buildTickMap $ trks)
                                    (filter (not . null) trks) where
   
-  tpb          = getDivision . mf_header $ mf
+  tb           = getDivision . mf_header $ mf
   (trks, meta) = second concat . -- merge all meta data into one list
                  -- separate meta data from note data
                  unzip . map (partition isNoteEvent . midiTrackToVoice)
@@ -52,7 +53,7 @@ midiFileToMidiScore mf = MidiScore (select isKeyChange keyChange NoKey meta)
     
   -- Returns the time division of the MidiScore, which is the length of a
   -- quarter note
-  getDivision :: MidiHeader -> Time
+  getDivision :: MidiHeader -> S.TPB
   getDivision hd = case time_division hd of
                     (FPS _ ) -> error "no division found"
                     (TPB b ) -> fromIntegral b

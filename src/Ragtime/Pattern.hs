@@ -89,7 +89,7 @@ showPats = intercalate "\n" . map show
 -- | Takes a midiscore, quantises it, finds the melody, and turns it into a 
 -- 'Pattern' list, where every 'Pattern' represents a beat
 toPatterns :: ShortestNote -> MidiScore -> [Pattern]
-toPatterns q ms = scoreToPatterns (getMinGridSize q ms) (toQBins q) 
+toPatterns q ms = scoreToPatterns (Time . tpb $ getMinGridSize q ms) (toQBins q) 
                 . findMelodyQuant q $ ms where
                 
   scoreToPatterns :: Time -> QBins -> Voice -> [Pattern]

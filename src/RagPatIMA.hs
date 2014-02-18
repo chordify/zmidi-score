@@ -105,8 +105,8 @@ dirMeterMatch m fp = readQMidiScoreSafe FourtyEighth fp
 
   where doMeterMatch :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
                      -> Either String String
-        doMeterMatch m qm = timeSigCheck qm 
-                          >>= matchMeters m >>= pickMeters
+        doMeterMatch m' qm = timeSigCheck qm 
+                          >>= matchMeters m' >>= pickMeters
                           >>= return . intercalate "\n" 
                                      . map (\x -> fp ++ "\t" ++ printPickMeter x)
                               

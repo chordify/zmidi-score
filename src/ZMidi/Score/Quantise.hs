@@ -104,7 +104,7 @@ avgQDev gu qd nrn =
 -- the quantised 'MidiScore' and the 'GridUnit' also the cumulative deviation 
 -- from the grid is returned.
 quantiseSafe :: ShortestNote -> MidiScore -> Either String QMidiScore
-quantiseSafe sn (MidiScore k ts (Time dv) mf tp _md vs) =  
+quantiseSafe sn (MidiScore k ts (TPB dv) mf tp _md vs) =  
   -- the grid unit is the number of ticks per beat divided by the maximum
   -- number of notes in one beat
   case dv `divMod` (qbins . toQBins $ sn) of
@@ -115,7 +115,7 @@ quantiseSafe sn (MidiScore k ts (Time dv) mf tp _md vs) =
                    -- also align the time signatures to a grid
                    ts' = map (snapTimed . GridUnit $ gu) ts
                    -- update the MidiScore
-                   ms' = MidiScore k ts' (Time dv) mf tp md' vs'
+                   ms' = MidiScore k ts' (TPB dv) mf tp md' vs'
                in Right (QMidiScore ms' sn (GridUnit gu) (sum d))
     _       ->    Left ("MidiFile cannot be quantised: " ++ show dv ++ 
                         " cannot be divided by " ++ show (toQBins sn))
@@ -152,7 +152,7 @@ snap gu t | m == 0  = (t, 0)          -- score event is on the grid
 -- | Returns true if the number of ticks per beat can be divided by the 
 -- maximal number of quantisation bins.
 canBeQuantisedAt :: ShortestNote -> MidiScore -> Bool
-canBeQuantisedAt sn ms =   ((time . ticksPerBeat   $ ms)
+canBeQuantisedAt sn ms =   ((tpb . ticksPerBeat   $ ms)
                       `mod` (qbins . toQBins $ sn)) == 0
     
 -- | Although 'quantise' also quantises the duration of 'NoteEvents', it can
@@ -178,10 +178,10 @@ removeOverlap = foldr step [] where
 -- | Returns the minimal grid size of a 'MidiScore' if it has been quantised. 
 -- This is the 'ticksPerBeat' divided by the number of quantisation bins.
 -- N.B. this function does not check whether a file is quantised.
-getMinGridSize :: ShortestNote -> MidiScore -> Time
-getMinGridSize q ms = case (time . ticksPerBeat  $ ms) `divMod` 
+getMinGridSize :: ShortestNote -> MidiScore -> TPB
+getMinGridSize q ms = case (tpb . ticksPerBeat  $ ms) `divMod` 
                            (qbins . toQBins $ q) of
-                        (d,0) -> Time d
+                        (d,0) -> TPB d
                         _     -> error "getMinGridSize: invalid quantisation"
       
 -- | Applies 'toQBins' to the 'ShortestNote' in a 'QMidiScore'
@@ -197,3 +197,4 @@ toQBins Sixteenth    = QBins 4
 toQBins ThirtySecond = QBins 8
 toQBins FourtyEighth = QBins 12
 toQBins SixtyFourth  = QBins 16
+  

@@ -57,15 +57,15 @@ pickMeters = Right . map (fmap (minimumBy (compare `on` pmatch)))
 -- a 'QMidiScore' to the vectorized profiles
 matchMeters :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
             -> Either String [TimedSeg TimeSig [PMatch]]
-matchMeters vs qm = doIMA qm >>= fourBarFilter tpb >>= return . map matchAll where
+matchMeters vs qm = doIMA qm >>= fourBarFilter tb >>= return . map matchAll where
 
-  tpb = ticksPerBeat . qMidiScore $ qm
+  tb = ticksPerBeat . qMidiScore $ qm
 
   matchAll :: SWMeterSeg -> TimedSeg TimeSig [PMatch]
   matchAll = fmap (\td -> map (match td) vs)
   
   match :: [Timed (Maybe ScoreEvent, SWeight)] -> (TimeSig, Vector NSWeight) -> PMatch
-  match td v = matchTS (qToQBins qm) tpb td v
+  match td v = matchTS (qToQBins qm) tb td v
   
 -- | Calculates the match between an annotated and IMA estimated meter
 meterCheck :: Map TimeSig NSWProf -> QMidiScore 
@@ -79,11 +79,11 @@ meterCheck m qm = toSWProfSegs qm >>= return . map (fmap normSWProf)
                              Just pb -> TimedSeg ts (pa, pb, dist (qToQBins qm) (f pa) (f pb))
                                 where f = vectorize (qToQBins qm) (getEvent ts)
 
-matchTS :: QBins -> Time -> [Timed (Maybe ScoreEvent, SWeight)] 
+matchTS :: QBins -> TPB -> [Timed (Maybe ScoreEvent, SWeight)] 
         -> (TimeSig, Vector NSWeight) -> PMatch
-matchTS qb tpb td (ts,v) = let p = normSWProf (toNSWProfWithTS ts tpb td)
-                               m = dist qb v (vectorize qb ts p)
-                           in  PMatch ts (NSWDist . nsweight $ m) p
+matchTS qb tb td (ts,v) = let p = normSWProf (toNSWProfWithTS ts tb td)
+                              m = dist qb v (vectorize qb ts p)
+                          in  PMatch ts (NSWDist . nsweight $ m) p
                                 
 
   
@@ -110,18 +110,17 @@ toSWProfSegs m =    doIMA m
 
 -- | Sums all NSW profiles per bar for a meter section using the annotated
 -- meter of that section
-toNSWProf :: Time ->  SWMeterSeg -> SWProfSeg
-toNSWProf tpb s = fmap (toNSWProfWithTS (getEvent . boundary $ s) tpb) s
+toNSWProf :: TPB ->  SWMeterSeg -> SWProfSeg
+toNSWProf tb s = fmap (toNSWProfWithTS (getEvent . boundary $ s) tb) s
 
 -- | Sums all NSW profiles per bar for a meter section using a specific meter
-toNSWProfWithTS :: TimeSig -> Time -> [Timed (Maybe ScoreEvent, SWeight)] 
-                -> SWProf
+toNSWProfWithTS :: TimeSig ->TPB ->[Timed (Maybe ScoreEvent, SWeight)] -> SWProf
 toNSWProfWithTS NoTimeSig _ _ = error "toNSWProfWithTS applied to NoTimeSig"
-toNSWProfWithTS ts tpb td = foldl' toProf (SWProf (1, empty)) td
+toNSWProfWithTS ts tb td = foldl' toProf (SWProf (1, empty)) td
 
   where toProf :: SWProf -> Timed (Maybe ScoreEvent, SWeight) -> SWProf
         toProf (SWProf (_b, m)) (Timed g (_se,w)) = 
-          let (Bar br, bib, bt) = getBeatInBar ts tpb g 
+          let (Bar br, bib, bt) = getBeatInBar ts tb g 
               m'                = insertWith (+) (bib,bt) w m 
               -- Every iteration we update the number of bars (lazily) 
               -- Hence, the last call to toProf will contain the final 
@@ -139,20 +138,20 @@ selectMeters ts = filterWithKey (\k _ -> k `elem` ts)
 
 -- Filters all segments that are at least 4 bars long. If the list does
 -- not contain any segments longer then 4 bars Left is returned.
-fourBarFilter :: Time -> [SWMeterSeg] -> Either String [SWMeterSeg]
-fourBarFilter tpb = minBarLenFilter tpb (NrOfBars 4)
+fourBarFilter :: TPB -> [SWMeterSeg] -> Either String [SWMeterSeg]
+fourBarFilter tb = minBarLenFilter tb (NrOfBars 4)
 
-minBarLenFilter :: Time -> NrOfBars -> [TimedSeg TimeSig [Timed a]] 
+minBarLenFilter :: TPB -> NrOfBars -> [TimedSeg TimeSig [Timed a]] 
                 -> Either String [TimedSeg TimeSig [Timed a]]
-minBarLenFilter tpb bs s = 
-  case filter (\x -> notEmpty x && getNrOfBars tpb x > bs) s of
+minBarLenFilter tb bs s = 
+  case filter (\x -> notEmpty x && getNrOfBars tb x > bs) s of
     [] -> Left ("minBarLenFilter: no segments longer then " ++ show bs)
     s' -> Right s'
   
-getNrOfBars :: Time -> TimedSeg TimeSig [Timed a] -> NrOfBars
-getNrOfBars tpb (TimedSeg ts []) = error "getNrOfBeats: empty List"
-getNrOfBars tpb (TimedSeg ts x ) = 
-  let (br, _beat, _btrat) = getBeatInBar (getEvent ts) tpb (onset . last $ x)
+getNrOfBars :: TPB -> TimedSeg TimeSig [Timed a] -> NrOfBars
+getNrOfBars _  (TimedSeg _  []) = error "getNrOfBeats: empty List"
+getNrOfBars tb (TimedSeg ts x ) = 
+  let (br, _beat, _btrat) = getBeatInBar (getEvent ts) tb (onset . last $ x)
   in  NrOfBars (bar br)
 
 notEmpty :: TimedSeg a [b] -> Bool
@@ -195,9 +194,6 @@ toIMAOnset = map fromIntegral . toOnsets
 matchScore :: Voice -> [(Int, SWeight)] -> [Timed (Maybe ScoreEvent, SWeight)]
 matchScore v s = match (map (first Time) s) v where
 
-  -- The maximum 'Weight' found among the weights
-  mx = maximum . map snd $ s
-  
   -- | matches a grid with spectral weights with the onsets that created the
   -- weights. 
   match :: [(Time, SWeight)] -> Voice -> [Timed (Maybe ScoreEvent, SWeight)]
@@ -242,16 +238,16 @@ printPickMeter (TimedSeg ts m) =
   in printf s (pmatch m)
 
 printIMA :: QMidiScore -> IO ([SWProfSeg])
-printIMA qm = do let tpb = ticksPerBeat . qMidiScore $ qm
-                 mapM (toNSWProfPrint tpb) . either error id . doIMA $ qm where
+printIMA qm = mapM toNSWProfPrint . either error id . doIMA $ qm where
                 
-  toNSWProfPrint :: Time ->  SWMeterSeg -> IO (SWProfSeg)
-  toNSWProfPrint t s = starMeter t s >> return (toNSWProf t s)
+  toNSWProfPrint :: SWMeterSeg -> IO (SWProfSeg)
+  toNSWProfPrint s = do let tb = ticksPerBeat . qMidiScore $ qm 
+                        starMeter tb s >> return (toNSWProf tb s)
                 
           
 -- Prints an Inner metrical analysis
-starMeter :: Time -> SWMeterSeg -> IO ()
-starMeter tpb (TimedSeg (Timed t ts) s) = 
+starMeter :: TPB -> SWMeterSeg -> IO ()
+starMeter tb (TimedSeg (Timed t ts) s) = 
   do putStrLn . printf ("%6d: ======================= " ++ show ts 
                          ++ " =======================" ) $ t
      mapM_ (toStar t ts) s where
@@ -259,7 +255,7 @@ starMeter tpb (TimedSeg (Timed t ts) s) =
   -- prints one line e.g. "1152 1 3 1C  ***************"
   toStar :: Time -> TimeSig -> Timed (Maybe ScoreEvent, SWeight) -> IO ()
   toStar os x (Timed g (se,w)) = 
-    let (br, bib, BeatRat r) = getBeatInBar x tpb g
+    let (br, bib, BeatRat r) = getBeatInBar x tb g
     in putStrLn (printf ("%6d: %3d.%1d - %2d / %2d: " ++ showMSE se ++ ": " ++ show w) 
                 (g+os) br bib (numerator r) (denominator r)) 
                 
