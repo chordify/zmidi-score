@@ -95,8 +95,8 @@ mergeProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
 
 normSWProf :: SWProf -> NSWProf 
 normSWProf (SWProf (b, wp)) = 
-  let m  = trace ("max: " ++ show a) a where a = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
-      -- m = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
+  let -- m  = trace ("max: " ++ show a) a where a = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
+      m = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
   in NSWProf (b, M.map (\x -> fromIntegral x / m) wp)
 
 --------------------------------------------------------------------------------

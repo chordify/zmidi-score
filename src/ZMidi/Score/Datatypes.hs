@@ -39,6 +39,7 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , changePitch
                   , pitchClass
                   , hasTimeSigs
+                  , updateTimeSig
                   -- * MidiFile Utilities
                   , hasNotes 
                   , isNoteOnEvent
@@ -61,7 +62,7 @@ import Data.Word           ( Word8 )
 import Data.Int            ( Int8 )
 import Data.Char           ( toLower )
 import Data.Maybe          ( isJust )
-import Data.List           ( intercalate, find )
+import Data.List           ( intercalate, find, sort )
 import qualified Data.List.Ordered as Sort ( nub )
 import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( insertWith, IntMap, keys )
@@ -332,6 +333,8 @@ getBeatInBar (TimeSig num _den _ _) t o =
 getRatInBeat :: TPB -> Time -> (Beat, BeatRat)
 getRatInBeat (TPB t) (Time o) = 
   ((Beat) *** (BeatRat . (% t))) (o `divMod` t)
+
+ 
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
@@ -418,6 +421,13 @@ invalidMidiNumberError w = error ("invalid MIDI note number" ++ show w)
 hasTimeSigs :: MidiScore -> Bool
 hasTimeSigs = not . null . filter (not . (== NoTimeSig) . getEvent) . getTimeSig
 
+updateTimeSig :: MidiScore -> Timed TimeSig -> Timed TimeSig 
+              -> Either String MidiScore
+updateTimeSig ms old new
+  | ts == ts' = Left ("updateTimeSig: TimeSig " ++ show old ++ " not found")
+  | otherwise = Right $ ms {getTimeSig = sort (new : ts') }
+    where ts  = getTimeSig ms
+          ts' = filter (== old) ts
     
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities

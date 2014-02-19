@@ -30,7 +30,7 @@ main =
                   , TimeSig 6 8 0 0
                   ]
          -- profIn = "ragtimeMeterProfiles_2013-02-11.bin"
-         profIn = "nswProf.bin"
+         profIn = "ragtimeMeterProfiles_2013-02-19.bin"
      case arg of
        ["-f", fp] -> readQMidiScoreSafe FourtyEighth fp 
                         >>= return . either error id >>= printIMA
@@ -61,7 +61,8 @@ main =
        
        ["-r", fp] -> do m  <- readNSWProf profIn
                                 >>= return . selectMeters meters
-                        void . mapDirInDir (mapDir (dirMeterMatch m)) $ fp
+                        -- void . mapDirInDir (mapDir (dirMeterMatch m)) $ fp
+                        void . mapDir (dirMeterMatch m) $ fp
 
        ["-p"    ] ->    readNSWProf profIn >>= return . selectMeters meters
                                            >>= printMeterStats
