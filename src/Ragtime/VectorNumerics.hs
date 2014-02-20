@@ -68,6 +68,8 @@ dot a b = sum (a * b)
 cosSim :: Floating a => Vector a -> Vector a -> a
 cosSim a b = a `dot` b  /  (normL2 a * normL2 b)
 
+cosDist :: Floating a => Vector a -> Vector a -> a
+cosDist a b = 1 - cosSim a b
 -- same as pearson
 -- correl :: Floating a => Vector a -> Vector a -> a
 -- correl a b = let a' = add a . negate . mean $ a 
