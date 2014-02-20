@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 -- This module could also be part of the IMA module because it hardly based on
 -- any ZMidi.* code, but since it is only used in Ragtime research, I think
 -- it better fits Ragtime.*
@@ -32,8 +33,8 @@ import Data.Ratio                     ( numerator, denominator )
 import qualified Data.Map.Strict as M ( map )
 import Data.Map.Strict                ( Map, foldrWithKey, mapWithKey, mapAccum
                                       , unionWith, findWithDefault, toAscList )
-import qualified Data.Vector     as V ( length, splitAt, null )
-import Data.Vector                    ( Vector, generate )
+import qualified Data.Vector     as V ( length, splitAt, null, (++) )
+import Data.Vector                    ( Vector, generate, ifoldr )
 import Data.Binary                    ( Binary, encodeFile, decodeFile )
 import Text.Printf                    ( PrintfArg, printf )
 import Ragtime.VectorNumerics         ( euclDist, disp )
@@ -147,6 +148,35 @@ vectorize (QBins qb) ts@(TimeSig num _ _ _) p = generate (num * qb) getWeight
 vectorizeAll :: QBins -> Map TimeSig NSWProf -> [(TimeSig, Vector NSWeight)]
 vectorizeAll qb = toAscList . mapWithKey (vectorize qb)
 
+-- | Rotates a vector with /n/ steps
+rotate :: Int -> Vector a -> Vector a
+rotate n v = let (front, back) = V.splitAt n v in back V.++ front
+
+-- | Finds the indices with a value greater than /x/
+ixOfValGT :: forall a. (Ord a) => a -> Vector a -> [Int]
+ixOfValGT x = ifoldr step [] where
+
+  step :: Int -> a -> [Int] -> [Int]
+  step i y r | y > x     = i : r
+             | otherwise = r
+             
+-- | Matches two vectors by rotating the second vector moving all indices to the
+-- first position that store a value greater then /x/, e.g.
+-- 
+-- >>> distRotate 10 0.0 (fromList [1.0 .. 10.0]) 
+-- >>>                   (rotate 5 $ fromList [1.0 .. 10.0] :: Vector Double)
+-- >>> [(15.811388300841896,0),(15.491933384829668,1),(14.491376746189438,2)
+-- >>>  ,(12.649110640673518,3),(9.486832980505138,4),(0.0,5)
+-- >>>  ,(9.486832980505138,6),(12.649110640673518,7),(14.491376746189438,8)
+-- >>>  ,(15.491933384829668,9)]
+--
+distRotate :: forall a. (PrintfArg a, Ord a, Show a, Floating a) 
+           => QBins -> a -> Vector a -> Vector a -> [(a, Int)]
+distRotate b x v rot = map rDist . ixOfValGT x $ rot
+
+  where rDist :: Int -> (a, Int)
+        rDist i = (dist b v (rotate i rot), i)
+             
 -- showNSWVec :: (TimeSig, Vector NSWeight) -> String
 -- showNSWVec (ts, v) = show ts ++ ':' : (concatMap (printf " %.2f") . toList $ v)
 
