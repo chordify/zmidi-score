@@ -230,10 +230,14 @@ printPickMeter :: TimedSeg TimeSig PMatch -> String
 printPickMeter (TimedSeg ts m) = 
   let ann = getEvent ts
       est = pmTimeSig m
-      s = intercalate "\t" [shwTs ann, shwTs est, show (ann == est), "%.3f "]
+      s = intercalate "\t" [shwTs ann, shwTs est, show (ann `tsEq` est), "%.3f "]
       
       shwTs :: TimeSig -> String
       shwTs x = '\'' : show x ++ "\'"
+      
+      tsEq :: TimeSig -> TimeSig -> Bool
+      tsEq (TimeSig 4 4 _ _) (TimeSig 2 2 _ _) = True
+      tsEq a                 b                 = a == b
   
   in printf s (pmatch m)
 
@@ -252,7 +256,7 @@ starMeter tb (TimedSeg (Timed t ts) s) =
                          ++ " =======================" ) $ t
      mapM_ (toLine t ts) s where
                     
-  -- prints one line e.g. "1152 1 3 1C  ***************"
+  -- prints one line e.g. "  2112:   2.2 -  1 /  2 1D : 397392 ***************"
   toLine :: Time -> TimeSig -> Timed (Maybe ScoreEvent, SWeight) -> IO ()
   toLine os x (Timed g (se,w)) = 
     let (br, bib, BeatRat r) = getBeatInBar x tb g

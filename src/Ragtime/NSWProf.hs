@@ -119,7 +119,7 @@ dist (QBins qb) a b
         | V.null xs = 0 -- we check whether both Vectors are equally long above
         | otherwise = let (x,xs') = V.splitAt qb xs
                           (y,ys') = V.splitAt qb ys
-                      in -- trace ("matching:\n" ++ disp x ++ "\n" ++disp y ++ show (euclDist x y ))
+                      in trace ("matching:\n" ++ disp x ++ "\n" ++disp y ++ show (euclDist x y ))
                                (euclDist x y + sumDistPerBar xs' ys')
                       
 -- | Vectorizes a 'SWProf' for matching with 'dist'
