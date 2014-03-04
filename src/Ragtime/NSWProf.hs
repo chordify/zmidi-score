@@ -15,6 +15,7 @@ module Ragtime.NSWProf ( -- | Newtypes
                        , normSWProf
                          -- | Vector conversion and matching
                        , dist 
+                       , distBestRot
                        , vectorize  
                        , vectorizeAll  
                          -- | Printing
@@ -27,8 +28,9 @@ module Ragtime.NSWProf ( -- | Newtypes
                        )where
 
 import IMA.InnerMetricalAnalysis      ( SWeight )
-import ZMidi.Score             hiding (numerator, denominator)
-import Data.List                      ( intercalate )
+import ZMidi.Score             hiding ( numerator, denominator )
+import Data.List                      ( intercalate, minimumBy )
+import Data.Function                  ( on )
 import Data.Ratio                     ( numerator, denominator )
 import qualified Data.Map.Strict as M ( map )
 import Data.Map.Strict                ( Map, foldrWithKey, mapWithKey, mapAccum
@@ -120,8 +122,9 @@ dist (QBins qb) a b
         | V.null xs = 0 -- we check whether both Vectors are equally long above
         | otherwise = let (x,xs') = V.splitAt qb xs
                           (y,ys') = V.splitAt qb ys
-                      in trace ("matching:\n" ++ disp x ++ "\n" ++disp y ++ show (euclDist x y ))
-                               (euclDist x y + sumDistPerBar xs' ys')
+                      in euclDist x y + sumDistPerBar xs' ys'
+                      -- in trace ("matching:\n" ++ disp x ++ "\n" ++disp y ++ show (euclDist x y ))
+                               -- (euclDist x y + sumDistPerBar xs' ys')
                       
 -- | Vectorizes a 'SWProf' for matching with 'dist'
 vectorize :: QBins -> TimeSig ->  NSWProf -> Vector NSWeight
@@ -154,12 +157,17 @@ rotate n v = let (front, back) = V.splitAt n v in back V.++ front
 
 -- | Finds the indices with a value greater than /x/
 ixOfValGT :: forall a. (Ord a) => a -> Vector a -> [Int]
-ixOfValGT x = ifoldr step [] where
+ixOfValGT x v = [0 .. pred (V.length v)] where
+-- ixOfValGT x = ifoldr step [] where
 
   step :: Int -> a -> [Int] -> [Int]
   step i y r | y > x     = i : r
              | otherwise = r
-             
+         
+distBestRot :: forall a. (PrintfArg a, Ord a, Show a, Floating a) 
+            => QBins -> a -> Vector a -> Vector a -> (a, Int)
+distBestRot b x v rot = minimumBy (compare `on` fst) $ distRotate b x v rot
+         
 -- | Matches two vectors by rotating the second vector moving all indices to the
 -- first position that store a value greater then /x/, e.g.
 -- 

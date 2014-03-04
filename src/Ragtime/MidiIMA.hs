@@ -41,11 +41,12 @@ newtype NSWDist = NSWDist Double
 
 data PMatch = PMatch {  pmTimeSig :: TimeSig
                      ,  pmatch    :: NSWDist
+                     ,  rotation  :: Int -- create newtype for rotation...
                      , _pmProf    :: NSWProf
                      } deriving (Eq)
                      
 instance Show PMatch where
-  show (PMatch ts m p) = printf (show ts ++ ": %1.4f\n" ++ show p) m 
+  show (PMatch ts m r p) = printf (show ts ++ ": %1.4f\n R: %2d" ++ show p) m r
   showList l s = s ++ (intercalate "\n" . map show $ l)
                  
 -- | Picks the best matching profile
@@ -76,14 +77,15 @@ meterCheck m qm = toSWProfSegs qm >>= return . map (fmap normSWProf)
   match :: TimedSeg TimeSig NSWProf -> TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)
   match (TimedSeg ts pa) = case M.lookup (getEvent ts) m of
                              Nothing -> error ("TimeSig not found: " ++ show ts)
+                             -- just use euclidean distance
                              Just pb -> TimedSeg ts (pa, pb, dist (qToQBins qm) (f pa) (f pb))
                                 where f = vectorize (qToQBins qm) (getEvent ts)
 
 matchTS :: QBins -> TPB -> [Timed (Maybe ScoreEvent, SWeight)] 
         -> (TimeSig, Vector NSWeight) -> PMatch
-matchTS qb tb td (ts,v) = let p = normSWProf (toNSWProfWithTS ts tb td)
-                              m = dist qb v (vectorize qb ts p)
-                          in  PMatch ts (NSWDist . nsweight $ m) p
+matchTS qb tb td (ts,v) = let p     = normSWProf (toNSWProfWithTS ts tb td)
+                              (m,r) = distBestRot qb 0 v (vectorize qb ts p)
+                          in  PMatch ts (NSWDist . nsweight $ m) r p
                                 
 
   
@@ -230,7 +232,11 @@ printPickMeter :: TimedSeg TimeSig PMatch -> String
 printPickMeter (TimedSeg ts m) = 
   let ann = getEvent ts
       est = pmTimeSig m
-      s = intercalate "\t" [shwTs ann, shwTs est, show (ann `tsEq` est), "%.3f "]
+      s = intercalate "\t" [ shwTs ann
+                           , shwTs est
+                           , show (ann `tsEq` est)
+                           , "%.3f" 
+                           , "r:%2d"]
       
       shwTs :: TimeSig -> String
       shwTs x = '\'' : show x ++ "\'"
@@ -239,7 +245,7 @@ printPickMeter (TimedSeg ts m) =
       tsEq (TimeSig 4 4 _ _) (TimeSig 2 2 _ _) = True
       tsEq a                 b                 = a == b
   
-  in printf s (pmatch m)
+  in printf s (pmatch m) (rotation m)
 
 printIMA :: QMidiScore -> IO ([SWProfSeg])
 printIMA qm = mapM toNSWProfPrint . either error id . doIMA $ qm where
