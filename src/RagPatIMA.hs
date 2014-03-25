@@ -30,7 +30,7 @@ main =
                   , TimeSig 6 8 0 0
                   ]
          -- profIn = "ragtimeMeterProfiles_2013-02-11.bin"
-         profIn = "ragtimeMeterProfiles_2013-02-19.bin"
+         profIn = "ragtimeMeterProfilesTrain_2014-03-25.bin"
      case arg of
        ["-f", fp] -> readQMidiScoreSafe FourtyEighth fp 
                         >>= return . either error id >>= printIMA
