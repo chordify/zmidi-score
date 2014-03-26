@@ -21,12 +21,12 @@ import Text.Printf           ( printf )
 main :: IO ()
 main = 
   do arg <- getArgs 
-     let meters = [ TimeSig 4 4 0 0
+     let {- meters = [ TimeSig 4 4 0 0
                   , TimeSig 2 4 0 0
                   , TimeSig 2 2 0 0
                   , TimeSig 3 4 0 0
                   , TimeSig 6 8 0 0
-                  ]
+                  ] -}
          -- profIn = "ragtimeMeterProfiles_2013-02-11.bin"
          profIn = "ragtimeMeterProfilesTrain_2014-03-25.bin"
      case arg of
@@ -46,23 +46,23 @@ main =
        ["-m", fp] -> do qm <- readQMidiScoreSafe FourtyEighth fp
                                 >>= return . either error id 
                         m  <- readNSWProf profIn
-                                >>= return . selectMeters meters
+                                -- >>= return . selectMeters meters
                         -- let m' = vectorizeAll (qToQBins qm) m
                         either error (mapM_ print) . matchMeters m $ qm
 
        ["-c", fp] -> do m  <- readNSWProf profIn
-                                >>= return . selectMeters meters
+                                -- >>= return . selectMeters meters
                         mc <- readQMidiScoreSafe FourtyEighth fp 
                                 >>= return . (>>= meterCheck m)
                                 >>= return . either error id 
                         mapM_ (putStrLn . printMeterMatchVerb (toQBins FourtyEighth)) mc
        
        ["-r", fp] -> do m  <- readNSWProf profIn
-                                >>= return . selectMeters meters
+                                -- >>= return . selectMeters meters
                         -- void . mapDirInDir (mapDir (dirMeterMatch m)) $ fp
                         void . mapDir (dirMeterMatch m) $ fp
 
-       ["-p"    ] ->    readNSWProf profIn >>= return . selectMeters meters
+       ["-p"    ] ->    readNSWProf profIn -- >>= return . selectMeters meters
                                            >>= printMeterStats
 
        _    -> error "Please use -f <file> or -d <ragtime directory>"

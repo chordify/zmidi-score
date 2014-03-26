@@ -22,7 +22,7 @@ import Ragtime.TimeSigSeg         ( TimedSeg (..), segment )
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
 
-import Data.List                   ( nubBy, foldl', minimumBy, intercalate )
+import Data.List                   ( nubBy, foldl', maximumBy, intercalate )
 import Data.Function               ( on )
 import Data.Map.Strict             ( empty, Map, insertWith, filterWithKey )
 import qualified Data.Map.Strict as M ( lookup, foldr, map )
@@ -56,7 +56,7 @@ instance Show PMatch where
 -- | Picks the best matching profile
 pickMeters :: [TimedSeg TimeSig [PMatch]] 
            -> Either String [TimedSeg TimeSig PMatch]
-pickMeters = Right . map (fmap (minimumBy (compare `on` pmatch)))
+pickMeters = Right . map (fmap (maximumBy (compare `on` pmatch)))
 
 -- | Given 'vectorize'd SWProf'es, matches every meter segment in 
 -- a 'QMidiScore' to the vectorized profiles
@@ -76,7 +76,7 @@ matchMeters m qm = doIMA qm >>= fourBarFilter tb >>= return . map matchAll where
   match td (ts,v) = let p     = normSWProf (toNSWProfWithTS ts tb td)
                         mp    = errLookup ts ps
                         (s,r) = distBestRot qb 0 v (vectorize qb ts p)
-                    in  PMatch ts (NSWDist (nsweight s * prob mp)) r p
+                    in  PMatch ts (NSWDist ((1 - nsweight s) * prob mp)) r p
   
 -- | Calculates the match between an annotated and IMA estimated meter
 meterCheck :: Map TimeSig NSWProf -> QMidiScore 
