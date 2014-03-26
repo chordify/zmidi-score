@@ -4,17 +4,15 @@ module Main where
 
 import ZMidi.Score.Datatypes ( TimeSig (..), hasTimeSigs, getTimeSig )
 import ZMidi.Score.Quantise  ( QMidiScore (..), ShortestNote (..), avgQDevQMS
-                             , toQBins, qToQBins )
+                             , toQBins )
 import ZMidi.IO.Common       ( readQMidiScoreSafe, mapDirInDir, mapDir, warning)
 import Ragtime.MidiIMA
-import Ragtime.NSWProf       ( vectorizeAll, SWProf, writeNSWProf, readNSWProf
-                             , mergeSWProf, showNSWProf, NSWeight, normSWProf 
-                             , NSWProf )
+import Ragtime.NSWProf       ( SWProf, writeNSWProf, readNSWProf, NSWProf
+                             , mergeSWProf, showNSWProf, normSWProf )
 
 import System.Environment    ( getArgs )
 import Data.Map.Strict       ( empty, Map, unionWith, toList )
 import qualified Data.Map.Strict as M ( map )
-import Data.Vector           ( Vector )
 import Data.List             ( intercalate )
 import Control.Monad         ( void )
 import Text.Printf           ( printf )
@@ -49,8 +47,8 @@ main =
                                 >>= return . either error id 
                         m  <- readNSWProf profIn
                                 >>= return . selectMeters meters
-                        let m' = vectorizeAll (qToQBins qm) m
-                        either error (mapM_ print) . matchMeters m' $ qm
+                        -- let m' = vectorizeAll (qToQBins qm) m
+                        either error (mapM_ print) . matchMeters m $ qm
 
        ["-c", fp] -> do m  <- readNSWProf profIn
                                 >>= return . selectMeters meters
@@ -101,11 +99,10 @@ qMidiScoreToSWProfMaps qm =    timeSigCheck qm
 
 dirMeterMatch :: Map TimeSig NSWProf -> FilePath -> IO ()
 dirMeterMatch m fp = readQMidiScoreSafe FourtyEighth fp 
-                       >>= return . (>>= doMeterMatch (vectorizeAll (toQBins FourtyEighth) m))
+                       >>= return . (>>= doMeterMatch m)
                        >>= either (warning fp) putStrLn
 
-  where doMeterMatch :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
-                     -> Either String String
+  where doMeterMatch :: Map TimeSig NSWProf -> QMidiScore-> Either String String
         doMeterMatch m' qm = timeSigCheck qm 
                           >>= matchMeters m' >>= pickMeters
                           >>= return . intercalate "\n" 

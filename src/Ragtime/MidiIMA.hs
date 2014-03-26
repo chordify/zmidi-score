@@ -25,7 +25,7 @@ import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
 import Data.List                   ( nubBy, foldl', minimumBy, intercalate )
 import Data.Function               ( on )
 import Data.Map.Strict             ( empty, Map, insertWith, filterWithKey )
-import qualified Data.Map.Strict as M ( lookup )
+import qualified Data.Map.Strict as M ( lookup, foldr, map )
 import Control.Arrow               ( first )
 import Data.Vector                 ( Vector )
 
@@ -39,6 +39,10 @@ newtype NSWDist = NSWDist Double
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
                              , Fractional, RealFloat, RealFrac, PrintfArg )
 
+newtype Prob    = Prob Double 
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
+                             , Fractional, RealFloat, RealFrac, PrintfArg )
+                             
 data PMatch = PMatch {  pmTimeSig :: TimeSig
                      ,  pmatch    :: NSWDist
                      ,  rotation  :: Int -- create newtype for rotation...
@@ -56,11 +60,12 @@ pickMeters = Right . map (fmap (minimumBy (compare `on` pmatch)))
 
 -- | Given 'vectorize'd SWProf'es, matches every meter segment in 
 -- a 'QMidiScore' to the vectorized profiles
-matchMeters :: [(TimeSig, Vector NSWeight)] -> QMidiScore 
+matchMeters :: Map TimeSig NSWProf -> QMidiScore 
             -> Either String [TimedSeg TimeSig [PMatch]]
-matchMeters vs qm = doIMA qm >>= fourBarFilter tb >>= return . map matchAll where
+matchMeters m qm = doIMA qm >>= fourBarFilter tb >>= return . map matchAll where
 
   tb = ticksPerBeat . qMidiScore $ qm
+  vs = vectorizeAll (toQBins FourtyEighth) m -- NB we don't check the QBins of qm
 
   matchAll :: SWMeterSeg -> TimedSeg TimeSig [PMatch]
   matchAll = fmap (\td -> map (match td) vs)
@@ -134,6 +139,15 @@ toNSWProfWithTS ts tb td = foldl' toProf (SWProf (1, empty)) td
 selectMeters :: [TimeSig] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
 selectMeters ts = filterWithKey (\k _ -> k `elem` ts)
           
+-- | counts the total number of bars analysed.
+getTotNrOfBars :: Map TimeSig NSWProf -> NrOfBars
+getTotNrOfBars = M.foldr (\(NSWProf (b, _)) r -> r + b) 0   
+
+getMeterProb :: Map TimeSig NSWProf -> Map TimeSig Prob
+getMeterProb m = 
+  let t = getTotNrOfBars m
+  in M.map (\(NSWProf (b, _)) -> Prob (fromIntegral b / fromIntegral t)) m
+
 --------------------------------------------------------------------------------
 -- Performing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
