@@ -35,11 +35,11 @@ import Data.Ratio                  ( numerator, denominator, )
 
 -- | Normalised spectral weights distance, obtained by matching two 'SWProf's
 -- newtype NSWDist = NSWDist { nswdist :: Double }
-newtype NSWDist = NSWDist Double 
+newtype NSWDist = NSWDist { nswdist :: Double }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
                              , Fractional, RealFloat, RealFrac, PrintfArg )
 
-newtype Prob    = Prob Double 
+newtype Prob    = Prob { prob :: Double }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
                              , Fractional, RealFloat, RealFrac, PrintfArg )
                              
@@ -65,13 +65,18 @@ matchMeters :: Map TimeSig NSWProf -> QMidiScore
 matchMeters m qm = doIMA qm >>= fourBarFilter tb >>= return . map matchAll where
 
   tb = ticksPerBeat . qMidiScore $ qm
-  vs = vectorizeAll (toQBins FourtyEighth) m -- NB we don't check the QBins of qm
+  qb = toQBins FourtyEighth
+  vs = vectorizeAll qb m -- NB we don't check the QBins of qm
+  ps = getMeterProbs m
 
   matchAll :: SWMeterSeg -> TimedSeg TimeSig [PMatch]
   matchAll = fmap (\td -> map (match td) vs)
   
   match :: [Timed (Maybe ScoreEvent, SWeight)] -> (TimeSig, Vector NSWeight) -> PMatch
-  match td v = matchTS (qToQBins qm) tb td v
+  match td (ts,v) = let p     = normSWProf (toNSWProfWithTS ts tb td)
+                        mp    = errLookup ts ps
+                        (s,r) = distBestRot qb 0 v (vectorize qb ts p)
+                    in  PMatch ts (NSWDist (nsweight s * prob mp)) r p
   
 -- | Calculates the match between an annotated and IMA estimated meter
 meterCheck :: Map TimeSig NSWProf -> QMidiScore 
@@ -80,19 +85,15 @@ meterCheck m qm = toSWProfSegs qm >>= return . map (fmap normSWProf)
                                   >>= return . map match where
 
   match :: TimedSeg TimeSig NSWProf -> TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)
-  match (TimedSeg ts pa) = case M.lookup (getEvent ts) m of
-                             Nothing -> error ("TimeSig not found: " ++ show ts)
-                             -- just use euclidean distance
-                             Just pb -> TimedSeg ts (pa, pb, dist (qToQBins qm) (f pa) (f pb))
-                                where f = vectorize (qToQBins qm) (getEvent ts)
-
-matchTS :: QBins -> TPB -> [Timed (Maybe ScoreEvent, SWeight)] 
-        -> (TimeSig, Vector NSWeight) -> PMatch
-matchTS qb tb td (ts,v) = let p     = normSWProf (toNSWProfWithTS ts tb td)
-                              (m,r) = distBestRot qb 0 v (vectorize qb ts p)
-                          in  PMatch ts (NSWDist . nsweight $ m) r p
+  match (TimedSeg ts pa) = TimedSeg ts (pa, pb, dist (qToQBins qm) (f pa) (f pb))
+     
+     where f = vectorize (qToQBins qm) (getEvent ts)
+           pb = errLookup (getEvent ts) m
                                 
-
+errLookup :: (Show a, Ord a) => a -> Map a b -> b
+errLookup k m = case M.lookup k m of 
+                  Nothing -> error ("errLookup: Key not found in Map:" ++ show k)
+                  Just v  -> v
   
 --------------------------------------------------------------------------------
 -- Calculate Normalised Spectral Weight Profiles
@@ -143,8 +144,8 @@ selectMeters ts = filterWithKey (\k _ -> k `elem` ts)
 getTotNrOfBars :: Map TimeSig NSWProf -> NrOfBars
 getTotNrOfBars = M.foldr (\(NSWProf (b, _)) r -> r + b) 0   
 
-getMeterProb :: Map TimeSig NSWProf -> Map TimeSig Prob
-getMeterProb m = 
+getMeterProbs :: Map TimeSig NSWProf -> Map TimeSig Prob
+getMeterProbs m = 
   let t = getTotNrOfBars m
   in M.map (\(NSWProf (b, _)) -> Prob (fromIntegral b / fromIntegral t)) m
 
