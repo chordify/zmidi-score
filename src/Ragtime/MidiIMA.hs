@@ -12,6 +12,8 @@ module Ragtime.MidiIMA (
                        , printIMA
                        , printPickMeter
                        , printMeterMatchVerb
+                       -- | * Utilities
+                       , doIMA
                        ) where
 
 import Ragtime.NSWProf 
