@@ -49,8 +49,8 @@ executable melfind
   ghc-options:         -Wall  
 
   
-executable RagPatIMA
-  main-is:             RagPatIMA.hs
+executable EncNSWProf
+  main-is:             EncodeNSWProf.hs
   hs-source-dirs:      src
   -- other-modules:       
   build-depends:       base >= 4.4 && < 4.7, 
@@ -65,7 +65,9 @@ executable RagPatIMA
                        data-ordlist >= 0.4.5,
                        primitive >= 0.5.0.1,
                        parallel-io >= 0.3.3,
-                       binary >= 0.7.1
+                       binary >= 0.7.1,
+                       bytestring >= 0.10,
+                       cassava == 0.3.0.1
                        
   ghc-options:         -Wall -O2 -rtsopts -threaded
   -- ghc-options:         -O2 -prof -auto-all -fprof-auto

@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE DeriveGeneric              #-}
 -- This module could also be part of the IMA module because it hardly based on
 -- any ZMidi.* code, but since it is only used in Ragtime research, I think
 -- it better fits Ragtime.*
@@ -36,18 +37,17 @@ import qualified Data.Map.Strict as M ( map )
 import Data.Map.Strict                ( Map, foldrWithKey, mapWithKey, mapAccum
                                       , unionWith, findWithDefault, toAscList )
 import qualified Data.Vector     as V ( length, splitAt, null, (++) )
-import Data.Vector                    ( Vector, generate, ifoldr )
+import Data.Vector                    ( Vector, generate )
 import Data.Binary                    ( Binary, encodeFile, decodeFile )
 import Text.Printf                    ( PrintfArg, printf )
 import Ragtime.VectorNumerics         ( euclDist, disp )
-
-import Debug.Trace
+import GHC.Generics
 
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
                      deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
                               , Fractional, RealFloat, RealFrac, PrintfArg
-                              , Binary )
+                              , Binary, Generic )
 
 -- | prints a 'NSWeight' as a sequence of asterisks 
 -- stars :: (Show a, Num a) => a -> String
@@ -128,7 +128,7 @@ dist (QBins qb) a b
                       
 -- | Vectorizes a 'SWProf' for matching with 'dist'
 vectorize :: QBins -> TimeSig ->  NSWProf -> Vector NSWeight
-vectorize _  NoTimeSig _ = error "toNSWVec applied to NoTimeSig"
+vectorize _  NoTimeSig _ = error "vectorize applied to NoTimeSig"
 vectorize (QBins qb) ts@(TimeSig num _ _ _) p = generate (num * qb) getWeight 
   
   where -- Given the number of quantisation bins toKey maps an index to 
@@ -160,9 +160,9 @@ ixOfValGT :: forall a. (Ord a) => a -> Vector a -> [Int]
 ixOfValGT x v = [0 .. pred (V.length v)] where
 -- ixOfValGT x = ifoldr step [] where
 
-  step :: Int -> a -> [Int] -> [Int]
-  step i y r | y > x     = i : r
-             | otherwise = r
+  -- step :: Int -> a -> [Int] -> [Int]
+  -- step i y r | y > x     = i : r
+             -- | otherwise = r
          
 distBestRot :: forall a. (PrintfArg a, Ord a, Show a, Floating a) 
             => QBins -> a -> Vector a -> Vector a -> (a, Int)
