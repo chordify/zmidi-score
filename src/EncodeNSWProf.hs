@@ -4,7 +4,7 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Csv
 import qualified Data.Vector as V
 import GHC.Generics
-import ZMidi.Score.Datatypes
+import ZMidi.Score.Datatypes hiding (numerator, denominator)
 import ZMidi.Score.Quantise (QMidiScore (..), toQBins, QBins, ShortestNote (..))
 import ZMidi.IO.Common       ( readQMidiScoreSafe, mapDir, warning)
 import Ragtime.NSWProf
@@ -12,6 +12,8 @@ import Ragtime.MidiIMA (doIMA, toNSWProfWithTS, fourBarFilter)
 import Ragtime.TimeSigSeg (TimedSeg (..))
 import IMA.InnerMetricalAnalysis (SWeight (..))
 import System.Environment    ( getArgs )
+import Data.List             (intercalate)
+import Data.Ratio            (numerator, denominator)
 
 data NSWProfCSV = NSWProfCSV TimeSig (V.Vector NSWeight)
 
@@ -34,9 +36,23 @@ toCSV qm = doIMA qm >>= fourBarFilter tb >>= return . map toProf where
     
 processMidi :: FilePath -> IO ()
 processMidi fp = do qm <- readQMidiScoreSafe FourtyEighth fp 
-                    case qm >>= toCSV of
+                    case qm >>= timeSigCheck >>= toCSV of
                       Left  err -> warning fp err
-                      Right csv -> BL.appendFile "prof.csv" . encode $ csv
+                      Right csv -> BL.appendFile "train.csv" . encode $ csv 
+
+genHeader :: Int -> String
+genHeader n = intercalate "," $ ("meter" : map toKey [0..n]) where
+
+  ts  = TimeSig 12 4 0 0 -- an ugly hack, but getBeatInBar only looks at the numerator
+  tpb = fromIntegral (toQBins FourtyEighth) :: TPB
+                        
+  toKey :: Int -> String
+  toKey i = case getBeatInBar ts tpb (Time i) of
+              -- (1, b, br) -> (b, br)
+              (1, b, BeatRat br) ->    show (beat b) ++ "." 
+                                    ++ show (numerator br) ++ "." 
+                                    ++ show (denominator br)
+              _  -> error ("index out of bounds: " ++ show i)                      
     
 -- testing
 main :: IO ()
@@ -46,3 +62,12 @@ main =
        ["-f", fp] -> processMidi fp
        ["-d", fp] -> mapDir processMidi fp >> return ()
        _ -> error "usage: -f <filename> -d <directory>"
+
+-- copied from RagPatIMA Checks for a valid time signature
+timeSigCheck :: QMidiScore -> Either String QMidiScore
+timeSigCheck ms | hasTimeSigs (qMidiScore ms) = Right ms
+                | otherwise = Left "Has no valid time signature" 
+         
+
+            
+            
