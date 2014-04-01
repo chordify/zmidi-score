@@ -10,7 +10,7 @@ import ZMidi.IO.Common       ( readQMidiScoreSafe, mapDir, warning)
 import Ragtime.NSWProf
 import Ragtime.MidiIMA (doIMA, toNSWProfWithTS, fourBarFilter)
 import Ragtime.TimeSigSeg (TimedSeg (..))
-import Ragtime.SelectQBins (selectQBins)
+import Ragtime.SelectQBins (selectQBins, filterByQBinStrength, printMeterStats)
 import IMA.InnerMetricalAnalysis (SWeight (..))
 import System.Environment    ( getArgs )
 import Data.List             (intercalate)
@@ -61,16 +61,13 @@ main =
      case arg of
        ["-f", fp] -> processMidi fp
        ["-d", fp] -> mapDir processMidi fp >> return ()
-       ["-m", fp] -> readNSWProf fp >>= print . selectQBins 12
+       ["-m", fp] -> readNSWProf fp >>= printMeterStats . filterByQBinStrength
        _ -> error "usage: -f <filename> -d <directory>"
 
 -- copied from RagPatIMA Checks for a valid time signature
 timeSigCheck :: QMidiScore -> Either String QMidiScore
 timeSigCheck ms | hasTimeSigs (qMidiScore ms) = Right ms
                 | otherwise = Left "Has no valid time signature" 
-         
-         
-
 
             
             
