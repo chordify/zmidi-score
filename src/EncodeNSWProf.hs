@@ -1,5 +1,5 @@
 {-# LANGUAGE ScopedTypeVariables, DeriveGeneric #-}
-
+module Main where
 import qualified Data.ByteString.Lazy as BL
 import Data.Csv
 import qualified Data.Vector as V
@@ -10,6 +10,7 @@ import ZMidi.IO.Common       ( readQMidiScoreSafe, mapDir, warning)
 import Ragtime.NSWProf
 import Ragtime.MidiIMA (doIMA, toNSWProfWithTS, fourBarFilter)
 import Ragtime.TimeSigSeg (TimedSeg (..))
+import Ragtime.SelectQBins (selectQBins)
 import IMA.InnerMetricalAnalysis (SWeight (..))
 import System.Environment    ( getArgs )
 import Data.List             (intercalate)
@@ -41,14 +42,13 @@ processMidi fp = do qm <- readQMidiScoreSafe FourtyEighth fp
                       Right csv -> BL.appendFile "train.csv" . encode $ csv 
 
 genHeader :: Int -> String
-genHeader n = intercalate "," $ ("meter" : map toKey [0..n]) where
+genHeader n = intercalate "," $ ("meter" : map toName [0..n]) where
 
   ts  = TimeSig 12 4 0 0 -- an ugly hack, but getBeatInBar only looks at the numerator
   tpb = fromIntegral (toQBins FourtyEighth) :: TPB
                         
-  toKey :: Int -> String
-  toKey i = case getBeatInBar ts tpb (Time i) of
-              -- (1, b, br) -> (b, br)
+  toName :: Int -> String
+  toName i = case getBeatInBar ts tpb (Time i) of
               (1, b, BeatRat br) ->    show (beat b) ++ "." 
                                     ++ show (numerator br) ++ "." 
                                     ++ show (denominator br)
@@ -61,6 +61,7 @@ main =
      case arg of
        ["-f", fp] -> processMidi fp
        ["-d", fp] -> mapDir processMidi fp >> return ()
+       ["-m", fp] -> readNSWProf fp >>= print . selectQBins 12
        _ -> error "usage: -f <filename> -d <directory>"
 
 -- copied from RagPatIMA Checks for a valid time signature
@@ -68,6 +69,8 @@ timeSigCheck :: QMidiScore -> Either String QMidiScore
 timeSigCheck ms | hasTimeSigs (qMidiScore ms) = Right ms
                 | otherwise = Left "Has no valid time signature" 
          
+         
+
 
             
             
