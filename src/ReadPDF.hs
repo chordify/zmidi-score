@@ -30,8 +30,8 @@ multiNormal tpdf xv =
       m        = colVector . mu $ tpdf
       x        = colVector xv
       invSigma = fromLists . inv_sigma $ tpdf
-      detSigma = V.head . det $ tpdf
-      mat1 = 
+      -- detSigma = V.head . det $ tpdf
+      detSigma = detLU . fromLists . sigma $ tpdf
   in (recip ((2*pi)**(k/2) * sqrt(detSigma))) 
     * exp (getElem 1 1 . negate . scaleMatrix 0.5 
     $ (transpose $ x-m) * invSigma * (x-m) ) 
