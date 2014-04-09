@@ -1,14 +1,8 @@
-{-# LANGUAGE ScopedTypeVariables  #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE OverlappingInstances #-}
-
 module Main where
 import qualified Data.ByteString.Lazy as BL
 import Data.Csv              hiding ()             
-import qualified Data.Vector as V
-import GHC.Generics
 import ZMidi.Score.Datatypes hiding  ( numerator, denominator )
-import ZMidi.Score.Quantise          ( QMidiScore (..), toQBins, QBins, ShortestNote (..))
+import ZMidi.Score.Quantise          ( QMidiScore (..), toQBins, ShortestNote (..))
 import ZMidi.IO.Common               ( readQMidiScoreSafe, mapDir, warning)
 import Ragtime.NSWProf
 import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter)
@@ -19,7 +13,7 @@ import System.Environment            ( getArgs )
 import Data.List                     ( intercalate )
 import Data.Maybe                    ( fromJust )
 import Data.Ratio                    ( numerator, denominator)
-import Data.Map.Strict               ( Map, elems )
+import Data.Map.Strict               ( Map )
 import qualified Data.Map.Strict as M( lookup )
 
 data NSWProfCSV = NSWProfCSV TimeSig [NSWeight]
@@ -27,15 +21,11 @@ data NSWProfCSV = NSWProfCSV TimeSig [NSWeight]
 instance ToField    NSWeight where toField (NSWeight w) = toField w
 instance ToField    TimeSig  where 
   toField (TimeSig n d _ _) = toField (show n ++ "/" ++ show d)
--- instance ToField (Beat, BeatRat) where
-  -- toField = toField . printKey
+  toField  NoTimeSig        = toField "n/a"
   
 instance ToRecord NSWProfCSV where
   toRecord (NSWProfCSV ts p) = record (toField ts : map toField p)
 
--- instance ToRecord [(Beat, BeatRat)] where
-  -- toRecord = record . map (toField . printKey)
-  
 printKey :: (Beat, BeatRat) -> String
 printKey (Beat b, BeatRat br) = show b ++ "." 
                              ++ show (numerator br) ++ "." 
@@ -47,14 +37,14 @@ toCSV :: Map TimeSig [(Beat, BeatRat)] -> QMidiScore
 toCSV s qm = doIMA qm >>= fourBarFilter tb >>= return . map toProf where
 
   tb = ticksPerBeat . qMidiScore $ qm
-  qb = toQBins FourtyEighth
+  -- qb = toQBins FourtyEighth
 
   toProf :: TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)] -> NSWProfCSV
   toProf (TimedSeg (Timed _ ts) td) = 
     NSWProfCSV ts . filterToList s ts              -- only keep the strong pos
-                  . normSWProf     -- normalise the profile 
+                  . normSWProfByBar     -- normalise the profile 
                   . toNSWProfWithTS ts tb $ td     -- calculate the profile
-    
+                  
 processMidi :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> FilePath -> IO ()
 processMidi s out infp = do qm <- readQMidiScoreSafe FourtyEighth infp
                             case qm >>= timeSigCheck >>= toCSV s of
@@ -74,7 +64,7 @@ writeHeader m out =
 -- testing
 main :: IO ()
 main = 
-  do let out = "train.csv"
+  do let out = "train.barnorm.csv"
      arg <- getArgs 
      m   <- readNSWProf "ragtimeMeterProfilesTrain_2014-03-25.bin"  
             >>= return . selectQBins 12

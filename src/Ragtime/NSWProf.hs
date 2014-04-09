@@ -14,6 +14,7 @@ module Ragtime.NSWProf ( -- | Newtypes
                        , mergeProf
                        , mergeSWProf
                        , normSWProf
+                       , normSWProfByBar
                          -- | Vector conversion and matching
                        , dist 
                        , distBestRot
@@ -96,12 +97,21 @@ mergeProf :: Num a => (NrOfBars, Map (Beat, BeatRat) a)
                    -> (NrOfBars, Map (Beat, BeatRat) a)
 mergeProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
 
+-- Normalises an 'SWProf' to an 'NSWProf' (normalised SWProf), which will
+-- only contain values between 0 and 1
 normSWProf :: SWProf -> NSWProf 
 normSWProf (SWProf (b, wp)) = 
   let -- m  = trace ("max: " ++ show a) a where a = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
       m = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
   in NSWProf (b, M.map (\x -> fromIntegral x / m) wp)
 
+-- Normalises an 'SWProf' to an 'NSWProf' (normalised SWProf), by dividing
+-- the spectral weight by the number of bars
+normSWProfByBar :: SWProf -> NSWProf
+normSWProfByBar (SWProf (nob, wp)) = 
+  let d = fromIntegral nob in NSWProf (nob, M.map (\x -> fromIntegral x / d) wp)
+
+  
 --------------------------------------------------------------------------------
 -- Matching IMA profiles
 --------------------------------------------------------------------------------
