@@ -109,7 +109,8 @@ normSWProf (SWProf (b, wp)) =
 -- the spectral weight by the number of bars
 normSWProfByBar :: SWProf -> NSWProf
 normSWProfByBar (SWProf (nob, wp)) = 
-  let d = fromIntegral nob in NSWProf (nob, M.map (\x -> fromIntegral x / d) wp)
+  let d = fromIntegral (nob * nob)
+  in NSWProf (nob, M.map (\x -> fromIntegral x / d) wp)
 
   
 --------------------------------------------------------------------------------

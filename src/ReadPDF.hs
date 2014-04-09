@@ -6,14 +6,17 @@ import GHC.Generics                         ( Generic )
 import Data.Vector                          ( Vector )
 import qualified Data.Vector          as V  ( length, head, fromList )
 import Data.Matrix                          
--- import ZMidi.Score.Datatypes   (TimeSig (..))
+import ZMidi.Score.Datatypes                (TimeSig (..))
+-- import Data.Function                        ( on )
+import Data.Ord                             ( comparing, Down (..))
+import Data.List                            ( sortBy )
 import qualified Data.ByteString.Lazy as BL ( readFile )
 
 
 data ToPDF = ToPDF { mu        :: Vector Double
                    , sigma     :: [[Double]]
                    , inv_sigma :: [[Double]]
-                   , det       :: Vector Double -- Singleton
+                   , prior     :: Vector Double -- Singleton
                    , meter     :: (Int,Int)
                    } deriving (Show, Generic)
 
@@ -30,11 +33,18 @@ multiNormal tpdf xv =
       m        = colVector . mu $ tpdf
       x        = colVector xv
       invSigma = fromLists . inv_sigma $ tpdf
-      -- detSigma = V.head . det $ tpdf
       detSigma = detLU . fromLists . sigma $ tpdf
   in (recip ((2*pi)**(k/2) * sqrt(detSigma))) 
     * exp (getElem 1 1 . negate . scaleMatrix 0.5 
-    $ (transpose $ x-m) * invSigma * (x-m) ) 
+    $ (transpose $ x-m) * invSigma * (x-m) )   
     
 -- read the data
 -- BL.readFile "out4.fit.jsonlite.json" >>= return . decode :: IO (Maybe [ToPDF])
+
+matchAll :: [ToPDF] -> Vector Double -> [(TimeSig, Double)]
+matchAll pdfs x = sortBy ( comparing (Down . fst)) . map ((flip match) x) $ pdfs
+
+match :: ToPDF -> Vector Double -> (TimeSig, Double)
+match tpdf x = let (n,d) = meter tpdf
+                   p     = V.head (prior tpdf)
+               in (TimeSig n d 0 0, log (multiNormal tpdf x) + log p)

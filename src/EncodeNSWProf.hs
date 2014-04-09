@@ -64,7 +64,7 @@ writeHeader m out =
 -- testing
 main :: IO ()
 main = 
-  do let out = "train.barnorm.csv"
+  do let out = "train.barnorm.sqr.csv"
      arg <- getArgs 
      m   <- readNSWProf "ragtimeMeterProfilesTrain_2014-03-25.bin"  
             >>= return . selectQBins 12
