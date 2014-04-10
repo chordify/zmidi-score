@@ -106,11 +106,16 @@ normSWProf (SWProf (b, wp)) =
   in NSWProf (b, M.map (\x -> fromIntegral x / m) wp)
 
 -- Normalises an 'SWProf' to an 'NSWProf' (normalised SWProf), by dividing
--- the spectral weight by the number of bars
+-- the spectral weight by the square of the number of bars and taking the log
 normSWProfByBar :: SWProf -> NSWProf
 normSWProfByBar (SWProf (nob, wp)) = 
   let d = fromIntegral (nob * nob)
-  in NSWProf (nob, M.map (\x -> fromIntegral x / d) wp)
+      
+      f :: SWeight -> NSWeight
+      f 0 = -100
+      f x = log (fromIntegral x / d)
+      
+  in NSWProf (nob, M.map f wp)
 
   
 --------------------------------------------------------------------------------

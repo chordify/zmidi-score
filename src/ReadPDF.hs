@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall           #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE DeriveGeneric      #-}
+module ReadPDF where
 import Data.Aeson                           ( ToJSON (..), FromJSON (..), decode )
 import GHC.Generics                         ( Generic )
 import Data.Vector                          ( Vector )
@@ -39,12 +40,12 @@ multiNormal tpdf xv =
     $ (transpose $ x-m) * invSigma * (x-m) )   
     
 -- read the data
--- BL.readFile "out4.fit.jsonlite.json" >>= return . decode :: IO (Maybe [ToPDF])
+readPDFs :: FilePath -> IO [ToPDF]
+readPDFs fp = do d <- BL.readFile fp >>= return . decode 
+                 case d of
+                   Just x -> return x
+                   _      -> error "There was a type / JSON missmatch"
 
-matchAll :: [ToPDF] -> Vector Double -> [(TimeSig, Double)]
-matchAll pdfs x = sortBy ( comparing (Down . fst)) . map ((flip match) x) $ pdfs
 
-match :: ToPDF -> Vector Double -> (TimeSig, Double)
-match tpdf x = let (n,d) = meter tpdf
-                   p     = V.head (prior tpdf)
-               in (TimeSig n d 0 0, log (multiNormal tpdf x) + log p)
+pdfTimeSig :: ToPDF -> TimeSig
+pdfTimeSig tpdf = let (n,d) = meter tpdf in TimeSig n d 0 0

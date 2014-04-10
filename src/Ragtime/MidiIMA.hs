@@ -7,6 +7,7 @@ module Ragtime.MidiIMA (
                        , meterCheck
                        , selectMeters
                        , fourBarFilter
+                       , emptySegFilter
                        , collectSWProf
                        , toSWProfSegs 
                        , printIMA
@@ -167,6 +168,11 @@ minBarLenFilter tb bs s =
   case filter (\x -> notEmpty x && getNrOfBars tb x > bs) s of
     [] -> Left ("minBarLenFilter: no segments longer then " ++ show bs)
     s' -> Right s'
+  
+emptySegFilter :: [SWMeterSeg] -> Either String [SWMeterSeg]
+emptySegFilter s = case filter notEmpty s of
+                     [] -> Left ("Song does not contain any notes")
+                     r  -> Right r
   
 getNrOfBars :: TPB -> TimedSeg TimeSig [Timed a] -> NrOfBars
 getNrOfBars _  (TimedSeg _  []) = error "getNrOfBeats: empty List"
