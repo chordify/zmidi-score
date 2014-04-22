@@ -109,11 +109,16 @@ normSWProf (SWProf (b, wp)) =
 -- the spectral weight by the square of the number of bars and taking the log
 normSWProfByBar :: SWProf -> NSWProf
 normSWProfByBar (SWProf (nob, wp)) = 
-  let d = fromIntegral (nob * nob)
+  let -- Take the square of the bar length
+      d = fromIntegral (nob * nob)
+      
+      -- Apply Laplacian / additive smoothing to prevent bins with 0
+      -- see: http://en.wikipedia.org/wiki/Additive_smoothing
+      alpha = 1 :: NSWeight 
       
       f :: SWeight -> NSWeight
-      f 0 = -100
-      f x = log (fromIntegral x / d)
+      -- f 0 = log  alpha
+      f x = log ((fromIntegral x / d) + alpha)
       
   in NSWProf (nob, M.map f wp)
 

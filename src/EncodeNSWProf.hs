@@ -91,18 +91,19 @@ writeHeader m out =
 -- testing
 main :: IO ()
 main = 
-  do let out = "train.barnorm.sqr.log.csv"
+  do let out = "train.barnorm.sqr.smth.log.csv"
+         vars = 12
      arg <- getArgs 
      m   <- readNSWProf "ragtimeMeterProfilesTrain_2014-03-25.bin"  
-            >>= return . selectQBins 8
+            >>= return . selectQBins vars
      case arg of
        ["-f", fp] -> writeHeader m out >> processMidi m out fp
        ["-d", fp] -> writeHeader m out >> mapDir (processMidi m out) fp >> return ()
        ["-s", fp] -> readNSWProf fp >>= printMeterStats . filterByQBinStrength
-       ["-test" ] -> readPDFs "fit.json" >>= print
        ["-m", fp] -> do qm   <- readQMidiScoreSafe FourtyEighth fp >>= either error return
                         pdfs <- readPDFs "fit.json" 
-                        either error print ( toNSWProfs qm >>= return . match (ticksPerBeat . qMidiScore $ qm) 8 m pdfs )
+                        let dat = either error id $ toNSWProfs qm 
+                        print . match (ticksPerBeat . qMidiScore $ qm) vars m pdfs $ dat
                         
        
        _ -> error "usage: -f <filename> -d <directory>"

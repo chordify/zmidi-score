@@ -52,8 +52,10 @@ filterToList s ts (NSWProf (_,p)) = reverse . sort -- sort by Weight
                                   . map fnd . fromJust . M.lookup ts $ s
   
   where fnd :: (Beat, BeatRat) -> NSWeight
-        -- N.B. NSWeight is a log of the SWeight, and -100 is practically zero
-        fnd k = findWithDefault (NSWeight (-100)) k p
+        -- N.B. NSWeight is a log of the SWeight, we apply laplacian 
+        -- smoothing with alpha is 1, log 1 = 0. See NSWProf.normSWProfByBar
+        -- TODO unify the alpha parameter!
+        fnd k = findWithDefault (NSWeight 0) k p
   
 -- N.B. copied from 
 -- Prints the average normalised inner metric analysis profiles to the user
