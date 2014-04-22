@@ -6,6 +6,7 @@ module Ragtime.MidiIMA (
                        , matchMeters
                        , meterCheck
                        , selectMeters
+                       , SWMeterSeg
                        , fourBarFilter
                        , emptySegFilter
                        , collectSWProf

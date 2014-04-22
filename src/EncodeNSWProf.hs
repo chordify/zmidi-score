@@ -5,7 +5,7 @@ import ZMidi.Score.Datatypes hiding  ( numerator, denominator )
 import ZMidi.Score.Quantise          ( QMidiScore (..), toQBins, ShortestNote (..))
 import ZMidi.IO.Common               ( readQMidiScoreSafe, mapDir, warning)
 import Ragtime.NSWProf
-import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter, emptySegFilter)
+import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter, emptySegFilter, SWMeterSeg)
 import Ragtime.TimeSigSeg            ( TimedSeg (..))
 import Ragtime.SelectQBins           ( selectQBins, filterByQBinStrength
                                      , printMeterStats, filterToList, QBinSelection )
@@ -41,39 +41,44 @@ printKey (Beat b, BeatRat br) = show b ++ "."
 toDoubles :: Int -> RNSWProf -> [Double]
 toDoubles i (RNSWProf _ts ws) = map nsweight . take i $ ws
 
+-- type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
   
-match :: Int -> Map TimeSig [(Beat, BeatRat)] -> [(TimeSig, NSWProf)] -> [ToPDF] -> [(TimeSig, Double)]
-match vars s dat pdfs = [ getProb d p | d <- dat, p <- pdfs ] where
+match :: TPB -> Int -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] -> [SWMeterSeg] 
+      -> [(TimeSig, Double)]
+match tb vars s pdfs dat = [ getProb d p | d <- dat, p <- pdfs ] where
 
-  getProb :: (TimeSig, NSWProf) -> ToPDF -> (TimeSig, Double)
-  getProb (_ts, p) pdf = let ts = pdfTimeSig pdf
-                             d  = toDoubles vars $ toRNSWProf s ts p
-                         -- in (ts, log (pdfPrior pdf) + log (multiNormal pdf d))
-                         in traceShow d (ts, log (pdfPrior pdf) + log (multiNormal pdf d))
+  getProb :: SWMeterSeg -> ToPDF -> (TimeSig, Double)
+  getProb seg pdf = let ts = pdfTimeSig pdf
+                        d  = toDoubles vars $ toRNSWProf tb (const ts) s seg
+                    -- in (ts, log (pdfPrior pdf) + log (multiNormal pdf d))
+                    in traceShow d (ts, log (pdfPrior pdf) + log (multiNormal pdf d))
       
 -- | Top-level function that converts a 'QMidiFile' into CSV-writeable profiles
 toCSV :: Map TimeSig [(Beat, BeatRat)] -> QMidiScore -> Either String [RNSWProf]
-toCSV s qm = toNSWProfs id qm >>= return . map (uncurry (toRNSWProf s))
-      
--- | Converts one segment into a RNSWProf, preserving only the profile bins
--- with heavy weights.
-toRNSWProf :: Map TimeSig [(Beat, BeatRat)] -> TimeSig -> NSWProf -> RNSWProf
-toRNSWProf s ts = RNSWProf ts . filterToList s ts 
+toCSV s qm = toNSWProfs qm 
+         >>= return . map (toRNSWProf (ticksPerBeat . qMidiScore $ qm) id s)
 
 -- | Converts a 'QMidiFile' into a list of 'NSWProf's
-toNSWProfs :: (TimeSig -> TimeSig) -> QMidiScore -> Either String [(TimeSig, NSWProf)]
-toNSWProfs f qm  =   timeSigCheck qm
-                 >>= doIMA
-                 >>= fourBarFilter tb
-                 >>= emptySegFilter 
-                 >>= return . map toNSWProf where
-               
-   tb = ticksPerBeat . qMidiScore $ qm
+toNSWProfs :: QMidiScore -> Either String [SWMeterSeg]
+toNSWProfs qm =   timeSigCheck qm
+              >>= doIMA
+              >>= fourBarFilter tb
+              >>= emptySegFilter 
+                where tb = ticksPerBeat . qMidiScore $ qm
+                 
+-- | Converts one segment into a RNSWProf, preserving only the profile bins
+-- with heavy weights. The 'TimeSig' argument determines the time signature
+-- of the 'RNSWProf'.
+toRNSWProf :: TPB -> (TimeSig -> TimeSig) -> Map TimeSig [(Beat, BeatRat)] 
+           -> SWMeterSeg -> RNSWProf
+toRNSWProf tb f s (TimedSeg (Timed _ ts) d) = 
+  RNSWProf (f ts) . filterToList s (f ts) 
+                  . normSWProfByBar 
+                  . toNSWProfWithTS (f ts) tb $ d 
    
-   -- converts a single segment to a IMA profile
-   toNSWProf :: TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)] -> (TimeSig, NSWProf)
-   toNSWProf (TimedSeg (Timed _ ts) d) = (ts, normSWProfByBar 
-                                            . toNSWProfWithTS (f ts) tb $ d )
+  -- converts a single segment to a IMA profile
+  -- toNSWProf :: (TimeSig, NSWProf)
+  -- toNSWProf = (ts, normSWProfByBar . toNSWProfWithTS (f ts) tb $ d )
 
 -- | Processes a MidiFile, calculates the RNSWProf and writes it to a file
 -- as CSV 
@@ -116,7 +121,7 @@ main =
        ["-test" ] -> readPDFs "fit.json" >>= print
        ["-m", fp] -> do qm   <- readQMidiScoreSafe FourtyEighth fp >>= either error return
                         pdfs <- readPDFs "fit.json" 
-                        print $ match 8 m qm pdfs
+                        either error print ( toNSWProfs qm >>= return . match (ticksPerBeat . qMidiScore $ qm) 8 m pdfs )
                         
        
        _ -> error "usage: -f <filename> -d <directory>"
