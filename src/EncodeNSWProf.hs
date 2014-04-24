@@ -5,7 +5,8 @@ import ZMidi.Score.Datatypes hiding  ( numerator, denominator )
 import ZMidi.Score.Quantise          ( QMidiScore (..), ShortestNote (..))
 import ZMidi.IO.Common               ( readQMidiScoreSafe, mapDir, warning)
 import Ragtime.NSWProf
-import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter, emptySegFilter, SWMeterSeg)
+import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter
+                                     , emptySegFilter, SWMeterSeg, NSWDist (..))
 import Ragtime.TimeSigSeg            ( TimedSeg (..))
 import Ragtime.SelectQBins           ( selectQBins, filterByQBinStrength
                                      , printMeterStats, filterToList )
@@ -17,8 +18,7 @@ import Data.Map.Strict               ( Map )
 import qualified Data.Map.Strict as M( lookup )
 
 import ReadPDF
-
-import Debug.Trace
+-- import Debug.Trace
 
 -- | Reduced Normalised Spectral Weight Profile. It contains a list with the 
 -- most a prominent weights of a 'NSWProf', ordered by their weight.
@@ -43,28 +43,36 @@ toDoubles i (RNSWProf _ts ws) = map nsweight . take i $ ws
 -- type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
   
 match :: TPB -> Int -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] -> [SWMeterSeg] 
-      -> [(TimeSig, Double)]
+      -> [(TimeSig, NSWDist)]
 match tb vars s pdfs dat = [ getProb d p | d <- dat, p <- pdfs ] where
 
-  getProb :: SWMeterSeg -> ToPDF -> (TimeSig, Double)
+  getProb :: SWMeterSeg -> ToPDF -> (TimeSig, NSWDist)
   getProb sg pdf = let ts = pdfTimeSig pdf
                        d  = toDoubles vars $ toRNSWProf tb (const ts) s sg
-                   -- in (ts, log (pdfPrior pdf) + log (multiNormal pdf d))
-                   in traceShow d (ts, log (pdfPrior pdf) + log (multiNormal pdf d))
-      
+                   in (ts, NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d))
+                   -- in traceShow d (ts, log (pdfPrior pdf) + log (multiNormal pdf d))
+                 
+matchIO :: Int ->  Map TimeSig [(Beat, BeatRat)] -> FilePath 
+        -> IO [(TimeSig, NSWDist)]
+matchIO v m fp = do qm <- readQMidiScoreSafe FourtyEighth fp >>= either error return
+                    ps <- readPDFs "fit.json" 
+                    let dat = either error id $ preprocess qm 
+                    return . match (ticksPerBeat . qMidiScore $ qm) v m ps $ dat
+                       
 -- | Top-level function that converts a 'QMidiFile' into CSV-writeable profiles
 toCSV :: Map TimeSig [(Beat, BeatRat)] -> QMidiScore -> Either String [RNSWProf]
-toCSV s qm = toNSWProfs qm 
+toCSV s qm = preprocess qm 
          >>= return . map (toRNSWProf (ticksPerBeat . qMidiScore $ qm) id s)
 
--- | Converts a 'QMidiFile' into a list of 'NSWProf's
-toNSWProfs :: QMidiScore -> Either String [SWMeterSeg]
-toNSWProfs qm =   timeSigCheck qm
+-- | Pre-processes a 'QMidiFile' and returns the IMA weights and score data
+-- for segments that represent one time signature 
+preprocess :: QMidiScore -> Either String [SWMeterSeg]
+preprocess qm =   timeSigCheck qm
               >>= doIMA
               >>= fourBarFilter tb
               >>= emptySegFilter 
                 where tb = ticksPerBeat . qMidiScore $ qm
-                 
+
 -- | Converts one segment into a RNSWProf, preserving only the profile bins
 -- with heavy weights. The 'TimeSig' argument determines the time signature
 -- of the 'RNSWProf'.
@@ -92,7 +100,7 @@ writeHeader m out =
 main :: IO ()
 main = 
   do let out = "train.barnorm.sqr.smth.log.csv"
-         vars = 12
+         vars = 8
      arg <- getArgs 
      m   <- readNSWProf "ragtimeMeterProfilesTrain_2014-03-25.bin"  
             >>= return . selectQBins vars
@@ -100,10 +108,7 @@ main =
        ["-f", fp] -> writeHeader m out >> processMidi m out fp
        ["-d", fp] -> writeHeader m out >> mapDir (processMidi m out) fp >> return ()
        ["-s", fp] -> readNSWProf fp >>= printMeterStats . filterByQBinStrength
-       ["-m", fp] -> do qm   <- readQMidiScoreSafe FourtyEighth fp >>= either error return
-                        pdfs <- readPDFs "fit.json" 
-                        let dat = either error id $ toNSWProfs qm 
-                        print . match (ticksPerBeat . qMidiScore $ qm) vars m pdfs $ dat
+       ["-m", fp] -> matchIO vars m fp >>= print
                         
        
        _ -> error "usage: -f <filename> -d <directory>"

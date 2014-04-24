@@ -3,7 +3,7 @@
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
 module Ragtime.MidiIMA ( 
                          pickMeters
-                       , matchMeters
+                       -- , matchMeters
                        , meterCheck
                        , selectMeters
                        , SWMeterSeg
@@ -17,6 +17,8 @@ module Ragtime.MidiIMA (
                        -- | * Utilities
                        , doIMA
                        , toNSWProfWithTS
+                       , PMatch (..)
+                       , NSWDist (..)
                        ) where
 
 import Ragtime.NSWProf 
@@ -51,11 +53,11 @@ newtype Prob    = Prob { prob :: Double }
 data PMatch = PMatch {  pmTimeSig :: TimeSig
                      ,  pmatch    :: NSWDist
                      ,  rotation  :: Int -- create newtype for rotation...
-                     , _pmProf    :: NSWProf
+                     -- , _pmProf    :: RNSWProf
                      } deriving (Eq)
                      
 instance Show PMatch where
-  show (PMatch ts m r p) = printf (show ts ++ ": %1.4f\n R: %2d" ++ show p) m r
+  show (PMatch ts m r) = printf (show ts ++ ": %1.4f\n R: %2d") m r
   showList l s = s ++ (intercalate "\n" . map show $ l)
                  
 -- | Picks the best matching profile
@@ -63,6 +65,7 @@ pickMeters :: [TimedSeg TimeSig [PMatch]]
            -> Either String [TimedSeg TimeSig PMatch]
 pickMeters = Right . map (fmap (maximumBy (compare `on` pmatch)))
 
+{-
 -- | Given 'vectorize'd SWProf'es, matches every meter segment in 
 -- a 'QMidiScore' to the vectorized profiles
 matchMeters :: Map TimeSig NSWProf -> QMidiScore 
@@ -81,7 +84,7 @@ matchMeters m qm = doIMA qm >>= fourBarFilter tb >>= return . map matchAll where
   match td (ts,v) = let p     = normSWProf (toNSWProfWithTS ts tb td)
                         mp    = errLookup ts ps
                         (s,r) = distBestRot qb 0 v (vectorize qb ts p)
-                    in  PMatch ts (NSWDist ((1 - nsweight s) * prob mp)) r p
+                    in  PMatch ts (NSWDist ((1 - nsweight s) * prob mp)) r p -}
   
 -- | Calculates the match between an annotated and IMA estimated meter
 meterCheck :: Map TimeSig NSWProf -> QMidiScore 
