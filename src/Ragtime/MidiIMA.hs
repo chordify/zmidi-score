@@ -57,7 +57,7 @@ data PMatch = PMatch {  pmTimeSig :: TimeSig
                      } deriving (Eq)
                      
 instance Show PMatch where
-  show (PMatch ts m r) = printf (show ts ++ ": %1.4f\n R: %2d") m r
+  show (PMatch ts m r) = printf (show ts ++ ": %1.4f\t R: %2d") m r
   showList l s = s ++ (intercalate "\n" . map show $ l)
                  
 -- | Picks the best matching profile

@@ -6,7 +6,7 @@ import ZMidi.Score.Quantise          ( QMidiScore (..), ShortestNote (..))
 import ZMidi.IO.Common               ( readQMidiScoreSafe, mapDir, warning)
 import Ragtime.NSWProf
 import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter
-                                     , emptySegFilter, SWMeterSeg, NSWDist (..))
+                                     , emptySegFilter, SWMeterSeg, NSWDist (..), PMatch (..))
 import Ragtime.TimeSigSeg            ( TimedSeg (..))
 import Ragtime.SelectQBins           ( selectQBins, filterByQBinStrength
                                      , printMeterStats, filterToList )
@@ -43,17 +43,21 @@ toDoubles i (RNSWProf _ts ws) = map nsweight . take i $ ws
 -- type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
   
 match :: TPB -> Int -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] -> [SWMeterSeg] 
-      -> [(TimeSig, NSWDist)]
-match tb vars s pdfs dat = [ getProb d p | d <- dat, p <- pdfs ] where
+      -> [TimedSeg TimeSig [PMatch]]
+-- match tb vars s pdfs dat = [ getProb d p | d <- dat, p <- pdfs ] where
+match tb vars s pdfs dat = map update dat where
 
-  getProb :: SWMeterSeg -> ToPDF -> (TimeSig, NSWDist)
+  update :: SWMeterSeg ->  TimedSeg TimeSig [PMatch]
+  update s = fmap (const (map (getProb s) pdfs)) s
+
+  getProb :: SWMeterSeg -> ToPDF -> PMatch
   getProb sg pdf = let ts = pdfTimeSig pdf
                        d  = toDoubles vars $ toRNSWProf tb (const ts) s sg
-                   in (ts, NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d))
+                       p  = NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d)
+                   in PMatch ts p 0
                    -- in traceShow d (ts, log (pdfPrior pdf) + log (multiNormal pdf d))
                  
-matchIO :: Int ->  Map TimeSig [(Beat, BeatRat)] -> FilePath 
-        -> IO [(TimeSig, NSWDist)]
+matchIO :: Int ->  Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO [TimedSeg TimeSig [PMatch]]
 matchIO v m fp = do qm <- readQMidiScoreSafe FourtyEighth fp >>= either error return
                     ps <- readPDFs "fit.json" 
                     let dat = either error id $ preprocess qm 
