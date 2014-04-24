@@ -17,6 +17,7 @@ module ZMidi.IO.Common (-- * Mapping
                     -- * Utilities
                     , logDuplicates
                     , removeTrackLabels
+                    , ioWithWarning
                     , putErrStrLn
                     , warning
                     )where
@@ -129,6 +130,12 @@ logDuplicates fp = do midis <-  getCurDirectoryContents fp
 removeTrackLabels :: FilePath -> IO ()
 removeTrackLabels f = readMidiFile f >>= 
                       writeMidi (f ++ ".noLab.mid") . removeLabels
+
+ioWithWarning :: (FilePath -> IO (Either String a))
+              -> (a -> Either String b) 
+              -> (b -> IO ()) -> FilePath -> IO ()
+ioWithWarning iof warnf prntf fp = 
+    iof fp >>= return . (>>= warnf) >>= either (warning fp) prntf
                       
 -- | Prints a string to the standard error stream
 putErrStrLn :: String -> IO ()

@@ -3,7 +3,8 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Csv              hiding ()             
 import ZMidi.Score.Datatypes hiding  ( numerator, denominator )
 import ZMidi.Score.Quantise          ( QMidiScore (..), ShortestNote (..))
-import ZMidi.IO.Common               ( readQMidiScoreSafe, mapDir, mapDir_, warning)
+import ZMidi.IO.Common               ( readQMidiScoreSafe, mapDir, mapDir_
+                                     , warning, ioWithWarning)
 import Ragtime.NSWProf
 import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter
                                      , emptySegFilter, SWMeterSeg, NSWDist (..)
@@ -57,26 +58,21 @@ match tb vars s pdfs dat = map update dat where
                        p  = NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d)
                    in PMatch ts p 0
                    -- in traceShow d (ts, log (pdfPrior pdf) + log (multiNormal pdf d))
-                 
--- matchIO :: Int ->  Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO [TimedSeg TimeSig [PMatch]]
--- matchIO v m fp = do qm <- readQMidiScoreSafe FourtyEighth fp >>= either (warning fp) return
-                    -- ps <- readPDFs "fit.json" 
-                    -- let dat = either error id $ preprocess qm 
-                    -- return . match (ticksPerBeat . qMidiScore $ qm) v m ps $ dat
-
+                    
 -- TODO promote this pattern
 matchIO :: Int ->  Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
 matchIO v m fp = do ps <- readPDFs "fit.json" 
-                    readQMidiScoreSafe FourtyEighth fp 
-                      >>= return . (>>= doMatch ps)
-                      >>= either (warning fp) putStrLn
+                    ioWithWarning (readQMidiScoreSafe FourtyEighth) 
+                                  (doMatch ps) printMatch fp
 
-  where doMatch :: [ToPDF] -> QMidiScore-> Either String String
+  where doMatch :: [ToPDF] -> QMidiScore-> Either String [TimedSeg TimeSig PMatch]
         doMatch ps qm = preprocess qm 
               >>= return . match (ticksPerBeat . qMidiScore $ qm) v m ps 
               >>= pickMeters 
-              >>= return . intercalate "\n" 
-                         . map (\x -> fp ++ "\t" ++ printPickMeter x)
+        
+        printMatch ::  [TimedSeg TimeSig PMatch] -> IO ()
+        printMatch = putStrLn . intercalate "\n" 
+                              . map (\x -> fp ++ "\t" ++ printPickMeter x)
 
                     
 -- | Top-level function that converts a 'QMidiFile' into CSV-writeable profiles
