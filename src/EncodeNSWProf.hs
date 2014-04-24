@@ -3,10 +3,11 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Csv              hiding ()             
 import ZMidi.Score.Datatypes hiding  ( numerator, denominator )
 import ZMidi.Score.Quantise          ( QMidiScore (..), ShortestNote (..))
-import ZMidi.IO.Common               ( readQMidiScoreSafe, mapDir, warning)
+import ZMidi.IO.Common               ( readQMidiScoreSafe, mapDir, mapDir_, warning)
 import Ragtime.NSWProf
 import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter
-                                     , emptySegFilter, SWMeterSeg, NSWDist (..), PMatch (..))
+                                     , emptySegFilter, SWMeterSeg, NSWDist (..)
+                                     , PMatch (..), pickMeters, printPickMeter)
 import Ragtime.TimeSigSeg            ( TimedSeg (..))
 import Ragtime.SelectQBins           ( selectQBins, filterByQBinStrength
                                      , printMeterStats, filterToList )
@@ -57,12 +58,27 @@ match tb vars s pdfs dat = map update dat where
                    in PMatch ts p 0
                    -- in traceShow d (ts, log (pdfPrior pdf) + log (multiNormal pdf d))
                  
-matchIO :: Int ->  Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO [TimedSeg TimeSig [PMatch]]
-matchIO v m fp = do qm <- readQMidiScoreSafe FourtyEighth fp >>= either error return
-                    ps <- readPDFs "fit.json" 
-                    let dat = either error id $ preprocess qm 
-                    return . match (ticksPerBeat . qMidiScore $ qm) v m ps $ dat
-                       
+-- matchIO :: Int ->  Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO [TimedSeg TimeSig [PMatch]]
+-- matchIO v m fp = do qm <- readQMidiScoreSafe FourtyEighth fp >>= either (warning fp) return
+                    -- ps <- readPDFs "fit.json" 
+                    -- let dat = either error id $ preprocess qm 
+                    -- return . match (ticksPerBeat . qMidiScore $ qm) v m ps $ dat
+
+-- TODO promote this pattern
+matchIO :: Int ->  Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
+matchIO v m fp = do ps <- readPDFs "fit.json" 
+                    readQMidiScoreSafe FourtyEighth fp 
+                      >>= return . (>>= doMatch ps)
+                      >>= either (warning fp) putStrLn
+
+  where doMatch :: [ToPDF] -> QMidiScore-> Either String String
+        doMatch ps qm = preprocess qm 
+              >>= return . match (ticksPerBeat . qMidiScore $ qm) v m ps 
+              >>= pickMeters 
+              >>= return . intercalate "\n" 
+                         . map (\x -> fp ++ "\t" ++ printPickMeter x)
+
+                    
 -- | Top-level function that converts a 'QMidiFile' into CSV-writeable profiles
 toCSV :: Map TimeSig [(Beat, BeatRat)] -> QMidiScore -> Either String [RNSWProf]
 toCSV s qm = preprocess qm 
@@ -112,10 +128,11 @@ main =
        ["-f", fp] -> writeHeader m out >> processMidi m out fp
        ["-d", fp] -> writeHeader m out >> mapDir (processMidi m out) fp >> return ()
        ["-s", fp] -> readNSWProf fp >>= printMeterStats . filterByQBinStrength
-       ["-m", fp] -> matchIO vars m fp >>= print
-                        
+       ["-m", fp] -> matchIO vars m fp
+       ["-a", fp] -> mapDir_ (matchIO vars m) fp
        
        _ -> error "usage: -f <filename> -d <directory>"
+
        
 -- test :: FilePath -> IO ()
 -- test fp = do m   <- readNSWProf "..\\ragtimeMeterProfilesTrain_2014-03-25.bin"  
