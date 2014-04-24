@@ -1,4 +1,5 @@
-{-# OPTIONS_GHC -Wall                   #-}
+{-# OPTIONS_GHC -Wall                    #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 module Ragtime.SelectQBins ( selectQBins 
                            , filterByQBinStrength
                            -- , filterByQBinStrengthWith
@@ -8,11 +9,14 @@ module Ragtime.SelectQBins ( selectQBins
                            , QBinSelection
                            ) where
 
-import ZMidi.Score.Datatypes          ( TimeSig, Beat, BeatRat )
+-- import ZMidi.Score.Datatypes  hiding  ( numerator, denominator )
+import ZMidi.Score.Datatypes          ( TimeSig (..) , Beat(..) , BeatRat (..) )
+import ZMidi.Score.Quantise           ( QBins (..) )
 import Ragtime.NSWProf
 import Data.List                      ( sort, sortBy )
 import Data.Ord                       ( comparing, Down (..) )
 import Data.Maybe                     ( fromJust )
+import Data.Ratio                as R ( numerator, denominator, (%) )
 import qualified Data.Map.Strict as M ( map, lookup )
 import Data.Map.Strict                ( Map, toAscList, filterWithKey
                                       , mapWithKey, findWithDefault )
@@ -62,4 +66,14 @@ filterToList s ts (NSWProf (_,p)) = reverse . sort -- sort by Weight
 printMeterStats :: Map TimeSig NSWProf -> IO ()
 printMeterStats = mapM_ (putStrLn . showNSWProf) . toAscList 
 
+--------------------------------------------------------------------------------
+-- Rotations
+--------------------------------------------------------------------------------
+newtype Rot = Rot { rot :: Int } 
+                  deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
 
+rotate :: QBins -> TimeSig -> Rot -> (Beat, BeatRat) -> (Beat, BeatRat)
+rotate (QBins q) (TimeSig n _ _ _) (Rot rot) (Beat b, BeatRat r) =
+  let (x, r') = rot `divMod` q
+      b'      = b + (x `mod` n)
+  in (Beat b', BeatRat ((R.numerator r + r') R.% (R.denominator r)))
