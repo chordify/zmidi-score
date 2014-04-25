@@ -17,6 +17,7 @@ module Ragtime.MidiIMA (
                        -- | * Utilities
                        , doIMA
                        , toNSWProfWithTS
+                       , toSWProf
                        , PMatch (..)
                        , NSWDist (..)
                        ) where
@@ -122,12 +123,12 @@ collectSWProf s m = foldr doSeg m s where
 toSWProfSegs :: QMidiScore -> Either String [SWProfSeg]
 toSWProfSegs m =    doIMA m 
                 >>= fourBarFilter (ticksPerBeat . qMidiScore $ m)
-                >>= return . map (toNSWProf (ticksPerBeat . qMidiScore $ m))
+                >>= return . map (toSWProf (ticksPerBeat . qMidiScore $ m))
 
 -- | Sums all NSW profiles per bar for a meter section using the annotated
 -- meter of that section
-toNSWProf :: TPB ->  SWMeterSeg -> SWProfSeg
-toNSWProf tb s = fmap (toNSWProfWithTS (getEvent . boundary $ s) tb) s
+toSWProf :: TPB ->  SWMeterSeg -> SWProfSeg
+toSWProf tb s = fmap (toNSWProfWithTS (getEvent . boundary $ s) tb) s
 
 -- | Sums all NSW profiles per bar for a meter section using a specific meter
 toNSWProfWithTS :: TimeSig ->TPB ->[Timed (Maybe ScoreEvent, SWeight)] -> SWProf
@@ -280,7 +281,7 @@ printIMA qm = mapM toNSWProfPrint . either error id . doIMA $ qm where
                 
   toNSWProfPrint :: SWMeterSeg -> IO (SWProfSeg)
   toNSWProfPrint s = do let tb = ticksPerBeat . qMidiScore $ qm 
-                        starMeter tb s >> return (toNSWProf tb s)
+                        starMeter tb s >> return (toSWProf tb s)
                 
           
 -- Prints an Inner metrical analysis

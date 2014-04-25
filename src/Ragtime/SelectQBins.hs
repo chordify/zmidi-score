@@ -7,6 +7,8 @@ module Ragtime.SelectQBins ( selectQBins
                            , filterToList
                            , printMeterStats
                            , QBinSelection
+                           -- * Rotations
+                           , Rot (..)
                            ) where
 
 -- import ZMidi.Score.Datatypes  hiding  ( numerator, denominator )

@@ -2,15 +2,16 @@ module Main where
 import qualified Data.ByteString.Lazy as BL
 import Data.Csv              hiding ()             
 import ZMidi.Score.Datatypes hiding  ( numerator, denominator )
-import ZMidi.Score.Quantise          ( QMidiScore (..), ShortestNote (..))
+import ZMidi.Score.Quantise          ( QMidiScore (..), ShortestNote (..), toQBins)
 import ZMidi.IO.Common               ( readQMidiScoreSafe, mapDir_
                                      , warning, ioWithWarning)
 import Ragtime.NSWProf
 import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter
                                      , emptySegFilter, SWMeterSeg, NSWDist (..)
-                                     , PMatch (..), pickMeters, printPickMeter)
+                                     , PMatch (..), pickMeters, printPickMeter
+                                     , toSWProf )
 import Ragtime.TimeSigSeg            ( TimedSeg (..))
-import Ragtime.SelectQBins           ( selectQBins, printMeterStats, filterToList )
+import Ragtime.SelectQBins           ( selectQBins, printMeterStats, filterToList, Rot (..) )
 import System.Environment            ( getArgs )
 import Data.List                     ( intercalate )
 import Data.Maybe                    ( fromJust )
@@ -110,6 +111,17 @@ writeHeader :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO()
 writeHeader m out = 
   writeFile out . (++ "\n") . intercalate "," $ "meter" : 
                   (map printKey . fromJust . M.lookup (TimeSig 4 4 0 0) $ m)
+  
+analyseMidi :: Rot -> Int -> Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
+analyseMidi r v s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
+                                     analyse putStrLn fp where
+     
+  analyse :: QMidiScore -> Either String String
+  analyse qm = do let qb  = toQBins . qShortestNote $ qm
+                      tpb = ticksPerBeat . qMidiScore $ qm 
+                  preprocess qm >>= return . concatMap (show . normSWProf . seg . toSWProf tpb) 
+                                -- >>= sequence . concatMap (show . normSWProf )
+  
   
 -- testing
 main :: IO ()
