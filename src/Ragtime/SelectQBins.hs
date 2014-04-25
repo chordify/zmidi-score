@@ -36,13 +36,16 @@ selectQBins bs = M.map select where
          . snd . nswprof                     -- ignore the nr of bars
          
 -- Selects the bins marked in a 'QBinSelection' for a map of 'NSWProf's
-filterByQBinStrengthWith :: QBinSelection -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-filterByQBinStrengthWith s m = mapWithKey (filterBin s) m where
+filterByQBinStrengthWith ::  QBins -> Rot -> QBinSelection -> Map TimeSig NSWProf -> Map TimeSig NSWProf
+filterByQBinStrengthWith q r s m = mapWithKey (filterBin q r s) m where
 
-filterBin :: QBinSelection -> TimeSig -> NSWProf -> NSWProf 
-filterBin s ts = NSWProf . second (filterWithKey (\k _ -> k `elem` l)) . nswprof
+filterBin :: QBins -> Rot -> QBinSelection -> TimeSig -> NSWProf -> NSWProf 
+filterBin q r s ts = NSWProf . second (filterWithKey f) . nswprof
 
   where l = fromJust $ M.lookup ts s 
+        
+        f :: (Beat, BeatRat) -> a -> Bool
+        f k _ = (rotate q ts r k) `elem` l
   
 -- Special case of 'filterByQBinStrengthWith' using the 12 most prominent bins
 -- filterByQBinStrength :: Map TimeSig NSWProf -> Map TimeSig NSWProf
