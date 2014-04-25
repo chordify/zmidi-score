@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wall                    #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 module Ragtime.SelectQBins ( selectQBins 
-                           , filterByQBinStrength
+                           -- , filterByQBinStrength
                            -- , filterByQBinStrengthWith
                            -- , filterBin
                            , filterToList
@@ -45,8 +45,8 @@ filterBin s ts = NSWProf . second (filterWithKey (\k _ -> k `elem` l)) . nswprof
   where l = fromJust $ M.lookup ts s 
   
 -- Special case of 'filterByQBinStrengthWith' using the 12 most prominent bins
-filterByQBinStrength :: Map TimeSig NSWProf -> Map TimeSig NSWProf
-filterByQBinStrength m = filterByQBinStrengthWith (selectQBins 12 m) m
+-- filterByQBinStrength :: Map TimeSig NSWProf -> Map TimeSig NSWProf
+-- filterByQBinStrength m = filterByQBinStrengthWith (selectQBins 12 m) m
 
 -- Given a selection, time signature selects the selected bins from a 'NSWProf'
 -- and returns them in a list. If the selected bin is not present in the 
@@ -61,7 +61,7 @@ filterToList s ts (NSWProf (_,p)) = reverse . sort -- sort by Weight
         -- TODO unify the alpha parameter!
         fnd k = findWithDefault (NSWeight 0) k p
   
--- N.B. copied from 
+-- N.B. copied from RagPatIMA
 -- Prints the average normalised inner metric analysis profiles to the user
 printMeterStats :: Map TimeSig NSWProf -> IO ()
 printMeterStats = mapM_ (putStrLn . showNSWProf) . toAscList 

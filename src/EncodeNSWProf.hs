@@ -10,8 +10,7 @@ import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter
                                      , emptySegFilter, SWMeterSeg, NSWDist (..)
                                      , PMatch (..), pickMeters, printPickMeter)
 import Ragtime.TimeSigSeg            ( TimedSeg (..))
-import Ragtime.SelectQBins           ( selectQBins, filterByQBinStrength
-                                     , printMeterStats, filterToList )
+import Ragtime.SelectQBins           ( selectQBins, printMeterStats, filterToList )
 import System.Environment            ( getArgs )
 import Data.List                     ( intercalate )
 import Data.Maybe                    ( fromJust )
@@ -115,15 +114,16 @@ writeHeader m out =
 -- testing
 main :: IO ()
 main = 
-  do let out = "train.barnorm.sqr.smth.log.csv"
-         vars = 8
+  do -- parameters
+     let out   = "train.barnorm.sqr.smth.log.csv"
+         profs = "ragtimeMeterProfilesTrain_2014-03-25.bin" 
+         vars  = 8
      arg <- getArgs 
-     m   <- readNSWProf "ragtimeMeterProfilesTrain_2014-03-25.bin"  
-            >>= return . selectQBins vars
+     m   <- readNSWProf profs >>= return . selectQBins vars
      case arg of
        ["-f", fp] -> writeHeader m out >> processMidi m out fp
        ["-d", fp] -> writeHeader m out >> mapDir (processMidi m out) fp >> return ()
-       ["-s", fp] -> readNSWProf fp >>= printMeterStats . filterByQBinStrength
+       ["-s"    ] -> readNSWProf profs >>= printMeterStats 
        ["-m", fp] -> matchIO vars m fp
        ["-a", fp] -> mapDir_ (matchIO vars m) fp
        
