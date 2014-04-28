@@ -26,6 +26,7 @@ import Ragtime.NSWProf
 import ZMidi.Score         hiding ( numerator, denominator )
 import ZMidi.Skyline.MelFind      ( mergeTracks )
 import Ragtime.TimeSigSeg         ( TimedSeg (..), segment )
+import Ragtime.SelectQBins        ( Rot (..) )
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
@@ -53,12 +54,12 @@ newtype Prob    = Prob { prob :: Double }
                              
 data PMatch = PMatch {  pmTimeSig :: TimeSig
                      ,  pmatch    :: NSWDist
-                     ,  rotation  :: Int -- create newtype for rotation...
+                     ,  rotation  :: Rot  -- create newtype for rotation...
                      -- , _pmProf    :: RNSWProf
                      } deriving (Eq)
                      
 instance Show PMatch where
-  show (PMatch ts m r) = printf (show ts ++ ": %1.4f\t R: %2d") m r
+  show (PMatch ts m r) = printf (show ts ++ ": %1.4f\t R: %2d") m (rot r)
   showList l s = s ++ (intercalate "\n" . map show $ l)
                  
 -- | Picks the best matching profile
@@ -274,7 +275,7 @@ printPickMeter (TimedSeg ts m) =
       tsEq (TimeSig 4 4 _ _) (TimeSig 2 2 _ _) = True
       tsEq a                 b                 = a == b
   
-  in printf s (pmatch m) (rotation m)
+  in printf s (pmatch m) (rot . rotation $ m)
 
 printIMA :: QMidiScore -> IO ([SWProfSeg])
 printIMA qm = mapM toNSWProfPrint . either error id . doIMA $ qm where

@@ -22,7 +22,7 @@ import qualified Data.Map.Strict as M( lookup )
 import Text.Printf                   ( printf )
 
 import ReadPDF
--- import Debug.Trace
+import Debug.Trace
 
 -- | Reduced Normalised Spectral Weight Profile. It contains a list with the 
 -- most a prominent weights of a 'NSWProf', ordered by their weight.
@@ -51,30 +51,29 @@ toDoubles i (RNSWProf _ts ws) = map nsweight . take i $ ws
   
 match :: QBins -> TPB -> Int -> Rot -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] -> [SWMeterSeg] 
       -> [TimedSeg TimeSig [PMatch]]
--- match tb vars s pdfs dat = [ getProb d p | d <- dat, p <- pdfs ] where
-match qb tb vars r s pdfs dat = map update dat where
+match qb tb vars mr s pdfs dat = map update dat where
 
   update :: SWMeterSeg ->  TimedSeg TimeSig [PMatch]
-  update x = fmap (const (map (getProb x) pdfs)) x
+  update x = fmap (const [getProb x r p | r <- [mr, pred mr .. 0], p <- pdfs]) x
 
-  getProb :: SWMeterSeg -> ToPDF -> PMatch
-  getProb sg pdf = let ts = pdfTimeSig pdf
-                       d  = toDoubles vars $ toRNSWProf qb tb r (const ts) s sg
-                       p  = NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d)
-                   in PMatch ts p 0
-                   -- in traceShow d (ts, log (pdfPrior pdf) + log (multiNormal pdf d))
+  getProb :: SWMeterSeg -> Rot -> ToPDF -> PMatch
+  getProb sg r pdf = let ts = pdfTimeSig pdf
+                         d  = toDoubles vars $ toRNSWProf qb tb r (const ts) s sg
+                         p  = NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d)
+                     in PMatch ts p r
+                     -- in traceShow m m where m  = PMatch ts p r
                     
 -- TODO promote this pattern
 matchIO :: Int -> Rot ->  Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
 matchIO v r m fp = do ps <- readPDFs "fit.json" 
                       ioWithWarning (readQMidiScoreSafe FourtyEighth) 
-                                    (doMatch ps r) printMatch fp
+                                    (doMatch ps) printMatch fp
 
-  where doMatch :: [ToPDF] -> Rot -> QMidiScore-> Either String [TimedSeg TimeSig PMatch]
-        doMatch ps r' qm = do segs <- preprocess qm 
-                              let tpb = ticksPerBeat . qMidiScore $ qm
-                                  qb  = toQBins . qShortestNote $ qm
-                              pickMeters . match qb tpb v r' m ps $ segs
+  where doMatch :: [ToPDF] -> QMidiScore-> Either String [TimedSeg TimeSig PMatch]
+        doMatch ps qm = do segs <- preprocess qm 
+                           let tpb = ticksPerBeat . qMidiScore $ qm
+                               qb  = toQBins . qShortestNote $ qm
+                           pickMeters . match qb tpb v r m ps $ segs
         
         printMatch ::  [TimedSeg TimeSig PMatch] -> IO ()
         printMatch = putStrLn . intercalate "\n" 
@@ -133,12 +132,13 @@ analyseMidi r v s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
                       showSel x = show . filterBin qb r s (getEvent . boundary $ x) 
                                 . normSWProfByBar . seg . toSWProf tpb $ x
                       
-                      prf = concatMap (show . normSWProfByBar . seg . toSWProf tpb) pp
+                      prf = intercalate "\n" $ "original profiles" : 
+                            map (show . normSWProfByBar . seg . toSWProf tpb) pp
                       rst = "rotation: " ++ show (rot r)              
-                      sel = concatMap showSel pp
-                      rns = concatMap (show . toRNSWProf qb tpb r id s) pp
+                      sel = intercalate "\n" $ "matched profiles" : map showSel pp
+                      rns = intercalate "\n" $ map (show . toRNSWProf qb tpb r id s) pp
 
-                  return . intercalate "\n" $ [prf, rst, sel, rns]
+                  return . intercalate "\n" $ [rst, prf, sel, rns]
                   
 -- testing
 main :: IO ()
@@ -146,8 +146,8 @@ main =
   do -- parameters
      let out   = "train.barnorm.sqr.smth.log.csv"
          profs = "ragtimeMeterProfilesTrain_2014-03-25.bin" 
-         vars  = 12
-         rot   = 0
+         vars  = 8
+         rot   = 47
      arg <- getArgs 
      m   <- readNSWProf profs >>= return . selectQBins vars
      case arg of
