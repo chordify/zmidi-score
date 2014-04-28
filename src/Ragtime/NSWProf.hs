@@ -73,10 +73,11 @@ instance Show NSWProf where
   show (NSWProf (bars, m)) = intercalate "\n" (hdr : foldrWithKey shw [] m)
   
     where hdr = "Bars: " ++ show (nrOfBars bars)
+          mx  = maxVal 0 m 
     
           shw :: (Beat, BeatRat) -> NSWeight -> [String] -> [String]
           shw (Beat b, BeatRat br) w r = 
-            let x = w in printf ("%1d - %2d / %2d: %.5f " ++ stars x) 
+            let x = w in printf ("%1d - %2d / %2d: %.5f " ++ stars (x / mx)) 
                            b (numerator br) (denominator br) x : r
 
 -- | Stores the number of bars
@@ -101,9 +102,8 @@ mergeProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
 -- only contain values between 0 and 1
 normSWProf :: SWProf -> NSWProf 
 normSWProf (SWProf (b, wp)) = 
-  let -- m  = trace ("max: " ++ show a) a where a = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
-      m = fromIntegral . fst . mapAccum (\v w -> (max v w, w)) 0 $ wp
-  in NSWProf (b, M.map (\x -> fromIntegral x / m) wp)
+  let m = maxVal 0 wp
+  in  NSWProf (b, M.map (\x -> fromIntegral x / fromIntegral m) wp)
 
 -- Normalises an 'SWProf' to an 'NSWProf' (normalised SWProf), by dividing
 -- the spectral weight by the square of the number of bars and taking the log
@@ -122,7 +122,10 @@ normSWProfByBar (SWProf (nob, wp)) =
       
   in NSWProf (nob, M.map f wp)
 
-  
+-- | returns the maximum value in a 'Map'. The first argument is a first value
+-- that is compared.
+maxVal :: Ord v => v -> Map k v -> v
+maxVal s = fst . mapAccum (\v m -> (max v m, m)) s
 --------------------------------------------------------------------------------
 -- Matching IMA profiles
 --------------------------------------------------------------------------------

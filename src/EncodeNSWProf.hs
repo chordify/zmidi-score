@@ -117,10 +117,11 @@ analyseMidi r v s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
                                      analyse putStrLn fp where
      
   analyse :: QMidiScore -> Either String String
-  analyse qm = do let qb  = toQBins . qShortestNote $ qm
+  analyse qm = do pp <- preprocess qm 
+                  let qb  = toQBins . qShortestNote $ qm
                       tpb = ticksPerBeat . qMidiScore $ qm 
-                  preprocess qm >>= return . concatMap (show . normSWProf . seg . toSWProf tpb) 
-                                -- >>= sequence . concatMap (show . normSWProf )
+                      prf = concatMap (show . normSWProf . seg . toSWProf tpb) pp
+                  return prf
   
   
 -- testing
@@ -133,7 +134,7 @@ main =
      arg <- getArgs 
      m   <- readNSWProf profs >>= return . selectQBins vars
      case arg of
-       ["-f", fp] -> writeHeader m out >> processMidi m out fp
+       ["-f", fp] -> analyseMidi 0 vars m fp
        ["-d", fp] -> writeHeader m out >> mapDir_ (processMidi m out) fp 
        ["-s"    ] -> readNSWProf profs >>= printMeterStats 
        ["-m", fp] -> matchIO vars m fp
