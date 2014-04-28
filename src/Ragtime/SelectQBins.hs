@@ -3,7 +3,7 @@
 module Ragtime.SelectQBins ( selectQBins 
                            -- , filterByQBinStrength
                            -- , filterByQBinStrengthWith
-                           -- , filterBin
+                           , filterBin
                            , filterToList
                            , printMeterStats
                            , QBinSelection
@@ -18,12 +18,12 @@ import Ragtime.NSWProf
 import Data.List                      ( sort, sortBy )
 import Data.Ord                       ( comparing, Down (..) )
 import Data.Maybe                     ( fromJust )
-import Data.Ratio                as R ( numerator, denominator, (%) )
+import Data.Ratio                as R ( numerator, denominator, (%), Ratio (..) )
 import qualified Data.Map.Strict as M ( map, lookup )
 import Data.Map.Strict                ( Map, toAscList, filterWithKey
                                       , mapWithKey, findWithDefault )
 import Control.Arrow                  ( second )
-                     
+
 -- | A selection of the SWProf bins with the strongest weights                     
 type QBinSelection = Map TimeSig [(Beat, BeatRat)]
                              
@@ -44,10 +44,10 @@ filterByQBinStrengthWith q r s m = mapWithKey (filterBin q r s) m where
 filterBin :: QBins -> Rot -> QBinSelection -> TimeSig -> NSWProf -> NSWProf 
 filterBin q r s ts = NSWProf . second (filterWithKey f) . nswprof
 
-  where l = fromJust $ M.lookup ts s 
+  where l = map (rotate q ts r) . fromJust . M.lookup ts $ s 
         
         f :: (Beat, BeatRat) -> a -> Bool
-        f k _ = (rotate q ts r k) `elem` l
+        f k _ = k `elem` l
   
 -- Special case of 'filterByQBinStrengthWith' using the 12 most prominent bins
 -- filterByQBinStrength :: Map TimeSig NSWProf -> Map TimeSig NSWProf
@@ -56,15 +56,15 @@ filterBin q r s ts = NSWProf . second (filterWithKey f) . nswprof
 -- Given a selection, time signature selects the selected bins from a 'NSWProf'
 -- and returns them in a list. If the selected bin is not present in the 
 -- profile 0 is returned
-filterToList :: QBinSelection -> TimeSig -> NSWProf -> [NSWeight]
-filterToList s ts (NSWProf (_,p)) = reverse . sort -- sort by Weight
-                                  . map fnd . fromJust . M.lookup ts $ s
+filterToList ::QBins -> Rot -> QBinSelection -> TimeSig -> NSWProf -> [NSWeight]
+filterToList q r s ts (NSWProf (_,p)) = reverse . sort -- sort by Weight
+                                      . map fnd . fromJust . M.lookup ts $ s
   
   where fnd :: (Beat, BeatRat) -> NSWeight
         -- N.B. NSWeight is a log of the SWeight, we apply laplacian 
         -- smoothing with alpha is 1, log 1 = 0. See NSWProf.normSWProfByBar
         -- TODO unify the alpha parameter!
-        fnd k = findWithDefault (NSWeight 0) k p
+        fnd k = findWithDefault (NSWeight 0) (rotate q ts r k) p
   
 -- N.B. copied from RagPatIMA
 -- Prints the average normalised inner metric analysis profiles to the user
@@ -79,6 +79,7 @@ newtype Rot = Rot { rot :: Int }
 
 rotate :: QBins -> TimeSig -> Rot -> (Beat, BeatRat) -> (Beat, BeatRat)
 rotate (QBins q) (TimeSig n _ _ _) (Rot rot) (Beat b, BeatRat r) =
-  let (x, r') = rot `divMod` q
-      b'      = b + (x `mod` n)
-  in (Beat b', BeatRat ((R.numerator r + r') R.% (R.denominator r)))
+  let x         = R.numerator r * (q `div` (R.denominator r))
+      (a, rot') = (rot + x) `divMod` q
+      b'        = succ $ (pred b + a) `mod` n
+  in  ( Beat b' , BeatRat ( rot' R.%  q ))
