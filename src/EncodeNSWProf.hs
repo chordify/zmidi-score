@@ -1,4 +1,4 @@
-module Main where
+module EncodeNSWProf where
 import qualified Data.ByteString.Lazy as BL
 import Data.Csv              hiding ()             
 import ZMidi.Score.Datatypes hiding  ( numerator, denominator )
@@ -65,7 +65,7 @@ match qb tb vars mr s pdfs dat = map update dat where
                     
 -- TODO promote this pattern
 matchIO :: Int -> Rot ->  Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
-matchIO v r m fp = do ps <- readPDFs "fit12.json" 
+matchIO v r m fp = do ps <- readPDFs ("fit"++show v++".json" )
                       ioWithWarning (readQMidiScoreSafe FourtyEighth) 
                                     (doMatch ps) printMatch fp
 
@@ -119,14 +119,17 @@ writeHeader m out =
   writeFile out . (++ "\n") . intercalate "," $ "meter" : 
                   (map printKey . fromJust . M.lookup (TimeSig 4 4 0 0) $ m)
   
-analyseMidi :: Rot -> Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
-analyseMidi r s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
-                                   analyse putStrLn fp where
+analyseMidi :: Maybe TimeSig -> Rot -> Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
+analyseMidi mt r s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
+                                    analyse putStrLn fp where
      
   analyse :: QMidiScore -> Either String String
   analyse qm = do pp <- preprocess qm 
                   let qb  = toQBins . qShortestNote $ qm
                       tb = ticksPerBeat . qMidiScore $ qm 
+                      
+                      tsf = case mt of Just ts -> const ts
+                                       _       -> id
                       
                       showSel :: SWMeterSeg -> String
                       showSel x = show . filterBin qb r s (getEvent . boundary $ x) 
@@ -136,34 +139,9 @@ analyseMidi r s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
                             map (show . normSWProfByBar . seg . toSWProf tb) pp
                       rst = "rotation: " ++ show (rot r)              
                       sel = intercalate "\n" $ "matched profiles" : map showSel pp
-                      rns = intercalate "\n" $ map (show . toRNSWProf qb tb r id s) pp
-
+                      rns = intercalate "\n" $ map (show . toRNSWProf qb tb r tsf s) pp
+                 
                   return . intercalate "\n" $ [rst, prf, sel, rns]
-                  
--- testing
-main :: IO ()
-main = 
-  do -- parameters
-     let out v = "train.barnorm.sqr.smth.log."++ show v ++".csv"
-         profs = "ragtimeMeterProfilesTrain_2014-03-25.bin" 
-         vars  = 12
-         rt    = 47
-     arg <- getArgs 
-     m   <- readNSWProf profs >>= return . selectQBins vars
-     case arg of
-       ["-f", fp, "-r", r] -> analyseMidi (Rot $ read r) m fp
-       ["-f", fp] -> analyseMidi rt m fp
-       ["-d", fp, "-v", sv] -> do let v = read sv
-                                  m' <- readNSWProf profs >>= return . selectQBins v
-                                  writeHeader m' (out v) 
-                                  mapDir_ (processMidi m' (out v)) fp
-                                 
-       ["-d", fp] -> writeHeader m (out vars) >> mapDir_ (processMidi m (out vars)) fp 
-       ["-s"    ] -> readNSWProf profs >>= printMeterStats 
-       ["-m", fp] -> matchIO vars rt m fp
-       ["-a", fp] -> mapDir_ (matchIO vars rt m) fp
-       
-       _ -> error "usage: -f <filename> -d <directory>"
 
 -- copied from RagPatIMA Checks for a valid time signature
 timeSigCheck :: QMidiScore -> Either String QMidiScore

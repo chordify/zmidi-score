@@ -50,7 +50,7 @@ executable melfind
 
   
 executable EncNSWProf
-  main-is:             EncodeNSWProf.hs
+  main-is:             Main.hs
   hs-source-dirs:      src
   -- other-modules:       
   build-depends:       base >= 4.4 && < 4.7, 
@@ -69,7 +69,8 @@ executable EncNSWProf
                        bytestring >= 0.10,
                        cassava == 0.3.0.1,
                        aeson  >= 0.7.0.2,
-                       matrix == 0.3.0.0
+                       matrix == 0.3.0.0,
+                       parseargs >= 0.1.5.2
                        
   ghc-options:         -Wall -O2 -rtsopts
   -- ghc-options:         -O2 -prof -auto-all -fprof-auto
