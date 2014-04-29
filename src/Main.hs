@@ -62,7 +62,7 @@ myArgs = [
          , Arg { argIndex = TimeSigArg,
                  argAbbr  = Just 't',
                  argName  = Just "ts",
-                 argData  = argDataDefaulted "TimeSig" ArgtypeString "4/4",
+                 argData  = argDataOptional "TimeSig" ArgtypeString,
                  argDesc  = "The time signature to be used in the analysis"
                 }               
          ]
