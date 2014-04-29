@@ -18,10 +18,10 @@ import Ragtime.NSWProf
 import Data.List                      ( sort, sortBy )
 import Data.Ord                       ( comparing, Down (..) )
 import Data.Maybe                     ( fromJust )
-import Data.Ratio                as R ( numerator, denominator, (%), Ratio (..) )
+import Data.Ratio                as R ( numerator, denominator, (%) )
 import qualified Data.Map.Strict as M ( map, lookup )
 import Data.Map.Strict                ( Map, toAscList, filterWithKey
-                                      , mapWithKey, findWithDefault )
+                                      , findWithDefault )
 import Control.Arrow                  ( second )
 
 -- | A selection of the SWProf bins with the strongest weights                     
@@ -32,15 +32,12 @@ selectQBins :: Int -> Map TimeSig NSWProf -> QBinSelection
 selectQBins bs = M.map select where
 
   select :: NSWProf -> [(Beat, BeatRat)]
-  select = -- sort . map fst -- and sort in regular order
-           map fst . take bs          -- select 
-         . sortBy (comparing (Down . snd)) . toAscList -- sort by weight
-         . snd . nswprof                     -- ignore the nr of bars
-         
--- Selects the bins marked in a 'QBinSelection' for a map of 'NSWProf's
-filterByQBinStrengthWith ::  QBins -> Rot -> QBinSelection -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-filterByQBinStrengthWith q r s m = mapWithKey (filterBin q r s) m where
+  select = sort . map fst                   -- and sort in regular order
+         . take bs                          -- select 
+         . sortBy (comparing (Down . snd))  -- sort by weight
+         . toAscList . snd . nswprof        -- ignore the nr of bars
 
+-- removes all bins from an 'NSWProf' that are not specified in a 'QBinSelection'
 filterBin :: QBins -> Rot -> QBinSelection -> TimeSig -> NSWProf -> NSWProf 
 filterBin q r s ts = NSWProf . second (filterWithKey f) . nswprof
 
@@ -52,13 +49,17 @@ filterBin q r s ts = NSWProf . second (filterWithKey f) . nswprof
 -- Special case of 'filterByQBinStrengthWith' using the 12 most prominent bins
 -- filterByQBinStrength :: Map TimeSig NSWProf -> Map TimeSig NSWProf
 -- filterByQBinStrength m = filterByQBinStrengthWith (selectQBins 12 m) m
+         
+-- Selects the bins marked in a 'QBinSelection' for a map of 'NSWProf's
+-- filterByQBinStrengthWith ::  QBins -> Rot -> QBinSelection -> Map TimeSig NSWProf -> Map TimeSig NSWProf
+-- filterByQBinStrengthWith q r s m = mapWithKey (filterBin q r s) m where
 
 -- Given a selection, time signature selects the selected bins from a 'NSWProf'
 -- and returns them in a list. If the selected bin is not present in the 
 -- profile 0 is returned
 filterToList ::QBins -> Rot -> QBinSelection -> TimeSig -> NSWProf -> [NSWeight]
-filterToList q r s ts (NSWProf (_,p)) = reverse . sort -- sort by Weight
-                                      . map fnd . fromJust . M.lookup ts $ s
+filterToList q r s ts (NSWProf (_,p)) = -- reverse . sort -- sort by Weight
+                                        map fnd . fromJust . M.lookup ts $ s
   
   where fnd :: (Beat, BeatRat) -> NSWeight
         -- N.B. NSWeight is a log of the SWeight, we apply laplacian 
@@ -83,3 +84,5 @@ rotate (QBins q) (TimeSig n _ _ _) (Rot rot) (Beat b, BeatRat r) =
       (a, rot') = (rot + x) `divMod` q
       b'        = succ $ (pred b + a) `mod` n
   in  ( Beat b' , BeatRat ( rot' R.%  q ))
+rotate _ _ _ _ = error "SelectQBins.rotate: invalid arguments"
+

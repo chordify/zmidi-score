@@ -36,7 +36,7 @@ import Data.Function               ( on )
 import Data.Map.Strict             ( empty, Map, insertWith, filterWithKey )
 import qualified Data.Map.Strict as M ( lookup, foldr, map )
 import Control.Arrow               ( first )
-import Data.Vector                 ( Vector )
+-- import Data.Vector                 ( Vector )
 
 import Text.Printf                 ( printf, PrintfArg )
 import Data.Ratio                  ( numerator, denominator, )
@@ -154,10 +154,10 @@ selectMeters ts = filterWithKey (\k _ -> k `elem` ts)
 getTotNrOfBars :: Map TimeSig NSWProf -> NrOfBars
 getTotNrOfBars = M.foldr (\(NSWProf (b, _)) r -> r + b) 0   
 
-getMeterProbs :: Map TimeSig NSWProf -> Map TimeSig Prob
-getMeterProbs m = 
-  let t = getTotNrOfBars m
-  in M.map (\(NSWProf (b, _)) -> Prob (fromIntegral b / fromIntegral t)) m
+-- getMeterProbs :: Map TimeSig NSWProf -> Map TimeSig Prob
+-- getMeterProbs m = 
+  -- let t = getTotNrOfBars m
+  -- in M.map (\(NSWProf (b, _)) -> Prob (fromIntegral b / fromIntegral t)) m
 
 --------------------------------------------------------------------------------
 -- Performing the Inner Metrical Analysis

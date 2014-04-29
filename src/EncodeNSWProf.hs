@@ -22,7 +22,7 @@ import qualified Data.Map.Strict as M( lookup )
 import Text.Printf                   ( printf )
 
 import ReadPDF
-import Debug.Trace
+-- import Debug.Trace
 
 -- | Reduced Normalised Spectral Weight Profile. It contains a list with the 
 -- most a prominent weights of a 'NSWProf', ordered by their weight.
@@ -65,15 +65,15 @@ match qb tb vars mr s pdfs dat = map update dat where
                     
 -- TODO promote this pattern
 matchIO :: Int -> Rot ->  Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
-matchIO v r m fp = do ps <- readPDFs "fit.json" 
+matchIO v r m fp = do ps <- readPDFs "fit12.json" 
                       ioWithWarning (readQMidiScoreSafe FourtyEighth) 
                                     (doMatch ps) printMatch fp
 
   where doMatch :: [ToPDF] -> QMidiScore-> Either String [TimedSeg TimeSig PMatch]
         doMatch ps qm = do segs <- preprocess qm 
-                           let tpb = ticksPerBeat . qMidiScore $ qm
-                               qb  = toQBins . qShortestNote $ qm
-                           pickMeters . match qb tpb v r m ps $ segs
+                           let tb = ticksPerBeat . qMidiScore $ qm
+                               qb = toQBins . qShortestNote $ qm
+                           pickMeters . match qb tb v r m ps $ segs
         
         printMatch ::  [TimedSeg TimeSig PMatch] -> IO ()
         printMatch = putStrLn . intercalate "\n" 
@@ -83,9 +83,9 @@ matchIO v r m fp = do ps <- readPDFs "fit.json"
 -- | Top-level function that converts a 'QMidiFile' into CSV-writeable profiles
 toCSV :: Map TimeSig [(Beat, BeatRat)] -> QMidiScore -> Either String [RNSWProf]
 toCSV s qm = do segs <- preprocess qm 
-                let tpb = ticksPerBeat . qMidiScore $ qm
-                    qb  = toQBins . qShortestNote $ qm
-                return . map (toRNSWProf qb tpb 0 id s) $ segs -- no rotation
+                let tb = ticksPerBeat . qMidiScore $ qm
+                    qb = toQBins . qShortestNote $ qm
+                return . map (toRNSWProf qb tb 0 id s) $ segs -- no rotation
 
 -- | Pre-processes a 'QMidiFile' and returns the IMA weights and score data
 -- for segments that represent one time signature 
@@ -119,24 +119,24 @@ writeHeader m out =
   writeFile out . (++ "\n") . intercalate "," $ "meter" : 
                   (map printKey . fromJust . M.lookup (TimeSig 4 4 0 0) $ m)
   
-analyseMidi :: Rot -> Int -> Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
-analyseMidi r v s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
-                                     analyse putStrLn fp where
+analyseMidi :: Rot -> Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
+analyseMidi r s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
+                                   analyse putStrLn fp where
      
   analyse :: QMidiScore -> Either String String
   analyse qm = do pp <- preprocess qm 
                   let qb  = toQBins . qShortestNote $ qm
-                      tpb = ticksPerBeat . qMidiScore $ qm 
+                      tb = ticksPerBeat . qMidiScore $ qm 
                       
                       showSel :: SWMeterSeg -> String
                       showSel x = show . filterBin qb r s (getEvent . boundary $ x) 
-                                . normSWProfByBar . seg . toSWProf tpb $ x
+                                . normSWProfByBar . seg . toSWProf tb $ x
                       
                       prf = intercalate "\n" $ "original profiles" : 
-                            map (show . normSWProfByBar . seg . toSWProf tpb) pp
+                            map (show . normSWProfByBar . seg . toSWProf tb) pp
                       rst = "rotation: " ++ show (rot r)              
                       sel = intercalate "\n" $ "matched profiles" : map showSel pp
-                      rns = intercalate "\n" $ map (show . toRNSWProf qb tpb r id s) pp
+                      rns = intercalate "\n" $ map (show . toRNSWProf qb tb r id s) pp
 
                   return . intercalate "\n" $ [rst, prf, sel, rns]
                   
@@ -146,17 +146,17 @@ main =
   do -- parameters
      let out   = "train.barnorm.sqr.smth.log.csv"
          profs = "ragtimeMeterProfilesTrain_2014-03-25.bin" 
-         vars  = 8
-         rot   = 47
+         vars  = 12
+         rt    = 47
      arg <- getArgs 
      m   <- readNSWProf profs >>= return . selectQBins vars
      case arg of
-       ["-f", fp, "-r", r] -> analyseMidi (Rot $ read r) vars m fp
-       ["-f", fp] -> analyseMidi rot vars m fp
+       ["-f", fp, "-r", r] -> analyseMidi (Rot $ read r) m fp
+       ["-f", fp] -> analyseMidi rt m fp
        ["-d", fp] -> writeHeader m out >> mapDir_ (processMidi m out) fp 
        ["-s"    ] -> readNSWProf profs >>= printMeterStats 
-       ["-m", fp] -> matchIO vars rot m fp
-       ["-a", fp] -> mapDir_ (matchIO vars rot m) fp
+       ["-m", fp] -> matchIO vars rt m fp
+       ["-a", fp] -> mapDir_ (matchIO vars rt m) fp
        
        _ -> error "usage: -f <filename> -d <directory>"
 
