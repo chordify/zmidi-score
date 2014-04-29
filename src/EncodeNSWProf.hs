@@ -144,7 +144,7 @@ analyseMidi r s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
 main :: IO ()
 main = 
   do -- parameters
-     let out   = "train.barnorm.sqr.smth.log.csv"
+     let out v = "train.barnorm.sqr.smth.log."++ show v ++".csv"
          profs = "ragtimeMeterProfilesTrain_2014-03-25.bin" 
          vars  = 12
          rt    = 47
@@ -153,7 +153,12 @@ main =
      case arg of
        ["-f", fp, "-r", r] -> analyseMidi (Rot $ read r) m fp
        ["-f", fp] -> analyseMidi rt m fp
-       ["-d", fp] -> writeHeader m out >> mapDir_ (processMidi m out) fp 
+       ["-d", fp, "-v", sv] -> do let v = read sv
+                                  m' <- readNSWProf profs >>= return . selectQBins v
+                                  writeHeader m' (out v) 
+                                  mapDir_ (processMidi m' (out v)) fp
+                                 
+       ["-d", fp] -> writeHeader m (out vars) >> mapDir_ (processMidi m (out vars)) fp 
        ["-s"    ] -> readNSWProf profs >>= printMeterStats 
        ["-m", fp] -> matchIO vars rt m fp
        ["-a", fp] -> mapDir_ (matchIO vars rt m) fp
