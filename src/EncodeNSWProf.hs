@@ -114,6 +114,7 @@ processMidi s out infp = do qm <- readQMidiScoreSafe FourtyEighth infp
                               Left  err -> warning infp err
                               Right csv -> BL.appendFile out . encode $ csv 
   
+-- writes a CSV Header to a file 
 writeHeader :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO()
 writeHeader m out = 
   writeFile out . (++ "\n") . intercalate "," $ "meter" : 
@@ -121,18 +122,18 @@ writeHeader m out =
   
 analyseMidi :: Maybe TimeSig -> Rot -> Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
 analyseMidi mt r s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
-                                    analyse putStrLn fp where
+                                       analyse putStrLn fp where
      
   analyse :: QMidiScore -> Either String String
   analyse qm = do pp <- preprocess qm 
                   let qb  = toQBins . qShortestNote $ qm
-                      tb = ticksPerBeat . qMidiScore $ qm 
+                      tb  = ticksPerBeat . qMidiScore $ qm 
                       
                       tsf = case mt of Just ts -> const ts
                                        _       -> id
                       
                       showSel :: SWMeterSeg -> String
-                      showSel x = show . filterBin qb r s (getEvent . boundary $ x) 
+                      showSel x = show . filterBin qb r s (tsf . getEvent . boundary $ x) 
                                 . normSWProfByBar . seg . toSWProf tb $ x
                       
                       prf = intercalate "\n" $ "original profiles" : 

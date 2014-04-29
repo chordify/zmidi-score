@@ -20,7 +20,7 @@ myArgs = [
                  argAbbr  = Just 'm',
                  argName  = Just "mode",
                  argData  = argDataRequired "mode" ArgtypeString,
-                 argDesc  = "The operation mode (train|test|analyse)"
+                 argDesc  = "The operation mode (train|test|analyse|select)"
                }
         ,  Arg { argIndex = OutFilepath,
                  argAbbr  = Just 'o',
@@ -87,6 +87,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                          "train"   -> Train
                          "test"    -> Test
                          "analyse" -> Analyse
+                         -- "select"  -> Select
                          m         -> usageError arg ("unrecognised mode: " ++ m)
               
               -- get parameters
@@ -104,14 +105,15 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                        (Nothing, Just d ) -> Right d
                        _                  -> usageError arg "Invalid filepaths" 
               
-          m <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
+          s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
           -- do the parsing magic
           case (mode, input) of
-            (Train, Left  _) -> usageError arg "We require a directory for training"
-            (Train, Right d) -> writeHeader m out >> mapDir_ (processMidi m out) d
-            (Test , Left  f) -> matchIO b r m f
-            (Test , Right d) -> mapDir_ (matchIO b r m) d
-            (Analyse, Left  f) -> analyseMidi ts r m f
+            (Train, Left  f) -> processMidi s out f
+            (Train, Right d) -> writeHeader s out >> mapDir_ (processMidi s out) d
+            (Test , Left  f) -> matchIO b r s f
+            (Test , Right d) -> mapDir_ (matchIO b r s) d
+            (Analyse, Left  f) -> analyseMidi ts r s f
             (Analyse, Right _) -> usageError arg "We can only analyse a file"
+            -- (Select, _       ) -> print s
 
        
