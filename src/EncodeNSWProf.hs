@@ -3,17 +3,14 @@ import qualified Data.ByteString.Lazy as BL
 import Data.Csv              hiding ()             
 import ZMidi.Score.Datatypes hiding  ( numerator, denominator )
 import ZMidi.Score.Quantise          ( QMidiScore (..), ShortestNote (..), toQBins, QBins)
-import ZMidi.IO.Common               ( readQMidiScoreSafe, mapDir_
-                                     , warning, ioWithWarning)
+import ZMidi.IO.Common               ( readQMidiScoreSafe, warning, ioWithWarning)
 import Ragtime.NSWProf
 import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter
                                      , emptySegFilter, SWMeterSeg, NSWDist (..)
                                      , PMatch (..), pickMeters, printPickMeter
                                      , toSWProf )
 import Ragtime.TimeSigSeg            ( TimedSeg (..))
-import Ragtime.SelectQBins           ( selectQBins, printMeterStats, filterToList
-                                     , Rot (..), filterBin )
-import System.Environment            ( getArgs )
+import Ragtime.SelectQBins           ( filterToList, Rot (..), filterBin )
 import Data.List                     ( intercalate )
 import Data.Maybe                    ( fromJust )
 import Data.Ratio                    ( numerator, denominator)
@@ -120,6 +117,7 @@ writeHeader m out =
   writeFile out . (++ "\n") . intercalate "," $ "meter" : 
                   (map printKey . fromJust . M.lookup (TimeSig 4 4 0 0) $ m)
   
+-- Analyses a MidiFile verbosely by printing the spectral weight profiles
 analyseMidi :: Maybe TimeSig -> Rot -> Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
 analyseMidi mt r s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
                                        analyse putStrLn fp where
@@ -133,16 +131,20 @@ analyseMidi mt r s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
                                        _       -> id
                       
                       showSel :: SWMeterSeg -> String
-                      showSel x = show . filterBin qb r s (tsf . getEvent . boundary $ x) 
-                                . normSWProfByBar . seg . toSWProf tb $ x
+                      showSel x = let ts = tsf . getEvent . boundary $ x
+                                  in show . filterBin qb r s ts
+                                          . normSWProfByBar  
+                                          . toNSWProfWithTS ts tb . seg $ x
                       
-                      prf = intercalate "\n" $ "original profiles" : 
+                      prnt = intercalate "\n"
+                      
+                      prf = prnt $ "original profiles" : 
                             map (show . normSWProfByBar . seg . toSWProf tb) pp
                       rst = "rotation: " ++ show (rot r)              
-                      sel = intercalate "\n" $ "matched profiles" : map showSel pp
-                      rns = intercalate "\n" $ map (show . toRNSWProf qb tb r tsf s) pp
+                      sel = prnt $ "matched profiles" : map showSel pp
+                      rns = prnt $ map (show . toRNSWProf qb tb r tsf s) pp
                  
-                  return . intercalate "\n" $ [rst, prf, sel, rns]
+                  return . prnt $ [rst, prf, sel, rns]
 
 -- copied from RagPatIMA Checks for a valid time signature
 timeSigCheck :: QMidiScore -> Either String QMidiScore
