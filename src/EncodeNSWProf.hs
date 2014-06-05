@@ -1,14 +1,23 @@
-module EncodeNSWProf where
+module EncodeNSWProf ( RNSWProf (..)
+                     -- , printKey
+                     , matchIO
+                     , toDoubles
+                     , toCSV
+                     , analyseMidi
+                     , processMidi
+                     , writeHeader
+                     ) where
+                     
 import qualified Data.ByteString.Lazy as BL
 import Data.Csv              hiding ()             
 import ZMidi.Score.Datatypes hiding  ( numerator, denominator )
 import ZMidi.Score.Quantise          ( QMidiScore (..), ShortestNote (..), toQBins, QBins)
 import ZMidi.IO.Common               ( readQMidiScoreSafe, warning, ioWithWarning)
 import Ragtime.NSWProf
+import Ragtime.NSWMatch
 import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter
-                                     , emptySegFilter, SWMeterSeg, NSWDist (..)
-                                     , PMatch (..), pickMeters, printPickMeter
-                                     , toSWProf )
+                                     , emptySegFilter, SWMeterSeg, toSWProf )
+-- import Ragtime.NSWMatch              ( NSWDist (..), PMatch (..), pickMeters, printPickMeter )
 import Ragtime.TimeSigSeg            ( TimedSeg (..))
 import Ragtime.SelectQBins           ( filterToList, Rot (..), filterBin )
 import Data.List                     ( intercalate )
@@ -19,7 +28,6 @@ import qualified Data.Map.Strict as M( lookup )
 import Text.Printf                   ( printf )
 
 import ReadPDF
--- import Debug.Trace
 
 -- | Reduced Normalised Spectral Weight Profile. It contains a list with the 
 -- most a prominent weights of a 'NSWProf', ordered by their weight.
@@ -45,7 +53,7 @@ toDoubles :: Int -> RNSWProf -> [Double]
 toDoubles i (RNSWProf _ts ws) = map nsweight . take i $ ws
 
 -- type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
-  
+             
 match :: QBins -> TPB -> Int -> Rot -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] -> [SWMeterSeg] 
       -> [TimedSeg TimeSig [PMatch]]
 match qb tb vars mr s pdfs dat = map update dat where
@@ -58,8 +66,7 @@ match qb tb vars mr s pdfs dat = map update dat where
                          d  = toDoubles vars $ toRNSWProf qb tb r (const ts) s sg
                          p  = NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d)
                      in PMatch ts p r
-                     -- in traceShow m m where m  = PMatch ts p r
-                    
+                     
 -- TODO promote this pattern
 matchIO :: Int -> Rot ->  Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
 matchIO v r m fp = do ps <- readPDFs ("fit"++show v++".json" )
@@ -75,8 +82,7 @@ matchIO v r m fp = do ps <- readPDFs ("fit"++show v++".json" )
         printMatch ::  [TimedSeg TimeSig PMatch] -> IO ()
         printMatch = putStrLn . intercalate "\n" 
                               . map (\x -> fp ++ "\t" ++ printPickMeter x)
-
-                    
+         
 -- | Top-level function that converts a 'QMidiFile' into CSV-writeable profiles
 toCSV :: Map TimeSig [(Beat, BeatRat)] -> QMidiScore -> Either String [RNSWProf]
 toCSV s qm = do segs <- preprocess qm 

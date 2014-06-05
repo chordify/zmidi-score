@@ -1,25 +1,16 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
-module Ragtime.MidiIMA ( 
-                         pickMeters
-                       -- , matchMeters
-                       -- , meterCheck
-                       , selectMeters
-                       , SWMeterSeg
+module Ragtime.MidiIMA ( SWMeterSeg
                        , fourBarFilter
                        , emptySegFilter
                        , collectSWProf
                        , toSWProfSegs 
                        , printIMA
-                       , printPickMeter
-                       , printMeterMatchVerb
                        -- | * Utilities
                        , doIMA
                        , toNSWProfWithTS
                        , toSWProf
-                       , PMatch (..)
-                       , NSWDist (..)
                        ) where
 
 import Ragtime.NSWProf 
@@ -31,41 +22,17 @@ import Ragtime.SelectQBins        ( Rot (..) )
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
 
-import Data.List                   ( nubBy, foldl', maximumBy, intercalate )
+import Data.List                   ( nubBy, foldl' )
 import Data.Function               ( on )
 import Data.Map.Strict             ( empty, Map, insertWith, filterWithKey )
-import qualified Data.Map.Strict as M ( lookup, foldr, map )
+import qualified Data.Map.Strict as M ( foldr )
 import Control.Arrow               ( first )
--- import Data.Vector                 ( Vector )
 
-import Text.Printf                 ( printf, PrintfArg )
+import Text.Printf                 ( printf )
 import Data.Ratio                  ( numerator, denominator, )
 
 
--- | Normalised spectral weights distance, obtained by matching two 'SWProf's
--- newtype NSWDist = NSWDist { nswdist :: Double }
-newtype NSWDist = NSWDist { nswdist :: Double }
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
-                             , Fractional, RealFloat, RealFrac, PrintfArg )
 
-newtype Prob    = Prob { prob :: Double }
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
-                             , Fractional, RealFloat, RealFrac, PrintfArg )
-                             
-data PMatch = PMatch {  pmTimeSig :: TimeSig
-                     ,  pmatch    :: NSWDist
-                     ,  rotation  :: Rot  -- create newtype for rotation...
-                     -- , _pmProf    :: RNSWProf
-                     } deriving (Eq)
-                     
-instance Show PMatch where
-  show (PMatch ts m r) = printf (show ts ++ ": %1.4f\t R: %2d") m (rot r)
-  showList l s = s ++ (intercalate "\n" . map show $ l)
-                 
--- | Picks the best matching profile
-pickMeters :: [TimedSeg TimeSig [PMatch]] 
-           -> Either String [TimedSeg TimeSig PMatch]
-pickMeters = Right . map (fmap (maximumBy (compare `on` pmatch)))
 
 {-
 -- | Given 'vectorize'd SWProf'es, matches every meter segment in 
@@ -144,7 +111,7 @@ toNSWProfWithTS ts tb td = foldl' toProf (SWProf (1, empty)) td
               -- Hence, the last call to toProf will contain the final 
               -- number of bars correctly
           in  m' `seq` SWProf (NrOfBars br, m')
-
+{-
 -- | Removes the 'SWProf's from the map of which the keys are not in the 
 -- list of 'TimeSig's
 selectMeters :: [TimeSig] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
@@ -158,7 +125,7 @@ getTotNrOfBars = M.foldr (\(NSWProf (b, _)) r -> r + b) 0
 -- getMeterProbs m = 
   -- let t = getTotNrOfBars m
   -- in M.map (\(NSWProf (b, _)) -> Prob (fromIntegral b / fromIntegral t)) m
-
+-}
 --------------------------------------------------------------------------------
 -- Performing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
@@ -249,33 +216,6 @@ matchScore v s = match (map (first Time) s) v where
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
-
-printMeterMatchVerb :: QBins -> TimedSeg TimeSig (NSWProf, NSWProf, NSWeight) -> String
-printMeterMatchVerb qb (TimedSeg (Timed _ ts) (a,b,d)) = 
-  "\nsong:\n"     ++ show ts ++ show a ++
-  "\ntemplate:\n" ++ show ts ++ show b ++
-  -- "\nsong:\n"     ++ disp (vectorize qb ts a) ++
-  -- "\ntemplate:\n" ++ disp (vectorize qb ts b) ++
-  printf ('\n' : (show ts) ++ "\t%.6f ") d
-  
-printPickMeter :: TimedSeg TimeSig PMatch -> String
-printPickMeter (TimedSeg ts m) = 
-  let ann = getEvent ts
-      est = pmTimeSig m
-      s = intercalate "\t" [ shwTs ann
-                           , shwTs est
-                           , show (ann `tsEq` est)
-                           , "%.3f" 
-                           , "r:%2d"]
-      
-      shwTs :: TimeSig -> String
-      shwTs x = '\'' : show x ++ "\'"
-      
-      tsEq :: TimeSig -> TimeSig -> Bool
-      tsEq (TimeSig 4 4 _ _) (TimeSig 2 2 _ _) = True
-      tsEq a                 b                 = a == b
-  
-  in printf s (pmatch m) (rot . rotation $ m)
 
 printIMA :: QMidiScore -> IO ([SWProfSeg])
 printIMA qm = mapM toNSWProfPrint . either error id . doIMA $ qm where

@@ -4,13 +4,8 @@
 module ReadPDF where
 import Data.Aeson                           ( ToJSON (..), FromJSON (..), decode )
 import GHC.Generics                         ( Generic )
--- import Data.Vector                          ( Vector )
--- import qualified Data.Vector          as V  ( length, head, fromList )
 import Data.Matrix                          
 import ZMidi.Score.Datatypes                (TimeSig (..))
--- import Data.Function                        ( on )
--- import Data.Ord                             ( comparing, Down (..))
--- import Data.List                            ( sortBy )
 import qualified Data.ByteString.Lazy as BL ( readFile )
 
 -- TODO store vector lengths
