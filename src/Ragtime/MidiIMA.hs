@@ -17,61 +17,18 @@ import Ragtime.NSWProf
 import ZMidi.Score         hiding ( numerator, denominator )
 import ZMidi.Skyline.MelFind      ( mergeTracks )
 import Ragtime.TimeSigSeg         ( TimedSeg (..), segment )
-import Ragtime.SelectQBins        ( Rot (..) )
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
 
 import Data.List                   ( nubBy, foldl' )
 import Data.Function               ( on )
-import Data.Map.Strict             ( empty, Map, insertWith, filterWithKey )
-import qualified Data.Map.Strict as M ( foldr )
+import Data.Map.Strict             ( empty, Map, insertWith )
 import Control.Arrow               ( first )
 
 import Text.Printf                 ( printf )
 import Data.Ratio                  ( numerator, denominator, )
 
-
-
-
-{-
--- | Given 'vectorize'd SWProf'es, matches every meter segment in 
--- a 'QMidiScore' to the vectorized profiles
-matchMeters :: Map TimeSig NSWProf -> QMidiScore 
-            -> Either String [TimedSeg TimeSig [PMatch]]
-matchMeters m qm = doIMA qm >>= fourBarFilter tb >>= return . map matchAll where
-
-  tb = ticksPerBeat . qMidiScore $ qm
-  qb = toQBins FourtyEighth
-  vs = vectorizeAll qb m -- NB we don't check the QBins of qm
-  ps = getMeterProbs m
-
-  matchAll :: SWMeterSeg -> TimedSeg TimeSig [PMatch]
-  matchAll = fmap (\td -> map (match td) vs)
-  
-  match :: [Timed (Maybe ScoreEvent, SWeight)] -> (TimeSig, Vector NSWeight) -> PMatch
-  match td (ts,v) = let p     = normSWProf (toNSWProfWithTS ts tb td)
-                        mp    = errLookup ts ps
-                        (s,r) = distBestRot qb 0 v (vectorize qb ts p)
-                    in  PMatch ts (NSWDist ((1 - nsweight s) * prob mp)) r p 
-  
--- | Calculates the match between an annotated and IMA estimated meter
-meterCheck :: Map TimeSig NSWProf -> QMidiScore 
-          -> Either String [TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)]
-meterCheck m qm = toSWProfSegs qm >>= return . map (fmap normSWProf)
-                                  >>= return . map match where
-
-  match :: TimedSeg TimeSig NSWProf -> TimedSeg TimeSig (NSWProf, NSWProf, NSWeight)
-  match (TimedSeg ts pa) = TimedSeg ts (pa, pb, dist (qToQBins qm) (f pa) (f pb))
-     
-     where f = vectorize (qToQBins qm) (getEvent ts)
-           pb = errLookup (getEvent ts) m
-                                
-errLookup :: (Show a, Ord a) => a -> Map a b -> b
-errLookup k m = case M.lookup k m of 
-                  Nothing -> error ("errLookup: Key not found in Map:" ++ show k)
-                  Just v  -> v
-  -}
 --------------------------------------------------------------------------------
 -- Calculate Normalised Spectral Weight Profiles
 --------------------------------------------------------------------------------
@@ -111,21 +68,7 @@ toNSWProfWithTS ts tb td = foldl' toProf (SWProf (1, empty)) td
               -- Hence, the last call to toProf will contain the final 
               -- number of bars correctly
           in  m' `seq` SWProf (NrOfBars br, m')
-{-
--- | Removes the 'SWProf's from the map of which the keys are not in the 
--- list of 'TimeSig's
-selectMeters :: [TimeSig] -> Map TimeSig NSWProf -> Map TimeSig NSWProf
-selectMeters ts = filterWithKey (\k _ -> k `elem` ts)
-          
--- | counts the total number of bars analysed.
-getTotNrOfBars :: Map TimeSig NSWProf -> NrOfBars
-getTotNrOfBars = M.foldr (\(NSWProf (b, _)) r -> r + b) 0   
 
--- getMeterProbs :: Map TimeSig NSWProf -> Map TimeSig Prob
--- getMeterProbs m = 
-  -- let t = getTotNrOfBars m
-  -- in M.map (\(NSWProf (b, _)) -> Prob (fromIntegral b / fromIntegral t)) m
--}
 --------------------------------------------------------------------------------
 -- Performing the Inner Metrical Analysis
 --------------------------------------------------------------------------------

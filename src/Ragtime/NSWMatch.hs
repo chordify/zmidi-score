@@ -2,25 +2,20 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 module Ragtime.NSWMatch( PMatch (..)
                        , NSWDist (..)
+                       , Prob (..)
                        , pickMeters
                        , printPickMeter
                        ) where
                        
 import ZMidi.Score 
-import Ragtime.MidiIMA            ( SWMeterSeg )
-import Ragtime.TimeSigSeg         ( TimedSeg (..), segment )
+import Ragtime.TimeSigSeg         ( TimedSeg (..) )
 import Ragtime.SelectQBins        ( Rot (..) )
 
-import ReadPDF                    
--- import EncodeNSWProf              
-
 import Data.List                  ( intercalate, maximumBy )
-import Data.Map.Strict            ( empty, Map, insertWith, filterWithKey )
-import Data.Function           ( on )
+import Data.Function              ( on )
 import Text.Printf                ( printf, PrintfArg )
 
 -- | Normalised spectral weights distance, obtained by matching two 'SWProf's
--- newtype NSWDist = NSWDist { nswdist :: Double }
 newtype NSWDist = NSWDist { nswdist :: Double }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
                              , Fractional, RealFloat, RealFrac, PrintfArg )
@@ -31,8 +26,7 @@ newtype Prob    = Prob { prob :: Double }
                              
 data PMatch = PMatch {  pmTimeSig :: TimeSig
                      ,  pmatch    :: NSWDist
-                     ,  rotation  :: Rot  -- create newtype for rotation...
-                     -- , _pmProf    :: RNSWProf
+                     ,  rotation  :: Rot
                      } deriving (Eq)
                      
 instance Show PMatch where

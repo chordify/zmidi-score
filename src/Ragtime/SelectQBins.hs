@@ -11,7 +11,6 @@ module Ragtime.SelectQBins ( selectQBins
                            , Rot (..)
                            ) where
 
--- import ZMidi.Score.Datatypes  hiding  ( numerator, denominator )
 import ZMidi.Score.Datatypes          ( TimeSig (..) , Beat(..) , BeatRat (..) )
 import ZMidi.Score.Quantise           ( QBins (..) )
 import Ragtime.NSWProf
@@ -45,14 +44,6 @@ filterBin q r s ts = NSWProf . second (filterWithKey f) . nswprof
         
         f :: (Beat, BeatRat) -> a -> Bool
         f k _ = k `elem` l
-  
--- Special case of 'filterByQBinStrengthWith' using the 12 most prominent bins
--- filterByQBinStrength :: Map TimeSig NSWProf -> Map TimeSig NSWProf
--- filterByQBinStrength m = filterByQBinStrengthWith (selectQBins 12 m) m
-         
--- Selects the bins marked in a 'QBinSelection' for a map of 'NSWProf's
--- filterByQBinStrengthWith ::  QBins -> Rot -> QBinSelection -> Map TimeSig NSWProf -> Map TimeSig NSWProf
--- filterByQBinStrengthWith q r s m = mapWithKey (filterBin q r s) m where
 
 -- Given a selection, time signature selects the selected bins from a 'NSWProf'
 -- and returns them in a list. If the selected bin is not present in the 
