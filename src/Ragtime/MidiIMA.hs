@@ -4,7 +4,7 @@
 module Ragtime.MidiIMA ( 
                          pickMeters
                        -- , matchMeters
-                       , meterCheck
+                       -- , meterCheck
                        , selectMeters
                        , SWMeterSeg
                        , fourBarFilter
@@ -86,7 +86,7 @@ matchMeters m qm = doIMA qm >>= fourBarFilter tb >>= return . map matchAll where
   match td (ts,v) = let p     = normSWProf (toNSWProfWithTS ts tb td)
                         mp    = errLookup ts ps
                         (s,r) = distBestRot qb 0 v (vectorize qb ts p)
-                    in  PMatch ts (NSWDist ((1 - nsweight s) * prob mp)) r p -}
+                    in  PMatch ts (NSWDist ((1 - nsweight s) * prob mp)) r p 
   
 -- | Calculates the match between an annotated and IMA estimated meter
 meterCheck :: Map TimeSig NSWProf -> QMidiScore 
@@ -104,7 +104,7 @@ errLookup :: (Show a, Ord a) => a -> Map a b -> b
 errLookup k m = case M.lookup k m of 
                   Nothing -> error ("errLookup: Key not found in Map:" ++ show k)
                   Just v  -> v
-  
+  -}
 --------------------------------------------------------------------------------
 -- Calculate Normalised Spectral Weight Profiles
 --------------------------------------------------------------------------------
@@ -254,8 +254,8 @@ printMeterMatchVerb :: QBins -> TimedSeg TimeSig (NSWProf, NSWProf, NSWeight) ->
 printMeterMatchVerb qb (TimedSeg (Timed _ ts) (a,b,d)) = 
   "\nsong:\n"     ++ show ts ++ show a ++
   "\ntemplate:\n" ++ show ts ++ show b ++
-  "\nsong:\n"     ++ disp (vectorize qb ts a) ++
-  "\ntemplate:\n" ++ disp (vectorize qb ts b) ++
+  -- "\nsong:\n"     ++ disp (vectorize qb ts a) ++
+  -- "\ntemplate:\n" ++ disp (vectorize qb ts b) ++
   printf ('\n' : (show ts) ++ "\t%.6f ") d
   
 printPickMeter :: TimedSeg TimeSig PMatch -> String

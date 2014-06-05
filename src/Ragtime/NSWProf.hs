@@ -16,10 +16,10 @@ module Ragtime.NSWProf ( -- | Newtypes
                        , normSWProf
                        , normSWProfByBar
                          -- | Vector conversion and matching
-                       , dist 
-                       , distBestRot
-                       , vectorize  
-                       , vectorizeAll  
+                       -- , dist 
+                       -- , distBestRot
+                       -- , vectorize  
+                       -- , vectorizeAll  
                          -- | Printing
                        , showNSWProf
                        , stars
@@ -129,7 +129,7 @@ maxVal s = fst . mapAccum (\v m -> (max v m, m)) s
 --------------------------------------------------------------------------------
 -- Matching IMA profiles
 --------------------------------------------------------------------------------
-
+{-
 -- | Matches to 'Vectors' at every bar (i.e. every /x/ 'GridUnit's)
 dist :: (Show a, Floating a, PrintfArg a) => QBins -> Vector a -> Vector a -> a
 dist (QBins qb) a b 
@@ -211,7 +211,7 @@ distRotate b x v rot = map rDist . ixOfValGT x $ rot
              
 -- showNSWVec :: (TimeSig, Vector NSWeight) -> String
 -- showNSWVec (ts, v) = show ts ++ ':' : (concatMap (printf " %.2f") . toList $ v)
-
+-}
 --------------------------------------------------------------------------------
 -- exporting / importing IMA profiles
 --------------------------------------------------------------------------------

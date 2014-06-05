@@ -72,7 +72,7 @@ executable EncNSWProf
                        matrix == 0.3.0.0,
                        parseargs >= 0.1.5.2
                        
-  ghc-options:         -Wall -O2 -rtsopts
+  ghc-options:         -Wall -O2 -rtsopts -fhpc
   -- ghc-options:         -O2 -prof -auto-all -fprof-auto
   
 executable RagPat
