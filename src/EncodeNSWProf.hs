@@ -13,11 +13,11 @@ import Data.Csv              hiding ()
 import ZMidi.Score.Datatypes hiding  ( numerator, denominator )
 import ZMidi.Score.Quantise          ( QMidiScore (..), ShortestNote (..), toQBins, QBins)
 import ZMidi.IO.Common               ( readQMidiScoreSafe, warning, ioWithWarning)
-import Ragtime.NSWProf
-import Ragtime.NSWMatch
+import Ragtime.NSWProf               ( NSWeight (..), normSWProfByBar )
+import Ragtime.NSWMatch              ( PMatch (..), NSWDist (..), pickMeters
+                                     , printPickMeter )
 import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter
                                      , emptySegFilter, SWMeterSeg, toSWProf )
--- import Ragtime.NSWMatch              ( NSWDist (..), PMatch (..), pickMeters, printPickMeter )
 import Ragtime.TimeSigSeg            ( TimedSeg (..))
 import Ragtime.SelectQBins           ( filterToList, Rot (..), filterBin )
 import Data.List                     ( intercalate )

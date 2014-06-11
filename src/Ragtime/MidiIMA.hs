@@ -117,7 +117,10 @@ doIMA qms =
      -- Then we segment the piece according to the annotated meters
      >>= return . segment (getTimeSig . qMidiScore $ qms)
                 
-
+--------------------------------------------------------------------------------
+-- preprocessing
+--------------------------------------------------------------------------------
+                
 -- merges all tracks and applies 'makeMono' to the result
 toMonoVoice :: MidiScore -> Voice 
 toMonoVoice = makeMono . head . getVoices . mergeTracks where

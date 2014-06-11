@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wall                    #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
+-- | This module deals with selecting the SWProf bins used to estimate the meter
 module Ragtime.SelectQBins ( selectQBins 
                            -- , filterByQBinStrength
                            -- , filterByQBinStrengthWith
