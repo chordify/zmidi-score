@@ -30,9 +30,19 @@ import Text.Printf                 ( printf )
 import Data.Ratio                  ( numerator, denominator, )
 
 --------------------------------------------------------------------------------
--- Calculate Normalised Spectral Weight Profiles
+-- Calculate Spectral Weight Profiles
 --------------------------------------------------------------------------------
 
+data IMAnalysis = SWMeterStore { swMeterSeg :: SWMeterSeg
+                               , imaFile    :: FilePath
+                               } deriving (Show, Eq)
+                    
+  
+-- A type synonym that captures all IMA information needed for meter estimation
+type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
+
+-- A type synonym for a Segment in which the IMA info has been compressed into
+-- an Spectral Weight profile
 type SWProfSeg = TimedSeg TimeSig SWProf
 
 -- | Collects all profiles sorted by time signature in one map
@@ -70,7 +80,7 @@ toNSWProfWithTS ts tb td = foldl' toProf (SWProf (1, empty)) td
           in  m' `seq` SWProf (NrOfBars br, m')
 
 --------------------------------------------------------------------------------
--- Performing the Inner Metrical Analysis
+-- Filtering Meter Segments
 --------------------------------------------------------------------------------
 
 -- Filters all segments that are at least 4 bars long. If the list does
@@ -99,10 +109,13 @@ getNrOfBars tb (TimedSeg ts x ) =
 notEmpty :: TimedSeg a [b] -> Bool
 notEmpty (TimedSeg _ []) = False
 notEmpty _               = True
-  
-type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
+
 -- TODO create a MPMidiScore for monophonic MidiScores
 -- TODO create a QMPMidiScore for quantised monophonic MidiScores
+
+--------------------------------------------------------------------------------
+-- Performing the Inner Metrical Analysis
+--------------------------------------------------------------------------------
 
 doIMA :: QMidiScore -> Either String [SWMeterSeg]
 doIMA qms = 
