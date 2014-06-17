@@ -68,7 +68,8 @@ import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( insertWith, IntMap, keys )
 import qualified Data.IntMap.Lazy  as M    ( empty )
 import Text.Printf         ( printf, PrintfArg )
-import Data.Binary         ( Binary )
+import Data.Binary         ( Binary, Get )
+import qualified Data.Binary       as B    ( get, put )
 import GHC.Generics        ( Generic )
 
 --------------------------------------------------------------------------------                                   
@@ -96,7 +97,7 @@ data MidiScore  = MidiScore     { -- | The 'Key's of the piece with time stamps
 data Key        = Key           { keyRoot    :: Int8
                                 , keyMode    :: MidiScaleType
                                 } 
-                | NoKey           deriving (Eq, Ord)
+                | NoKey           deriving (Eq, Ord, Generic)
                
 -- | A 'TimeSig'nature has a fraction, e.g. 4/4, 3/4, or 6/8.
 data TimeSig    = TimeSig       { numerator  :: Int 
@@ -111,30 +112,30 @@ data TimeSig    = TimeSig       { numerator  :: Int
 type Voice      = [Timed ScoreEvent]
 
 newtype Channel    = Channel {channel :: Word8 }
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary )
 -- TODO: better changed to Pitch (Int, PitchClass)
-newtype Pitch   = Pitch    (Int, Int) deriving (Eq, Ord) -- (Octave, Pitch class)
+newtype Pitch   = Pitch    (Int, Int) deriving (Eq, Ord, Binary) -- (Octave, Pitch class)
 type    Interval= Int
 
 newtype PitchClass = PitchClass Int deriving (Eq, Ord) 
 
 newtype Velocity = Velocity { velocity :: Word8 }
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary )
 newtype Time    = Time { time :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg )
 newtype Bar     = Bar  { bar  :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg )
 newtype Beat    = Beat { beat :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg, Binary )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg )
 newtype BeatRat = BeatRat { beatRat  :: Ratio Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Binary )                    
 newtype TPB     = TPB { tpb :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg )
                     
 -- perhaps add duration??
 data Timed a    = Timed         { onset       :: Time 
                                 , getEvent    :: a
-                                } deriving (Functor, Eq, Ord)
+                                } deriving (Functor, Eq, Ord, Generic)
                                 
 data ScoreEvent = NoteEvent     { chan        :: Channel
                                 , pitch       :: Pitch
@@ -150,7 +151,7 @@ data ScoreEvent = NoteEvent     { chan        :: Channel
                 | TimeSigChange { tsChange    :: TimeSig
                                 } 
                 | TempoChange   { tempChange  :: Time
-                                } deriving (Eq, Ord, Show)
+                                } deriving (Eq, Ord, Show, Generic)
 
 type TickMap = IntMap Time
 
@@ -174,8 +175,6 @@ instance Ord TimeSig where
       EQ -> compare a1 a2
       c  -> c
 
-instance Binary TimeSig
-  
 instance Show TimeSig where
   show (TimeSig n d _ _) = show n ++ '/' : show d
   show NoTimeSig         = "NoTimeSig"  
@@ -217,11 +216,24 @@ showPitch 10 = "Bb"
 showPitch 11 = "B "
 showPitch n  = invalidMidiNumberError n
 
--- instance Ord Pitch where
-  -- compare (Pitch (octA, pcA)) 
-          -- (Pitch (octB, pcB)) = case compare octA octB of
-                                  -- EQ   -> compare pcA pcB
-                                  -- golt -> golt -- greater or smaller
+-- Binary instances
+instance Binary TimeSig
+instance Binary ScoreEvent
+instance Binary Key  
+instance (Binary a) => Binary (Timed a)
+instance Binary MidiScaleType where
+  put MAJOR           =    B.put (0 :: Word8)
+  put MINOR           =    B.put (1 :: Word8)
+  put (SCALE_OTHER i) = do B.put (3 :: Word8)
+                           B.put i
+                           
+  get = do t <- B.get :: Get Word8
+           case t of 
+             0 -> return MAJOR
+             1 -> return MINOR
+             2 -> do i <- B.get
+                     return (SCALE_OTHER i)
+             _ -> error "invalide binary encoding" -- cannot happen?
       
 --------------------------------------------------------------------------------
 -- Printing MidiScores

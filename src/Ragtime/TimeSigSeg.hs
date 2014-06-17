@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE DeriveFunctor           #-}
+{-# LANGUAGE DeriveGeneric           #-}
 module Ragtime.TimeSigSeg ( TimedSeg (..)
                   , TimeSigSeg
                   , TimeSigTrack
@@ -11,13 +12,16 @@ module Ragtime.TimeSigSeg ( TimedSeg (..)
 import ZMidi.Score.Datatypes
 import Data.List    ( sort )
 import Data.Maybe   ( catMaybes )
+import Data.Binary  ( Binary )
+import GHC.Generics ( Generic )
 
 type TimeSigSeg   = TimedSeg TimeSig [[Timed ScoreEvent]]
 type TimeSigTrack = TimedSeg TimeSig  [Timed ScoreEvent]
 data TimedSeg a b = TimedSeg { boundary :: Timed a
                              , seg      :: b 
-                             } deriving (Show, Eq, Functor)
+                             } deriving (Show, Eq, Functor, Generic)
 
+instance (Binary a, Binary b) => Binary (TimedSeg a b)
 -- TODO : 2/4 is not always translated correctly to 4/4 when writing midi files
 
 segByTimeSig :: MidiScore -> [MidiScore]

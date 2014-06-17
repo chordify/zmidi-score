@@ -1,5 +1,7 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric              #-}
+
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
 module Ragtime.MidiIMA ( SWMeterSeg
                        , fourBarFilter
@@ -29,14 +31,17 @@ import Control.Arrow               ( first )
 import Text.Printf                 ( printf )
 import Data.Ratio                  ( numerator, denominator, )
 
+import Data.Binary                 ( Binary )
+import GHC.Generics                ( Generic )
+
 --------------------------------------------------------------------------------
 -- Calculate Spectral Weight Profiles
 --------------------------------------------------------------------------------
 
-data IMAnalysis = SWMeterStore { swMeterSeg :: SWMeterSeg
-                               , imaFile    :: FilePath
-                               } deriving (Show, Eq)
-                    
+data IMAStore = IMAStore { swMeterSeg :: SWMeterSeg
+                         , imaFile    :: FilePath
+                         } deriving (Show, Eq, Generic)
+instance Binary IMAStore 
   
 -- A type synonym that captures all IMA information needed for meter estimation
 type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]

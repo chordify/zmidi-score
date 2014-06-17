@@ -68,7 +68,7 @@ myArgs = [
          ]
 
 -- representing the mode of operation
-data Mode = Train | Test | Analyse deriving (Eq)
+data Mode = Train | Test | Analyse | Store deriving (Eq)
 
 parseTimeSig :: Args MyArgs -> String -> TimeSig
 parseTimeSig arg s = case s of 
@@ -87,6 +87,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                          "train"   -> Train
                          "test"    -> Test
                          "analyse" -> Analyse
+                         "store"   -> Store
                          -- "select"  -> Select
                          m         -> usageError arg ("unrecognised mode: " ++ m)
               
@@ -112,6 +113,8 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (Train, Right d) -> writeHeader s out >> mapDir_ (processMidi s out) d
             (Test , Left  f) -> matchIO b r s f
             (Test , Right d) -> mapDir_ (matchIO b r s) d
+            (Store, Left  f) -> usageError arg "We can only store a directory"
+            (Store, Right d) -> undefined
             (Analyse, Left  f) -> analyseMidi ts r s f
             (Analyse, Right _) -> usageError arg "We can only analyse a file"
             -- (Select, _       ) -> print s
