@@ -79,21 +79,23 @@ foldrDir f b fp = do fs  <- getCurDirectoryContents fp
 -- Reading & Writing
 --------------------------------------------------------------------------------
 
-readMidiScoreSafe :: FilePath -> IO (Either String MidiScore)
-readMidiScoreSafe f = readMidi f >>= return . either (Left . show) 
-                                                     (Right . midiFileToMidiScore)
-
-
 -- | Reads a 'MidiFile' using 'readMidiScoreSafe', 'quantise'es the result
 -- and checks if the 'MidiScore' has a reasonable average quantisation deviation
 -- (see 'QDevPerc')
 readQMidiScoreSafe :: ShortestNote -> FilePath -> IO (Either String QMidiScore)
 readQMidiScoreSafe sn f = readMidiScoreSafe f >>= return . (>>= quantiseQDevSafe sn)
+
+-- | Reads a 'MidiFile' converts it into a 'MidiScore' and checks if the 
+-- 'MidiScore' has a reasonable average quantisation deviation (see 'QDevPerc')
+readMidiScoreSafe :: FilePath -> IO (Either String MidiScore)
+readMidiScoreSafe f = readMidi f >>= return . either (Left . show) 
+                                                     (Right . midiFileToMidiScore)
+-- TODO: maybe solved with an arrow in a nicer way
                                                      
 -- | Reads a 'MidiFile' using 'readMidiScore' but 'quantise'es the result.
 readQMidiScore :: ShortestNote -> FilePath -> IO (QMidiScore)
 readQMidiScore sn f = readMidiScore f >>= return . quantise sn
-                
+
 -- | Reads a 'MidiFile' converts it into a 'MidiScore' and returns it
 readMidiScore :: FilePath -> IO (MidiScore)
 readMidiScore f = readMidiFile f >>= return . midiFileToMidiScore

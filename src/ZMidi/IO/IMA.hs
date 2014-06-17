@@ -1,8 +1,6 @@
 {-# OPTIONS_GHC -Wall                   #-}
 module ZMidi.IO.IMA ( printIMA
                     , convertToIMA
-                    -- | Utilities
-                    -- , starMeter
                     ) where
 
 import ZMidi.Score
@@ -16,13 +14,20 @@ import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 
 import Text.Printf                 ( printf )
 import Data.Ratio                  ( numerator, denominator )
+import Data.Binary                 ( Binary (..), encodeFile )
 
 --------------------------------------------------------------------------------
 -- Exporting SWMeterSegs (create separate IO
 --------------------------------------------------------------------------------
          
 convertToIMA :: FilePath -> FilePath -> IO ()
-convertToIMA i o = undefined -- readMidiScoreSafe i >>= (>>= doIMA)
+convertToIMA i o = undefined
+                                  
+convertQMid :: FilePath -> QMidiScore -> IO ()
+convertQMid f qm = undefined
+                                  
+writeIMA :: FilePath -> [SWMeterSeg] -> IO ()
+writeIMA f d = encodeFile f d >> putStrLn ("written: " ++ f)
 
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
