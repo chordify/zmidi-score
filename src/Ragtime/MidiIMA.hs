@@ -8,7 +8,7 @@ module Ragtime.MidiIMA ( SWMeterSeg
                        , emptySegFilter
                        , collectSWProf
                        , toSWProfSegs 
-                       , printIMA
+                       -- , printIMA
                        -- | * Utilities
                        , doIMA
                        , toNSWProfWithTS
@@ -16,7 +16,7 @@ module Ragtime.MidiIMA ( SWMeterSeg
                        ) where
 
 import Ragtime.NSWProf 
-import ZMidi.Score         hiding ( numerator, denominator )
+import ZMidi.Score
 import ZMidi.Skyline.MelFind      ( mergeTracks )
 import Ragtime.TimeSigSeg         ( TimedSeg (..), segment )
 
@@ -28,8 +28,7 @@ import Data.Function               ( on )
 import Data.Map.Strict             ( empty, Map, insertWith )
 import Control.Arrow               ( first )
 
-import Text.Printf                 ( printf )
-import Data.Ratio                  ( numerator, denominator, )
+import Data.Ratio                  ( numerator, denominator )
 
 import Data.Binary                 ( Binary )
 import GHC.Generics                ( Generic )
@@ -134,7 +133,7 @@ doIMA qms =
      >>= return . matchScore v
      -- Then we segment the piece according to the annotated meters
      >>= return . segment (getTimeSig . qMidiScore $ qms)
-                
+         
 --------------------------------------------------------------------------------
 -- preprocessing
 --------------------------------------------------------------------------------
@@ -177,37 +176,5 @@ matchScore v s = match (map (first Time) s) v where
     where -- f t = t {getEvent = (Just $ getEvent t, w')}
           f = fmap (\x -> (Just x, w))
           
---------------------------------------------------------------------------------
--- Printing the Inner Metrical Analysis
---------------------------------------------------------------------------------
 
-printIMA :: QMidiScore -> IO ([SWProfSeg])
-printIMA qm = mapM toNSWProfPrint . either error id . doIMA $ qm where
-                
-  toNSWProfPrint :: SWMeterSeg -> IO (SWProfSeg)
-  toNSWProfPrint s = do let tb = ticksPerBeat . qMidiScore $ qm 
-                        starMeter tb s >> return (toSWProf tb s)
-                
-          
--- Prints an Inner metrical analysis
-starMeter :: TPB -> SWMeterSeg -> IO ()
-starMeter tb (TimedSeg (Timed t ts) s) = 
-  do putStrLn . printf ("%6d: ======================= " ++ show ts 
-                         ++ " =======================" ) $ t
-     mapM_ (toLine t ts) s where
-                    
-  -- prints one line e.g. "  2112:   2.2 -  1 /  2 1D : 397392 ***************"
-  toLine :: Time -> TimeSig -> Timed (Maybe ScoreEvent, SWeight) -> IO ()
-  toLine os x (Timed g (se,w)) = 
-    let (br, bib, BeatRat r) = getBeatInBar x tb g
-    in putStrLn (printf ("%6d: %3d.%1d - %2d / %2d" ++ showMSE se ++ ": %6d " ++ toStar w) 
-                (g+os) br bib (numerator r) (denominator r) w)
-                
-  m = fromIntegral . maximum . map (snd . getEvent) $ s :: Double
-  
-  toStar :: SWeight -> String
-  toStar x = stars (fromIntegral x / m)
-                
-  showMSE :: Maybe ScoreEvent -> String
-  showMSE = maybe "    " (show . pitch) 
           

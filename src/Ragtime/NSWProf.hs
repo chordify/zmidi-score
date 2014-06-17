@@ -25,6 +25,7 @@ module Ragtime.NSWProf ( -- | Newtypes
 
 import IMA.InnerMetricalAnalysis      ( SWeight )
 import ZMidi.Score             hiding ( numerator, denominator )
+import ZMidi.IMA.Internal  
 import Data.List                      ( intercalate )
 import Data.Ratio                     ( numerator, denominator )
 import qualified Data.Map.Strict as M ( map )
@@ -38,10 +39,6 @@ newtype NSWeight = NSWeight { nsweight :: Double }
                      deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
                               , Fractional, RealFloat, RealFrac, PrintfArg
                               , Binary, Generic )
-
--- | prints a 'NSWeight' as a sequence of asterisks 
-stars :: (Show a, RealFrac a) => a -> String
-stars w = replicate (round (20 * w)) '*' 
 
 --------------------------------------------------------------------------------
 -- IMA profiles

@@ -3,9 +3,12 @@ module Main (main) where
 import System.Console.ParseArgs
 import EncodeNSWProf
 import ZMidi.Score.Datatypes          ( TimeSig (..))
-import ZMidi.IO.Common                ( mapDir_ )
+import ZMidi.Score.Quantise           ( ShortestNote (..) )
+import ZMidi.IO.Common                ( mapDir_, readQMidiScoreSafe )
+import ZMidi.IO.IMA                   ( printIMA )
 import Ragtime.SelectQBins            ( selectQBins, Rot (..) )
 import Ragtime.NSWProf                ( readNSWProf )
+
 
 --------------------------------------------------------------------------------
 -- Commandline argument parsing
@@ -68,7 +71,7 @@ myArgs = [
          ]
 
 -- representing the mode of operation
-data Mode = Train | Test | Analyse | Store deriving (Eq)
+data Mode = Train | Test | Profile | Store | IMA deriving (Eq)
 
 parseTimeSig :: Args MyArgs -> String -> TimeSig
 parseTimeSig arg s = case s of 
@@ -86,8 +89,9 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
           let mode   = case (getRequiredArg arg Mode) of
                          "train"   -> Train
                          "test"    -> Test
-                         "analyse" -> Analyse
+                         "profile" -> Profile
                          "store"   -> Store
+                         "ima"     -> IMA
                          -- "select"  -> Select
                          m         -> usageError arg ("unrecognised mode: " ++ m)
               
@@ -115,8 +119,12 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (Test , Right d) -> mapDir_ (matchIO b r s) d
             (Store, Left  f) -> usageError arg "We can only store a directory"
             (Store, Right d) -> undefined
-            (Analyse, Left  f) -> analyseMidi ts r s f
-            (Analyse, Right _) -> usageError arg "We can only analyse a file"
+            (IMA  , Left  f) -> readQMidiScoreSafe FourtyEighth f >>= printIMA . either error id
+            (IMA  , Right _) -> usageError arg "We can only analyse a file"
+            (Profile, Left  f) -> analyseMidi ts r s f
+            (Profile, Right _) -> usageError arg "We can only profile a file"
+
             -- (Select, _       ) -> print s
+            
 
        
