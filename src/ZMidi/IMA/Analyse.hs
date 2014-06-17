@@ -4,6 +4,7 @@
 
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
 module ZMidi.IMA.Analyse ( SWMeterSeg
+                         , IMAStore (..)
                          -- | * Inner Metrical Analysis
                          , doIMA
                          , doIMApreprocess
@@ -36,7 +37,7 @@ import GHC.Generics                ( Generic )
 -- Calculate Spectral Weight Profiles
 --------------------------------------------------------------------------------
 
-data IMAStore = IMAStore { swMeterSeg :: SWMeterSeg
+data IMAStore = IMAStore { swMeterSeg :: [SWMeterSeg]
                          , imaFile    :: FilePath
                          } deriving (Show, Eq, Generic)
 instance Binary IMAStore 
@@ -54,13 +55,6 @@ collectSWProf s m = foldr doSeg m s where
 
   doSeg :: SWProfSeg -> Map TimeSig SWProf -> Map TimeSig SWProf
   doSeg (TimedSeg ts p) m' = insertWith mergeSWProf (getEvent ts) p m'
- 
-  
--- | Transforms a quantised midi score into a set of meter profiles segmented
--- by the time signatures as prescribed in the midi file.
--- toSWProfSegs :: QMidiScore -> Either String [SWProfSeg]
--- toSWProfSegs m =    doIMApreprocess
-                -- >>= return . map (toSWProf (ticksPerBeat . qMidiScore $ m))
 
 -- | Sums all NSW profiles per bar for a meter section using the annotated
 -- meter of that section

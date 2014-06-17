@@ -14,7 +14,7 @@ import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 
 import Text.Printf                 ( printf )
 import Data.Ratio                  ( numerator, denominator )
-import Data.Binary                 ( Binary (..), encodeFile )
+import Data.Binary                 ( Binary (..), encodeFile, decodeFile )
 
 --------------------------------------------------------------------------------
 -- Exporting SWMeterSegs (create separate IO
@@ -28,7 +28,11 @@ convertToIMA o i =   readQMidiScoreSafe FourtyEighth i
         convertQMid = either (warning i) writeIMA . doIMApreprocess 
                                           
         writeIMA :: [SWMeterSeg] -> IO ()
-        writeIMA d = encodeFile o d >> putStrLn ("written: " ++ o)
+        writeIMA d = do encodeFile o (IMAStore d i) 
+                        putStrLn ("written: " ++ o)
+        
+readFromIMAStore :: FilePath -> IO IMAStore
+readFromIMAStore = decodeFile
 
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
