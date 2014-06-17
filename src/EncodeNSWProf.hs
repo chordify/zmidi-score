@@ -16,8 +16,7 @@ import ZMidi.IO.Common               ( readQMidiScoreSafe, warning, ioWithWarnin
 import ZMidi.IMA.NSWProf             ( NSWeight (..), normSWProfByBar )
 import Ragtime.NSWMatch              ( PMatch (..), NSWDist (..), pickMeters
                                      , printPickMeter )
-import ZMidi.IMA.Analyse             ( doIMA, toNSWProfWithTS, fourBarFilter
-                                     , emptySegFilter, SWMeterSeg, toSWProf )
+import ZMidi.IMA.Analyse             ( doIMApreprocess, toNSWProfWithTS, SWMeterSeg, toSWProf )
 import Ragtime.TimeSigSeg            ( TimedSeg (..))
 import ZMidi.IMA.SelectProfBins      ( filterToList, Rot (..), filterBin )
 import Data.List                     ( intercalate )
@@ -74,7 +73,7 @@ matchIO v r m fp = do ps <- readPDFs ("fit"++show v++".json" )
                                     (doMatch ps) printMatch fp
 
   where doMatch :: [ToPDF] -> QMidiScore-> Either String [TimedSeg TimeSig PMatch]
-        doMatch ps qm = do segs <- preprocess qm 
+        doMatch ps qm = do segs <- doIMApreprocess qm 
                            let tb = ticksPerBeat . qMidiScore $ qm
                                qb = toQBins . qShortestNote $ qm
                            pickMeters . match qb tb v r m ps $ segs
@@ -85,19 +84,11 @@ matchIO v r m fp = do ps <- readPDFs ("fit"++show v++".json" )
          
 -- | Top-level function that converts a 'QMidiFile' into CSV-writeable profiles
 toCSV :: Map TimeSig [(Beat, BeatRat)] -> QMidiScore -> Either String [RNSWProf]
-toCSV s qm = do segs <- preprocess qm 
+toCSV s qm = do segs <- doIMApreprocess qm 
                 let tb = ticksPerBeat . qMidiScore $ qm
                     qb = toQBins . qShortestNote $ qm
                 return . map (toRNSWProf qb tb 0 id s) $ segs -- no rotation
 
--- | Pre-processes a 'QMidiFile' and returns the IMA weights and score data
--- for segments that represent one time signature 
-preprocess :: QMidiScore -> Either String [SWMeterSeg]
-preprocess qm =   timeSigCheck qm
-              >>= doIMA
-              >>= fourBarFilter tb
-              >>= emptySegFilter 
-                where tb = ticksPerBeat . qMidiScore $ qm
 
 -- | Converts one segment into a RNSWProf, preserving only the profile bins
 -- with heavy weights. The 'TimeSig' argument determines the time signature
@@ -129,7 +120,7 @@ analyseMidi mt r s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
                                        analyse putStrLn fp where
      
   analyse :: QMidiScore -> Either String String
-  analyse qm = do pp <- preprocess qm 
+  analyse qm = do pp <- doIMApreprocess qm 
                   let qb  = toQBins . qShortestNote $ qm
                       tb  = ticksPerBeat . qMidiScore $ qm 
                       
@@ -151,11 +142,6 @@ analyseMidi mt r s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
                       rns = prnt $ map (show . toRNSWProf qb tb r tsf s) pp
                  
                   return . prnt $ [rst, prf, sel, rns]
-
--- copied from RagPatIMA Checks for a valid time signature
-timeSigCheck :: QMidiScore -> Either String QMidiScore
-timeSigCheck ms | hasTimeSigs (qMidiScore ms) = Right ms
-                | otherwise = Left "Has no valid time signature" 
 
             
             

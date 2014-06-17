@@ -6,9 +6,10 @@ module ZMidi.IO.IMA ( printIMA
                     ) where
 
 import ZMidi.Score
+import ZMidi.IO.Common             ( readMidiScoreSafe, ioWithWarning )
 import ZMidi.IMA.Internal
-
 import ZMidi.IMA.Analyse
+
 import Ragtime.TimeSigSeg          ( TimedSeg (..) )
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
@@ -21,7 +22,7 @@ import Data.Ratio                  ( numerator, denominator )
 --------------------------------------------------------------------------------
          
 convertToIMA :: FilePath -> FilePath -> IO ()
-convertToIMA = undefined
+convertToIMA i o = undefined -- readMidiScoreSafe i >>= (>>= doIMA)
 
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis

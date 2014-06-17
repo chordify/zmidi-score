@@ -4,13 +4,14 @@
 
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
 module ZMidi.IMA.Analyse ( SWMeterSeg
-                         , fourBarFilter
-                         , emptySegFilter
-                         , collectSWProf
-                         , toSWProfSegs 
-                         -- , printIMA
-                         -- | * Utilities
+                         -- | * Inner Metrical Analysis
                          , doIMA
+                         , doIMApreprocess
+                         -- | * Preprocessing
+                         -- , emptySegFilter
+                         , collectSWProf
+                         -- , toSWProfSegs 
+                         -- | * Utilities
                          , toNSWProfWithTS
                          , toSWProf
                          ) where
@@ -57,10 +58,9 @@ collectSWProf s m = foldr doSeg m s where
   
 -- | Transforms a quantised midi score into a set of meter profiles segmented
 -- by the time signatures as prescribed in the midi file.
-toSWProfSegs :: QMidiScore -> Either String [SWProfSeg]
-toSWProfSegs m =    doIMA m 
-                >>= fourBarFilter (ticksPerBeat . qMidiScore $ m)
-                >>= return . map (toSWProf (ticksPerBeat . qMidiScore $ m))
+-- toSWProfSegs :: QMidiScore -> Either String [SWProfSeg]
+-- toSWProfSegs m =    doIMApreprocess
+                -- >>= return . map (toSWProf (ticksPerBeat . qMidiScore $ m))
 
 -- | Sums all NSW profiles per bar for a meter section using the annotated
 -- meter of that section
@@ -85,10 +85,15 @@ toNSWProfWithTS ts tb td = foldl' toProf (SWProf (1, empty)) td
 -- Filtering Meter Segments
 --------------------------------------------------------------------------------
 
--- Filters all segments that are at least 4 bars long. If the list does
--- not contain any segments longer then 4 bars Left is returned.
-fourBarFilter :: TPB -> [SWMeterSeg] -> Either String [SWMeterSeg]
-fourBarFilter tb = minBarLenFilter tb (NrOfBars 4)
+-- | Pre-processes a 'QMidiFile' and returns the IMA weights and score data
+-- for segments that represent one time signature 
+doIMApreprocess :: QMidiScore -> Either String [SWMeterSeg]
+doIMApreprocess qm =   timeSigCheck qm
+                   >>= doIMA
+                   -- Filters all segments that are at least 4 bars long.
+                   >>= minBarLenFilter tb (NrOfBars 4)
+                   >>= emptySegFilter 
+                     where tb = ticksPerBeat . qMidiScore $ qm
 
 minBarLenFilter :: TPB -> NrOfBars -> [TimedSeg TimeSig [Timed a]] 
                 -> Either String [TimedSeg TimeSig [Timed a]]
@@ -111,6 +116,11 @@ getNrOfBars tb (TimedSeg ts x ) =
 notEmpty :: TimedSeg a [b] -> Bool
 notEmpty (TimedSeg _ []) = False
 notEmpty _               = True
+
+-- | Checks for a valid time signature
+timeSigCheck :: QMidiScore -> Either String QMidiScore
+timeSigCheck ms | hasTimeSigs (qMidiScore ms) = Right ms
+                | otherwise = Left "Has no valid time signature" 
 
 -- TODO create a MPMidiScore for monophonic MidiScores
 -- TODO create a QMPMidiScore for quantised monophonic MidiScores
