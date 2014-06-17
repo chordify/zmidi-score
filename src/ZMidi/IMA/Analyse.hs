@@ -3,19 +3,19 @@
 {-# LANGUAGE DeriveGeneric              #-}
 
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
-module Ragtime.MidiIMA ( SWMeterSeg
-                       , fourBarFilter
-                       , emptySegFilter
-                       , collectSWProf
-                       , toSWProfSegs 
-                       -- , printIMA
-                       -- | * Utilities
-                       , doIMA
-                       , toNSWProfWithTS
-                       , toSWProf
-                       ) where
+module ZMidi.IMA.Analyse ( SWMeterSeg
+                         , fourBarFilter
+                         , emptySegFilter
+                         , collectSWProf
+                         , toSWProfSegs 
+                         -- , printIMA
+                         -- | * Utilities
+                         , doIMA
+                         , toNSWProfWithTS
+                         , toSWProf
+                         ) where
 
-import Ragtime.NSWProf 
+import ZMidi.IMA.NSWProf 
 import ZMidi.Score
 import ZMidi.Skyline.MelFind      ( mergeTracks )
 import Ragtime.TimeSigSeg         ( TimedSeg (..), segment )
@@ -27,8 +27,6 @@ import Data.List                   ( nubBy, foldl' )
 import Data.Function               ( on )
 import Data.Map.Strict             ( empty, Map, insertWith )
 import Control.Arrow               ( first )
-
-import Data.Ratio                  ( numerator, denominator )
 
 import Data.Binary                 ( Binary )
 import GHC.Generics                ( Generic )

@@ -6,8 +6,8 @@ import ZMidi.Score.Datatypes          ( TimeSig (..))
 import ZMidi.Score.Quantise           ( ShortestNote (..) )
 import ZMidi.IO.Common                ( mapDir_, readQMidiScoreSafe )
 import ZMidi.IO.IMA                   ( printIMA )
-import Ragtime.SelectQBins            ( selectQBins, Rot (..) )
-import Ragtime.NSWProf                ( readNSWProf )
+import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..) )
+import ZMidi.IMA.NSWProf              ( readNSWProf )
 
 
 --------------------------------------------------------------------------------

@@ -10,16 +10,16 @@ module EncodeNSWProf ( RNSWProf (..)
                      
 import qualified Data.ByteString.Lazy as BL
 import Data.Csv              hiding ()             
-import ZMidi.Score.Datatypes hiding  ( numerator, denominator )
+import ZMidi.Score.Datatypes 
 import ZMidi.Score.Quantise          ( QMidiScore (..), ShortestNote (..), toQBins, QBins)
 import ZMidi.IO.Common               ( readQMidiScoreSafe, warning, ioWithWarning)
-import Ragtime.NSWProf               ( NSWeight (..), normSWProfByBar )
+import ZMidi.IMA.NSWProf             ( NSWeight (..), normSWProfByBar )
 import Ragtime.NSWMatch              ( PMatch (..), NSWDist (..), pickMeters
                                      , printPickMeter )
-import Ragtime.MidiIMA               ( doIMA, toNSWProfWithTS, fourBarFilter
+import ZMidi.IMA.Analyse             ( doIMA, toNSWProfWithTS, fourBarFilter
                                      , emptySegFilter, SWMeterSeg, toSWProf )
 import Ragtime.TimeSigSeg            ( TimedSeg (..))
-import Ragtime.SelectQBins           ( filterToList, Rot (..), filterBin )
+import ZMidi.IMA.SelectProfBins      ( filterToList, Rot (..), filterBin )
 import Data.List                     ( intercalate )
 import Data.Maybe                    ( fromJust )
 import Data.Ratio                    ( numerator, denominator)

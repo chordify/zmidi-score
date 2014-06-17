@@ -9,7 +9,7 @@ module Ragtime.NSWMatch( PMatch (..)
                        
 import ZMidi.Score 
 import Ragtime.TimeSigSeg         ( TimedSeg (..) )
-import Ragtime.SelectQBins        ( Rot (..) )
+import ZMidi.IMA.SelectProfBins   ( Rot (..) )
 
 import Data.List                  ( intercalate, maximumBy )
 import Data.Function              ( on )

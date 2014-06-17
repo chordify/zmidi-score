@@ -2,29 +2,27 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE DeriveGeneric              #-}
--- This module could also be part of the IMA module because it hardly based on
--- any ZMidi.* code, but since it is only used in Ragtime research, I think
--- it better fits Ragtime.*
-module Ragtime.NSWProf ( -- | Newtypes
-                         NSWeight (..)
-                       , NSWProf (..)
-                       , SWProf (..)
-                       , NrOfBars (..)
-                         -- | NSW profile functions
-                       , mergeProf
-                       , mergeSWProf
-                       , normSWProf
-                       , normSWProfByBar
-                         -- | Printing
-                       , showNSWProf
-                       , stars
-                         -- | Serialization
-                       , writeNSWProf  
-                       , readNSWProf 
-                       )where
+
+module ZMidi.IMA.NSWProf ( -- | Newtypes
+                           NSWeight (..)
+                         , NSWProf (..)
+                         , SWProf (..)
+                         , NrOfBars (..)
+                           -- | NSW profile functions
+                         , mergeProf
+                         , mergeSWProf
+                         , normSWProf
+                         , normSWProfByBar
+                           -- | Printing
+                         , showNSWProf
+                         , stars
+                           -- | Serialization
+                         , writeNSWProf  
+                         , readNSWProf 
+                         )where
 
 import IMA.InnerMetricalAnalysis      ( SWeight )
-import ZMidi.Score             hiding ( numerator, denominator )
+import ZMidi.Score
 import ZMidi.IMA.Internal  
 import Data.List                      ( intercalate )
 import Data.Ratio                     ( numerator, denominator )

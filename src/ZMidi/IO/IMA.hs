@@ -8,7 +8,7 @@ module ZMidi.IO.IMA ( printIMA
 import ZMidi.Score
 import ZMidi.IMA.Internal
 
-import Ragtime.MidiIMA
+import ZMidi.IMA.Analyse
 import Ragtime.TimeSigSeg          ( TimedSeg (..) )
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )

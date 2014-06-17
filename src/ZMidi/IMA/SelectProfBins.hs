@@ -1,20 +1,18 @@
 {-# OPTIONS_GHC -Wall                    #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
 -- | This module deals with selecting the SWProf bins used to estimate the meter
-module Ragtime.SelectQBins ( selectQBins 
-                           -- , filterByQBinStrength
-                           -- , filterByQBinStrengthWith
-                           , filterBin
-                           , filterToList
-                           , printMeterStats
-                           , QBinSelection
-                           -- * Rotations
-                           , Rot (..)
-                           ) where
+module ZMidi.IMA.SelectProfBins ( selectQBins 
+                                , filterBin
+                                , filterToList
+                                , printMeterStats
+                                , QBinSelection
+                                -- * Rotations
+                                , Rot (..)
+                                ) where
 
 import ZMidi.Score.Datatypes          ( TimeSig (..) , Beat(..) , BeatRat (..) )
 import ZMidi.Score.Quantise           ( QBins (..) )
-import Ragtime.NSWProf
+import ZMidi.IMA.NSWProf
 import Data.List                      ( sort, sortBy )
 import Data.Ord                       ( comparing, Down (..) )
 import Data.Maybe                     ( fromJust )
