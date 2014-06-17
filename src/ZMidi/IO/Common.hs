@@ -138,13 +138,17 @@ ioWithWarning :: (FilePath -> IO (Either String a))
               -> (b -> IO ()) -> FilePath -> IO ()
 ioWithWarning iof warnf prntf fp = 
     iof fp >>= return . (>>= warnf) >>= either (warning fp) prntf
-                      
--- | Prints a string to the standard error stream
-putErrStrLn :: String -> IO ()
-putErrStrLn s = hPutStrLn stderr s
+
+warn :: FilePath -> Either String a -> IO (Maybe a)
+warn fp = either (\s -> warning fp s >> return Nothing) (return . Just)
        
 warning :: FilePath -> String -> IO ()
 warning fp w = putErrStrLn ("Warning: skipping " ++ fp ++ ": " ++ w)
+
+-- | Prints a string to the standard error stream
+putErrStrLn :: String -> IO ()
+putErrStrLn s = hPutStrLn stderr s
+
 
 --------------------------------------------------------------------------------
 -- Unexported directory utils

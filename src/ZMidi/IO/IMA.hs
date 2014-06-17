@@ -4,7 +4,7 @@ module ZMidi.IO.IMA ( printIMA
                     ) where
 
 import ZMidi.Score
-import ZMidi.IO.Common             ( readMidiScoreSafe, ioWithWarning )
+import ZMidi.IO.Common             ( readQMidiScoreSafe, warning )
 import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
 
@@ -21,13 +21,14 @@ import Data.Binary                 ( Binary (..), encodeFile )
 --------------------------------------------------------------------------------
          
 convertToIMA :: FilePath -> FilePath -> IO ()
-convertToIMA i o = undefined
-                                  
-convertQMid :: FilePath -> QMidiScore -> IO ()
-convertQMid f qm = undefined
-                                  
-writeIMA :: FilePath -> [SWMeterSeg] -> IO ()
-writeIMA f d = encodeFile f d >> putStrLn ("written: " ++ f)
+convertToIMA o i =   readQMidiScoreSafe FourtyEighth i 
+                 >>= either (warning i) convertQMid
+                 
+  where convertQMid :: QMidiScore -> IO ()
+        convertQMid = either (warning i) writeIMA . doIMApreprocess 
+                                          
+        writeIMA :: [SWMeterSeg] -> IO ()
+        writeIMA d = encodeFile o d >> putStrLn ("written: " ++ o)
 
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
