@@ -6,8 +6,9 @@
 module ZMidi.IMA.Analyse ( SWMeterSeg
                          , IMAStore (..)
                          -- | * Inner Metrical Analysis
-                         , doIMA
+                         , doIMA -- TODO remove this export
                          , doIMApreprocess
+                         , toIMAStore
                          -- | * Preprocessing
                          -- , emptySegFilter
                          , collectSWProf
@@ -38,6 +39,7 @@ import GHC.Generics                ( Generic )
 --------------------------------------------------------------------------------
 
 data IMAStore = IMAStore { imaFile    :: FilePath
+                         , imaTPB     :: TPB
                          , swMeterSeg :: [SWMeterSeg]
                          } deriving (Show, Eq, Generic)
 instance Binary IMAStore 
@@ -48,6 +50,14 @@ type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
 -- A type synonym for a Segment in which the IMA info has been compressed into
 -- an Spectral Weight profile
 type SWProfSeg = TimedSeg TimeSig SWProf
+
+-- Performs an Inner Metric Analysis and stores the analysis and the 
+-- ScoreEvents in a 'IMAStore'
+toIMAStore :: FilePath -> Either String QMidiScore -> Either String IMAStore
+toIMAStore f eqm = do qm  <- eqm
+                      ima <- doIMApreprocess qm 
+                      let tpb = ticksPerBeat . qMidiScore $ qm
+                      return $ IMAStore f tpb ima
 
 -- | Collects all profiles sorted by time signature in one map
 collectSWProf :: [SWProfSeg] -> Map TimeSig SWProf -> Map TimeSig SWProf

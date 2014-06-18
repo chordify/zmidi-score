@@ -25,33 +25,25 @@ import Data.Binary                 ( encodeFile, decodeFile )
 --------------------------------------------------------------------------------
          
 convertToIMA :: FilePath -> FilePath -> IO ()
-convertToIMA o i =   readQMidiScoreSafe FourtyEighth i 
-                 >>= either (warning i) convertQMid
+convertToIMA o i =   readQMidiScoreSafe FourtyEighth i >>= writeIMA
                  
-  where convertQMid :: QMidiScore -> IO ()
-        convertQMid = either (warning i) writeIMA . doIMApreprocess 
-                                          
-        writeIMA :: [SWMeterSeg] -> IO ()
-        writeIMA d = do encodeFile o (IMAStore i d) 
-                        putStrLn ("written: " ++ o)
+  where writeIMA :: Either String QMidiScore -> IO ()
+        writeIMA qm = do either (warning i) (encodeFile o) $ toIMAStore i qm
+                         putStrLn ("written: " ++ o)
         
 readIMAScoreGeneric :: FilePath -> IO (Either String IMAStore)
 readIMAScoreGeneric f = 
   case take 4 . map toLower . takeExtension $ f of
     ".mid" -> readQMidiScoreSafe FourtyEighth f >>= return . toIMAStore f
     ".ima" -> decodeFile f >>= return . Right
-    e      -> error ("Error: " ++ e ++ " is not an accepted file type")
-  
-toIMAStore :: FilePath -> Either String QMidiScore -> Either String IMAStore
-toIMAStore f qm = qm >>= doIMApreprocess >>= return . IMAStore f
-  
+    e      -> error ("Error: " ++ e ++ " is not an accepted file type")  
 
 
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
 
-printIMA :: QMidiScore -> IO ()
+-- printIMA :: IMAStore -> IO ()
 printIMA qm = mapM_ (starMeter tb) . either error id . doIMA $ qm 
   where tb = ticksPerBeat . qMidiScore $ qm
                
