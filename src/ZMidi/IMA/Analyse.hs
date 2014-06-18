@@ -37,8 +37,8 @@ import GHC.Generics                ( Generic )
 -- Calculate Spectral Weight Profiles
 --------------------------------------------------------------------------------
 
-data IMAStore = IMAStore { swMeterSeg :: [SWMeterSeg]
-                         , imaFile    :: FilePath
+data IMAStore = IMAStore { imaFile    :: FilePath
+                         , swMeterSeg :: [SWMeterSeg]
                          } deriving (Show, Eq, Generic)
 instance Binary IMAStore 
   

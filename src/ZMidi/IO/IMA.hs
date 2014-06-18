@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall                   #-}
 module ZMidi.IO.IMA ( printIMA
                     , convertToIMA
+                    , readIMAScoreGeneric
                     ) where
 
 import ZMidi.Score
@@ -13,8 +14,11 @@ import Ragtime.TimeSigSeg          ( TimedSeg (..) )
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 
 import Text.Printf                 ( printf )
+import System.FilePath             ( takeExtension )
+-- import Control.Applicative         ( Applicative (..),(<$>) )
+import Data.Char                   ( toLower )
 import Data.Ratio                  ( numerator, denominator )
-import Data.Binary                 ( Binary (..), encodeFile, decodeFile )
+import Data.Binary                 ( encodeFile, decodeFile )
 
 --------------------------------------------------------------------------------
 -- Exporting SWMeterSegs (create separate IO
@@ -28,11 +32,20 @@ convertToIMA o i =   readQMidiScoreSafe FourtyEighth i
         convertQMid = either (warning i) writeIMA . doIMApreprocess 
                                           
         writeIMA :: [SWMeterSeg] -> IO ()
-        writeIMA d = do encodeFile o (IMAStore d i) 
+        writeIMA d = do encodeFile o (IMAStore i d) 
                         putStrLn ("written: " ++ o)
         
-readFromIMAStore :: FilePath -> IO IMAStore
-readFromIMAStore = decodeFile
+readIMAScoreGeneric :: FilePath -> IO (Either String IMAStore)
+readIMAScoreGeneric f = 
+  case take 4 . map toLower . takeExtension $ f of
+    ".mid" -> readQMidiScoreSafe FourtyEighth f >>= return . toIMAStore f
+    ".ima" -> decodeFile f >>= return . Right
+    e      -> error ("Error: " ++ e ++ " is not an accepted file type")
+  
+toIMAStore :: FilePath -> Either String QMidiScore -> Either String IMAStore
+toIMAStore f qm = qm >>= doIMApreprocess >>= return . IMAStore f
+  
+
 
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
