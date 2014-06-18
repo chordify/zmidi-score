@@ -5,7 +5,7 @@ import EncodeNSWProf
 import ZMidi.Score.Datatypes          ( TimeSig (..))
 import ZMidi.Score.Quantise           ( ShortestNote (..) )
 import ZMidi.IO.Common                ( mapDir_, readQMidiScoreSafe )
-import ZMidi.IO.IMA                   ( printIMA, convertToIMA )
+import ZMidi.IO.IMA                   ( printIMA, convertToIMA, readIMAScoreGeneric )
 import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..) )
 import ZMidi.IMA.NSWProf              ( readNSWProf )
 
@@ -119,7 +119,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (Test , Right d) -> mapDir_ (matchIO b r s) d
             (Store, Left  f) -> convertToIMA out f
             (Store, Right d) -> undefined
-            (IMA  , Left  f) -> readQMidiScoreSafe FourtyEighth f >>= printIMA . either error id
+            (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
             (IMA  , Right _) -> usageError arg "We can only analyse a file"
             (Profile, Left  f) -> analyseMidi ts r s f
             (Profile, Right _) -> usageError arg "We can only profile a file"

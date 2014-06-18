@@ -43,10 +43,8 @@ readIMAScoreGeneric f =
 -- Printing the Inner Metrical Analysis
 --------------------------------------------------------------------------------
 
--- printIMA :: IMAStore -> IO ()
-printIMA qm = mapM_ (starMeter tb) . either error id . doIMA $ qm 
-  where tb = ticksPerBeat . qMidiScore $ qm
-               
+printIMA :: IMAStore -> IO ()
+printIMA is = mapM_ (starMeter (imaTPB is)) . swMeterSeg $ is
           
 -- Prints an Inner metrical analysis. The printed weights are normalised by
 -- the maximum weight found in the song.
