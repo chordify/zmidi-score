@@ -234,7 +234,7 @@ instance Binary MidiScaleType where
              1 -> return MINOR
              2 -> do i <- B.get
                      return (SCALE_OTHER i)
-             _ -> error "invalide binary encoding" -- cannot happen?
+             _ -> error "invalid binary encoding" -- cannot happen?
       
 instance Binary MidiFormat where
   put MF0 = B.put (0 :: Word8)
@@ -246,7 +246,7 @@ instance Binary MidiFormat where
              0 -> return MF0           
              1 -> return MF1           
              2 -> return MF2
-             _ -> error "invalide binary encoding" -- cannot happen?
+             _ -> error "invalid binary encoding" -- cannot happen?
 --------------------------------------------------------------------------------
 -- Printing MidiScores
 --------------------------------------------------------------------------------

@@ -1,9 +1,8 @@
 module EncodeNSWProf ( RNSWProf (..)
-                     -- , printKey
+                     , toRNSWProf
                      , matchIO
                      , toDoubles
                      , toCSV
-                     , analyseMidi
                      , processMidi
                      , writeHeader
                      ) where
@@ -16,7 +15,8 @@ import ZMidi.IO.Common               ( readQMidiScoreSafe, warning, ioWithWarnin
 import ZMidi.IMA.NSWProf             ( NSWeight (..), normSWProfByBar )
 import Ragtime.NSWMatch              ( PMatch (..), NSWDist (..), pickMeters
                                      , printPickMeter )
-import ZMidi.IMA.Analyse             ( doIMApreprocess, toNSWProfWithTS, SWMeterSeg, toSWProf )
+import ZMidi.IMA.Analyse             ( doIMApreprocess, toNSWProfWithTS, SWMeterSeg
+                                     , toSWProf, IMAStore (..), imaQBins, imaTPB )
 import Ragtime.TimeSigSeg            ( TimedSeg (..))
 import ZMidi.IMA.SelectProfBins      ( filterToList, Rot (..), filterBin )
 import Data.List                     ( intercalate )
@@ -114,34 +114,9 @@ writeHeader m out =
   writeFile out . (++ "\n") . intercalate "," $ "meter" : 
                   (map printKey . fromJust . M.lookup (TimeSig 4 4 0 0) $ m)
   
--- Analyses a MidiFile verbosely by printing the spectral weight profiles
-analyseMidi :: Maybe TimeSig -> Rot -> Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
-analyseMidi mt r s fp = ioWithWarning (readQMidiScoreSafe FourtyEighth)
-                                       analyse putStrLn fp where
+
      
-  analyse :: QMidiScore -> Either String String
-  analyse qm = do pp <- doIMApreprocess qm 
-                  let qb  = toQBins . qShortestNote $ qm
-                      tb  = ticksPerBeat . qMidiScore $ qm 
-                      
-                      tsf = case mt of Just ts -> const ts
-                                       _       -> id
-                      
-                      showSel :: SWMeterSeg -> String
-                      showSel x = let ts = tsf . getEvent . boundary $ x
-                                  in show . filterBin qb r s ts
-                                          . normSWProfByBar  
-                                          . toNSWProfWithTS ts tb . seg $ x
-                      
-                      prnt = intercalate "\n"
-                      
-                      prf = prnt $ "original profiles" : 
-                            map (show . normSWProfByBar . seg . toSWProf tb) pp
-                      rst = "rotation: " ++ show (rot r)              
-                      sel = prnt $ "matched profiles" : map showSel pp
-                      rns = prnt $ map (show . toRNSWProf qb tb r tsf s) pp
-                 
-                  return . prnt $ [rst, prf, sel, rns]
+     -- return . prnt $ [rst, prf, sel, rns]
 
             
             
