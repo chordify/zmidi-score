@@ -5,7 +5,8 @@ import EncodeNSWProf
 import ZMidi.Score.Datatypes          ( TimeSig (..))
 import ZMidi.Score.Quantise           ( ShortestNote (..) )
 import ZMidi.IO.Common                ( mapDir_, readQMidiScoreSafe )
-import ZMidi.IO.IMA                   ( printIMA, analyseProfile, convertToIMA, readIMAScoreGeneric )
+import ZMidi.IO.IMA                   ( printIMA, analyseProfile, exportIMAStore
+                                      , readIMAScoreGeneric, exportCSVProfs )
 import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..) )
 import ZMidi.IMA.NSWProf              ( readNSWProf )
 
@@ -113,11 +114,11 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
           s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
           -- do the parsing magic
           case (mode, input) of
-            (Train, Left  f) -> processMidi s out f
-            (Train, Right d) -> writeHeader s out >> mapDir_ (processMidi s out) d
+            (Train, Left  f) -> exportCSVProfs s out f
+            (Train, Right d) -> writeHeader s out >> mapDir_ (exportCSVProfs s out) d
             (Test , Left  f) -> matchIO b r s f
             (Test , Right d) -> mapDir_ (matchIO b r s) d
-            (Store, Left  f) -> convertToIMA out f
+            (Store, Left  f) -> exportIMAStore out f
             (Store, Right d) -> undefined
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
             (IMA  , Right _) -> usageError arg "We can only analyse a file"

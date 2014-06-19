@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall                   #-}
-module ZMidi.IO.IMA ( convertToIMA
+module ZMidi.IO.IMA ( exportIMAStore
                     , readIMAScoreGeneric
+                    , exportCSVProfs
                     -- | * Printing
                     , printIMA
                     , analyseProfile
@@ -13,7 +14,7 @@ import ZMidi.IMA.Analyse
 import ZMidi.IMA.NSWProf           ( normSWProfByBar )
 import ZMidi.IMA.SelectProfBins    ( filterToList, Rot (..), filterBin )
 
-import EncodeNSWProf  (toRNSWProf)
+import EncodeNSWProf               ( toRNSWProf, toCSV )
 
 import Data.Map.Strict             ( Map )
 
@@ -28,13 +29,14 @@ import Data.Char                   ( toLower )
 import Data.Ratio                  ( numerator, denominator )
 import Data.Binary                 ( encodeFile, decodeFile )
 import Data.List                   ( intercalate ) 
+import qualified Data.ByteString.Lazy as BS ( appendFile )
 
 --------------------------------------------------------------------------------
--- Exporting SWMeterSegs (create separate IO
+-- Reading and writing 
 --------------------------------------------------------------------------------
          
-convertToIMA :: FilePath -> FilePath -> IO ()
-convertToIMA o i =   readQMidiScoreSafe FourtyEighth i >>= writeIMA
+exportIMAStore :: FilePath -> FilePath -> IO ()
+exportIMAStore o i =   readQMidiScoreSafe FourtyEighth i >>= writeIMA
                  
   where writeIMA :: Either String QMidiScore -> IO ()
         writeIMA qm = do either (warning i) (encodeFile o) $ toIMAStore i qm
@@ -46,8 +48,18 @@ readIMAScoreGeneric f =
     ".mid" -> readQMidiScoreSafe FourtyEighth f >>= return . toIMAStore f
     ".ima" -> decodeFile f >>= return . Right
     e      -> error ("Error: " ++ e ++ " is not an accepted file type")  
+    
+--------------------------------------------------------------------------------
+-- Exporting CSV profiles
+--------------------------------------------------------------------------------
 
-
+-- | Processes a MidiFile, calculates the RNSWProf and writes it to a file
+-- as CSV 
+exportCSVProfs :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> FilePath -> IO ()
+exportCSVProfs s o i =   readIMAScoreGeneric i 
+                     >>= either (warning i) (BS.appendFile o . toCSV s)
+    
+    
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
 --------------------------------------------------------------------------------

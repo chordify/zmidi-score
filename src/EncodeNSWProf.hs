@@ -3,11 +3,11 @@ module EncodeNSWProf ( RNSWProf (..)
                      , matchIO
                      , toDoubles
                      , toCSV
-                     , processMidi
                      , writeHeader
                      ) where
                      
-import qualified Data.ByteString.Lazy as BL
+import Data.ByteString.Lazy          ( ByteString )
+-- import qualified Data.ByteString.Lazy as BL 
 import Data.Csv              hiding ()             
 import ZMidi.Score.Datatypes 
 import ZMidi.Score.Quantise          ( QMidiScore (..), ShortestNote (..), toQBins, QBins)
@@ -83,11 +83,9 @@ matchIO v r m fp = do ps <- readPDFs ("fit"++show v++".json" )
                               . map (\x -> fp ++ "\t" ++ printPickMeter x)
          
 -- | Top-level function that converts a 'QMidiFile' into CSV-writeable profiles
-toCSV :: Map TimeSig [(Beat, BeatRat)] -> QMidiScore -> Either String [RNSWProf]
-toCSV s qm = do segs <- doIMApreprocess qm 
-                let tb = ticksPerBeat . qMidiScore $ qm
-                    qb = toQBins . qShortestNote $ qm
-                return . map (toRNSWProf qb tb 0 id s) $ segs -- no rotation
+toCSV :: Map TimeSig [(Beat, BeatRat)] -> IMAStore -> ByteString
+toCSV s i = let f = toRNSWProf (imaQBins i) (imaTPB i) 0 id s -- no rotation
+            in  encode . map f . swMeterSeg $ i
 
 
 -- | Converts one segment into a RNSWProf, preserving only the profile bins
@@ -100,23 +98,10 @@ toRNSWProf q tb r f s (TimedSeg (Timed _ ts) d) =
                   . normSWProfByBar 
                   . toNSWProfWithTS (f ts) tb $ d 
 
--- | Processes a MidiFile, calculates the RNSWProf and writes it to a file
--- as CSV 
-processMidi :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> FilePath -> IO ()
-processMidi s out infp = do qm <- readQMidiScoreSafe FourtyEighth infp
-                            case qm >>= toCSV s of
-                              Left  err -> warning infp err
-                              Right csv -> BL.appendFile out . encode $ csv 
-  
 -- writes a CSV Header to a file 
 writeHeader :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO()
 writeHeader m out = 
   writeFile out . (++ "\n") . intercalate "," $ "meter" : 
                   (map printKey . fromJust . M.lookup (TimeSig 4 4 0 0) $ m)
-  
-
-     
-     -- return . prnt $ [rst, prf, sel, rns]
-
             
             
