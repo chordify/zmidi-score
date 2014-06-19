@@ -225,7 +225,7 @@ instance (Binary a) => Binary (Timed a)
 instance Binary MidiScaleType where
   put MAJOR           =    B.put (0 :: Word8)
   put MINOR           =    B.put (1 :: Word8)
-  put (SCALE_OTHER i) = do B.put (3 :: Word8)
+  put (SCALE_OTHER i) = do B.put (2 :: Word8)
                            B.put i
                            
   get = do t <- B.get :: Get Word8
@@ -234,7 +234,7 @@ instance Binary MidiScaleType where
              1 -> return MINOR
              2 -> do i <- B.get
                      return (SCALE_OTHER i)
-             _ -> error "invalid binary encoding" -- cannot happen?
+             _ -> error "invalid binary encoding of MidiScaleType"
       
 instance Binary MidiFormat where
   put MF0 = B.put (0 :: Word8)
@@ -246,7 +246,7 @@ instance Binary MidiFormat where
              0 -> return MF0           
              1 -> return MF1           
              2 -> return MF2
-             _ -> error "invalid binary encoding" -- cannot happen?
+             _ -> error "invalid binary encoding of MidiFormat"
 --------------------------------------------------------------------------------
 -- Printing MidiScores
 --------------------------------------------------------------------------------
