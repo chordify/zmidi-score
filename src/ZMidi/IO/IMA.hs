@@ -16,13 +16,13 @@ import ZMidi.IMA.Analyse
 import ZMidi.IMA.NSWProf           ( normSWProfByBar )
 import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin )
 import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, match, printPickMeter )
+import ZMidi.IMA.TimeSigSeg        ( TimedSeg (..) )
 
 import ReadPDF                     ( ToPDF, readPDFs )
 import ZMidi.IMA.RNSWProf          ( toRNSWProf, toCSV, genHeader )
 
 import Data.Map.Strict             ( Map )
 
-import Ragtime.TimeSigSeg          ( TimedSeg (..) )
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 

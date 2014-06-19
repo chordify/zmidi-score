@@ -9,7 +9,7 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
                           ) where
                        
 import ZMidi.Score 
-import Ragtime.TimeSigSeg         ( TimedSeg (..) )
+import ZMidi.IMA.TimeSigSeg       ( TimedSeg (..) )
 import ZMidi.IMA.SelectProfBins   ( Rot (..) )
 import ZMidi.IMA.Analyse          ( SWMeterSeg )
 

@@ -13,7 +13,7 @@ import ZMidi.Score.Quantise          ( QBins)
 import ZMidi.IMA.NSWProf             ( NSWeight (..), normSWProfByBar )
 import ZMidi.IMA.Analyse             ( toNSWProfWithTS, SWMeterSeg
                                      , IMAStore (..), imaQBins, imaTPB )
-import Ragtime.TimeSigSeg            ( TimedSeg (..))
+import ZMidi.IMA.TimeSigSeg          ( TimedSeg (..))
 import ZMidi.IMA.SelectProfBins      ( filterToList, Rot (..) )
 import Data.List                     ( intercalate )
 import Data.Maybe                    ( fromJust )

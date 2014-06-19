@@ -23,7 +23,7 @@ module ZMidi.IMA.Analyse ( SWMeterSeg
 import ZMidi.IMA.NSWProf 
 import ZMidi.Score
 import ZMidi.Skyline.MelFind      ( mergeTracks )
-import Ragtime.TimeSigSeg         ( TimedSeg (..), segment )
+import ZMidi.IMA.TimeSigSeg       ( TimedSeg (..), segment )
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
