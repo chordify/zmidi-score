@@ -1,12 +1,12 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Ragtime.NSWMatch( PMatch (..)
-                       , NSWDist (..)
-                       , Prob (..)
-                       , match
-                       , pickMeters
-                       , printPickMeter
-                       ) where
+module ZMidi.IMA.RNSWMatch( PMatch (..)
+                          , NSWDist (..)
+                          , Prob (..)
+                          , match
+                          , pickMeters
+                          , printPickMeter
+                          ) where
                        
 import ZMidi.Score 
 import Ragtime.TimeSigSeg         ( TimedSeg (..) )
