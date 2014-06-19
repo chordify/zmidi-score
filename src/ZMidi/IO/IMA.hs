@@ -23,8 +23,7 @@ import Ragtime.TimeSigSeg          ( TimedSeg (..) )
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 
 import Text.Printf                 ( printf )
-import System.FilePath             ( takeExtension )
--- import Control.Applicative         ( Applicative (..),(<$>) )
+import System.FilePath             ( takeExtension, takeFileName, (</>), (<.>) )
 import Data.Char                   ( toLower )
 import Data.Ratio                  ( numerator, denominator )
 import Data.Binary                 ( encodeFile, decodeFile )
@@ -36,11 +35,12 @@ import qualified Data.ByteString.Lazy as BS ( appendFile )
 --------------------------------------------------------------------------------
          
 exportIMAStore :: FilePath -> FilePath -> IO ()
-exportIMAStore o i =   readQMidiScoreSafe FourtyEighth i >>= writeIMA
+exportIMAStore dir i =   readQMidiScoreSafe FourtyEighth i >>= writeIMA
                  
   where writeIMA :: Either String QMidiScore -> IO ()
-        writeIMA qm = do either (warning i) (encodeFile o) $ toIMAStore i qm
-                         putStrLn ("written: " ++ o)
+        writeIMA qm = do let out = dir </> takeFileName i <.> "ima"
+                         either (warning i) (encodeFile out) $ toIMAStore i qm
+                         putStrLn ("written: " ++ out)
         
 readIMAScoreGeneric :: FilePath -> IO (Either String IMAStore)
 readIMAScoreGeneric f = 

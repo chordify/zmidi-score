@@ -14,7 +14,7 @@ import ZMidi.IMA.NSWProf              ( readNSWProf )
 --------------------------------------------------------------------------------
 -- Commandline argument parsing
 --------------------------------------------------------------------------------
-data MyArgs = Mode | InputFilepath | InputDirFilepath | OutFilepath 
+data MyArgs = Mode | InputFilepath | InputDirFilepath | OutFile | OutDir
             | SelProfFilepath | NrProfBins | RotationArg | TimeSigArg
                   deriving (Eq, Ord, Show)
 
@@ -26,12 +26,18 @@ myArgs = [
                  argData  = argDataRequired "mode" ArgtypeString,
                  argDesc  = "The operation mode (train|test|analyse|select)"
                }
-        ,  Arg { argIndex = OutFilepath,
+        ,  Arg { argIndex = OutFile,
                  argAbbr  = Just 'o',
-                 argName  = Just "out",
+                 argName  = Just "out-file",
                  argData  = argDataDefaulted "filepath" ArgtypeString "out.csv",
-                 argDesc  = "Output directory for the profile files"
-               }               
+                 argDesc  = "Output file for writing CSV data"
+               } 
+        ,  Arg { argIndex = OutDir,
+                 argAbbr  = Just 'u',
+                 argName  = Just "out-dir",
+                 argData  = argDataDefaulted "filepath" ArgtypeString "",
+                 argDesc  = "Output directory for the IMA files"
+               }
          , Arg { argIndex = InputFilepath,
                  argAbbr  = Just 'f',
                  argName  = Just "file",
@@ -97,7 +103,8 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                          m         -> usageError arg ("unrecognised mode: " ++ m)
               
               -- get parameters
-              out = getRequiredArg arg OutFilepath
+              out = getRequiredArg arg OutFile
+              od  = getRequiredArg arg OutDir
               b   = getRequiredArg arg NrProfBins
               r   = Rot $ getRequiredArg arg RotationArg
               ts  = getArg arg TimeSigArg >>= return . parseTimeSig arg
@@ -118,14 +125,11 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (Train, Right d) -> writeHeader s out >> mapDir_ (exportCSVProfs s out) d
             (Test , Left  f) -> matchIO b r s f
             (Test , Right d) -> mapDir_ (matchIO b r s) d
-            (Store, Left  f) -> exportIMAStore out f
-            (Store, Right d) -> undefined
+            (Store, Left  f) -> exportIMAStore od f
+            (Store, Right d) -> mapDir_ (exportIMAStore od) d
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
             (IMA  , Right _) -> usageError arg "We can only analyse a file"
             (Profile, Left  f) -> readIMAScoreGeneric f >>= either error (analyseProfile ts r s)
-            (Profile, Right _) -> usageError arg "We can only profile a file"
-
-            -- (Select, _       ) -> print s
-            
+            (Profile, Right _) -> usageError arg "We can only profile a file"            
 
        
