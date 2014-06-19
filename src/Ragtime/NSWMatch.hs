@@ -13,7 +13,7 @@ import Ragtime.TimeSigSeg         ( TimedSeg (..) )
 import ZMidi.IMA.SelectProfBins   ( Rot (..) )
 import ZMidi.IMA.Analyse          ( SWMeterSeg )
 
-import EncodeNSWProf              ( toDoubles, toRNSWProf )
+import ZMidi.IMA.RNSWProf         ( toDoubles, toRNSWProf )
 import ReadPDF                    ( pdfPrior, multiNormal, ToPDF, pdfTimeSig )
 
 import Data.Map.Strict            ( Map )

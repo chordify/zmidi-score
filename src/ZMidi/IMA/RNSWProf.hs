@@ -1,21 +1,20 @@
-module EncodeNSWProf ( RNSWProf (..)
-                     , toRNSWProf
-                     , toDoubles
-                     , toCSV
-                     , genHeader
-                     ) where
+module ZMidi.IMA.RNSWProf ( RNSWProf (..)
+                          , toRNSWProf
+                          , toDoubles
+                          , toCSV
+                          , genHeader
+                          ) where
                      
 import Data.ByteString.Lazy          ( ByteString )
 -- import qualified Data.ByteString.Lazy as BL 
 import Data.Csv              hiding ()             
 import ZMidi.Score.Datatypes 
-import ZMidi.Score.Quantise          ( QMidiScore (..), ShortestNote (..), toQBins, QBins)
-import ZMidi.IO.Common               ( readQMidiScoreSafe, warning, ioWithWarning)
+import ZMidi.Score.Quantise          ( QBins)
 import ZMidi.IMA.NSWProf             ( NSWeight (..), normSWProfByBar )
-import ZMidi.IMA.Analyse             ( doIMApreprocess, toNSWProfWithTS, SWMeterSeg
-                                     , toSWProf, IMAStore (..), imaQBins, imaTPB )
+import ZMidi.IMA.Analyse             ( toNSWProfWithTS, SWMeterSeg
+                                     , IMAStore (..), imaQBins, imaTPB )
 import Ragtime.TimeSigSeg            ( TimedSeg (..))
-import ZMidi.IMA.SelectProfBins      ( filterToList, Rot (..), filterBin )
+import ZMidi.IMA.SelectProfBins      ( filterToList, Rot (..) )
 import Data.List                     ( intercalate )
 import Data.Maybe                    ( fromJust )
 import Data.Ratio                    ( numerator, denominator)

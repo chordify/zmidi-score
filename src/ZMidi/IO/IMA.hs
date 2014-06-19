@@ -17,7 +17,7 @@ import ZMidi.IMA.NSWProf           ( normSWProfByBar )
 import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin )
 
 import ReadPDF                     ( ToPDF, readPDFs )
-import EncodeNSWProf               ( toRNSWProf, toCSV, genHeader )
+import ZMidi.IMA.RNSWProf          ( toRNSWProf, toCSV, genHeader )
 
 import Data.Map.Strict             ( Map )
 
