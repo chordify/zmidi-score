@@ -14,7 +14,7 @@ runRScript home src func =
                                 -- , "-e \"source('" ++ src ++ "')\""
                                 -- , "-e \"" ++ func ++ "\""         
                                 -- ] 
-                                ) { -- cwd = Just home 
-                                     std_out = CreatePipe 
-                                   , std_err = CreatePipe 
-                                   }
+                                ) --{ -- cwd = Just home 
+                                     -- std_out = CreatePipe 
+                                   -- , std_err = CreatePipe 
+                                   --}

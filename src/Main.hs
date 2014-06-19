@@ -1,12 +1,11 @@
 module Main (main) where
 
 import System.Console.ParseArgs
-import EncodeNSWProf
 import ZMidi.Score.Datatypes          ( TimeSig (..))
-import ZMidi.Score.Quantise           ( ShortestNote (..) )
-import ZMidi.IO.Common                ( mapDir_, readQMidiScoreSafe )
+import ZMidi.IO.Common                ( mapDir_ )
 import ZMidi.IO.IMA                   ( printIMA, analyseProfile, exportIMAStore
-                                      , readIMAScoreGeneric, exportCSVProfs )
+                                      , readIMAScoreGeneric, exportCSVProfs, writeCSVHeader
+                                      , matchIO )
 import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..) )
 import ZMidi.IMA.NSWProf              ( readNSWProf )
 
@@ -122,7 +121,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
           -- do the parsing magic
           case (mode, input) of
             (Train, Left  f) -> exportCSVProfs s out f
-            (Train, Right d) -> writeHeader s out >> mapDir_ (exportCSVProfs s out) d
+            (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
             (Test , Left  f) -> matchIO b r s f
             (Test , Right d) -> mapDir_ (matchIO b r s) d
             (Store, Left  f) -> exportIMAStore od f

@@ -2,23 +2,27 @@
 module ZMidi.IO.IMA ( exportIMAStore
                     , readIMAScoreGeneric
                     , exportCSVProfs
+                    , writeCSVHeader
+                    , matchIO
                     -- | * Printing
                     , printIMA
                     , analyseProfile
                     ) where
 
 import ZMidi.Score
-import ZMidi.IO.Common             ( readQMidiScoreSafe, warning )
+import ZMidi.IO.Common             -- ( readQMidiScoreSafe, warning )
 import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
 import ZMidi.IMA.NSWProf           ( normSWProfByBar )
-import ZMidi.IMA.SelectProfBins    ( filterToList, Rot (..), filterBin )
+import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin )
 
-import EncodeNSWProf               ( toRNSWProf, toCSV )
+import ReadPDF                     ( ToPDF, readPDFs )
+import EncodeNSWProf               ( toRNSWProf, toCSV, genHeader )
 
 import Data.Map.Strict             ( Map )
 
 import Ragtime.TimeSigSeg          ( TimedSeg (..) )
+import Ragtime.NSWMatch
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 
@@ -59,7 +63,28 @@ exportCSVProfs :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> FilePath -> IO ()
 exportCSVProfs s o i =   readIMAScoreGeneric i 
                      >>= either (warning i) (BS.appendFile o . toCSV s)
     
+writeCSVHeader :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
+writeCSVHeader m out = writeFile out . genHeader $ m
     
+--------------------------------------------------------------------------------
+-- Matching
+--------------------------------------------------------------------------------
+                     
+-- TODO promote this pattern
+matchIO :: Int -> Rot ->  Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
+matchIO v r m fp = do ps <- readPDFs ("fit"++show v++".json" )
+                      ioWithWarning (readQMidiScoreSafe FourtyEighth) 
+                                    (doMatch ps) printMatch fp
+
+  where doMatch :: [ToPDF] -> QMidiScore-> Either String [TimedSeg TimeSig PMatch]
+        doMatch ps qm = do segs <- doIMApreprocess qm 
+                           let tb = ticksPerBeat . qMidiScore $ qm
+                               qb = toQBins . qShortestNote $ qm
+                           pickMeters . match qb tb v r m ps $ segs
+        
+        printMatch ::  [TimedSeg TimeSig PMatch] -> IO ()
+        printMatch = putStrLn . intercalate "\n" 
+                              . map (\x -> fp ++ "\t" ++ printPickMeter x)
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
 --------------------------------------------------------------------------------

@@ -1,7 +1,12 @@
 {-# OPTIONS_GHC -Wall           #-}
 {-# LANGUAGE OverloadedStrings  #-}
 {-# LANGUAGE DeriveGeneric      #-}
-module ReadPDF where
+module ReadPDF ( ToPDF
+               , multiNormal
+               , readPDFs
+               , pdfPrior
+               , pdfTimeSig ) where
+
 import Data.Aeson                           ( ToJSON (..), FromJSON (..), decode )
 import GHC.Generics                         ( Generic )
 import Data.Matrix                          
