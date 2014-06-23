@@ -23,7 +23,7 @@ myArgs = [
                  argAbbr  = Just 'm',
                  argName  = Just "mode",
                  argData  = argDataRequired "mode" ArgtypeString,
-                 argDesc  = "The operation mode (train|test|analyse|select)"
+                 argDesc  = "The operation mode (train|test|ima|profile|store)"
                }
         ,  Arg { argIndex = OutFile,
                  argAbbr  = Just 'o',

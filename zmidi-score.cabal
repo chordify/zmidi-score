@@ -49,7 +49,7 @@ executable melfind
   ghc-options:         -Wall  
 
   
-executable EncNSWProf
+executable MidiIMA
   main-is:             Main.hs
   hs-source-dirs:      src
   -- other-modules:       
