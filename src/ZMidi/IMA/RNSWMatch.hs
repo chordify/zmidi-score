@@ -32,12 +32,23 @@ newtype Prob    = Prob { prob :: Double }
                              
 data PMatch = PMatch {  pmTimeSig :: TimeSig
                      ,  pmatch    :: NSWDist
-                     ,  rotation  :: Rot
+                     ,  pmRot     :: Rot
+                     ,  pmFile    :: FilePath
                      } deriving (Eq)
                      
 instance Show PMatch where
-  show (PMatch ts m r) = printf (show ts ++ ": %1.4f\t R: %2d") m (rot r)
+  show (PMatch ts m r _) = printf (show ts ++ ": %1.4f\t R: %2d") m (rot r)
   showList l s = s ++ (intercalate "\n" . map show $ l)
+  
+data Result = Result { meterOk :: Bool
+                     , rotOk   :: Bool
+                     } deriving (Eq)
+                     
+                     
+  
+evalMeter :: [TimedSeg TimeSig PMatch] ->  [Result]
+evalMeter = undefined
+
   
 -- | Picks the best matching profile
 pickMeters :: [TimedSeg TimeSig [PMatch]] 
@@ -61,7 +72,7 @@ printPickMeter (TimedSeg ts m) =
       -- tsEq (TimeSig 4 4 _ _) (TimeSig 2 2 _ _) = True
       -- tsEq a                 b                 = a == b
   
-  in printf s (pmatch m) (rot . rotation $ m)
+  in printf s (pmatch m) (rot . pmRot $ m)
 
              
 match :: QBins -> TPB -> Int -> Rot -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] -> [SWMeterSeg] 
@@ -75,7 +86,7 @@ match qb tb vars mr s pdfs dat = map update dat where
   getProb sg r pdf = let ts = pdfTimeSig pdf
                          d  = toDoubles vars $ toRNSWProf qb tb r (const ts) s sg
                          p  = NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d)
-                     in PMatch ts p r
+                     in PMatch ts p r undefined
 
          
   
