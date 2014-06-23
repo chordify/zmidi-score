@@ -71,20 +71,13 @@ writeCSVHeader m out = writeFile out . genHeader $ m
 --------------------------------------------------------------------------------
                      
 -- TODO promote this pattern
-matchIO :: Int -> Rot ->  Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
-matchIO v r m fp = do ps <- readPDFs ("fit"++show v++".json" )
-                      ioWithWarning (readQMidiScoreSafe FourtyEighth) 
-                                    (doMatch ps) printMatch fp
+matchIO :: Int -> Rot ->  Map TimeSig [(Beat, BeatRat)] -> IMAStore -> IO ()
+matchIO v r m ima = do ps <- readPDFs ("fit"++show v++".json" )
+                       either putStrLn printMatch . pickMeters $ match v r m ps ima
 
-  where doMatch :: [ToPDF] -> QMidiScore-> Either String [TimedSeg TimeSig PMatch]
-        doMatch ps qm = do segs <- doIMApreprocess qm 
-                           let tb = ticksPerBeat . qMidiScore $ qm
-                               qb = toQBins . qShortestNote $ qm
-                           pickMeters . match qb tb v r m ps $ segs
+  where printMatch ::  [TimedSeg TimeSig PMatch] -> IO ()
+        printMatch = putStrLn . intercalate "\n" . map printPickMeter
         
-        printMatch ::  [TimedSeg TimeSig PMatch] -> IO ()
-        printMatch = putStrLn . intercalate "\n" 
-                              . map (\x -> fp ++ "\t" ++ printPickMeter x)
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
 --------------------------------------------------------------------------------

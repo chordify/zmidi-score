@@ -11,7 +11,7 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
 import ZMidi.Score 
 import ZMidi.IMA.TimeSigSeg       ( TimedSeg (..) )
 import ZMidi.IMA.SelectProfBins   ( Rot (..) )
-import ZMidi.IMA.Analyse          ( SWMeterSeg )
+import ZMidi.IMA.Analyse          ( SWMeterSeg, IMAStore (..) )
 
 import ZMidi.IMA.RNSWProf         ( toDoubles, toRNSWProf )
 import ReadPDF                    ( pdfPrior, multiNormal, ToPDF, pdfTimeSig )
@@ -37,7 +37,7 @@ data PMatch = PMatch {  pmTimeSig :: TimeSig
                      } deriving (Eq)
                      
 instance Show PMatch where
-  show (PMatch ts m r _) = printf (show ts ++ ": %1.4f\t R: %2d") m (rot r)
+  show (PMatch ts m r fp) = printf (fp ++ '\t' : show ts ++ ": %1.4f\t R: %2d") m (rot r)
   showList l s = s ++ (intercalate "\n" . map show $ l)
   
 data Result = Result { meterOk :: Bool
@@ -74,19 +74,22 @@ printPickMeter (TimedSeg ts m) =
   
   in printf s (pmatch m) (rot . pmRot $ m)
 
-             
-match :: QBins -> TPB -> Int -> Rot -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] -> [SWMeterSeg] 
-      -> [TimedSeg TimeSig [PMatch]]
-match qb tb vars mr s pdfs dat = map update dat where
+-- TODO replace vars variable
+-- TODO replace max rotation variable       
+-- TODO can probably be simplified      
+match :: Int -> Rot -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] 
+      -> IMAStore -> [TimedSeg TimeSig [PMatch]]
+match vars mr s pdfs i = map update . swMeterSeg $ i where
 
   update :: SWMeterSeg ->  TimedSeg TimeSig [PMatch]
   update x = fmap (const [getProb x r p | r <- [mr, pred mr .. 0], p <- pdfs]) x
 
   getProb :: SWMeterSeg -> Rot -> ToPDF -> PMatch
-  getProb sg r pdf = let ts = pdfTimeSig pdf
-                         d  = toDoubles vars $ toRNSWProf qb tb r (const ts) s sg
-                         p  = NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d)
-                     in PMatch ts p r undefined
+  getProb sg r pdf = 
+    let ts = pdfTimeSig pdf
+        d  = toDoubles vars $ toRNSWProf (imaQBins i) (imaTPB i) r (const ts) s sg
+        p  = NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d)
+    in PMatch ts p r (imaFile i)
 
          
   
