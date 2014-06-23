@@ -5,8 +5,8 @@
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
 module ZMidi.IMA.Analyse ( SWMeterSeg
                          , IMAStore (..)
-                         , imaTPB
-                         , imaQBins
+                         -- , imaTPB
+                         -- , imaQBins
                          -- | * Inner Metrical Analysis
                          , doIMA -- TODO remove this export
                          , doIMApreprocess
@@ -41,16 +41,18 @@ import GHC.Generics                ( Generic )
 --------------------------------------------------------------------------------
 
 data IMAStore = IMAStore { imaFile      :: FilePath
-                         , imaMidiScore :: QMidiScore
+                         --, imaMidiScore :: QMidiScore
+                         , imaTPB       :: TPB
+                         , imaQBins     :: QBins
                          , swMeterSeg   :: [SWMeterSeg]
                          } deriving (Show, Eq, Generic)
 instance Binary IMAStore 
   
-imaTPB :: IMAStore -> TPB
-imaTPB = ticksPerBeat . qMidiScore . imaMidiScore
+-- imaTPB :: IMAStore -> TPB
+-- imaTPB = ticksPerBeat . qMidiScore . imaMidiScore
 
-imaQBins :: IMAStore -> QBins
-imaQBins = toQBins . qShortestNote . imaMidiScore
+-- imaQBins :: IMAStore -> QBins
+-- imaQBins = toQBins . qShortestNote . imaMidiScore
 
   
 -- A type synonym that captures all IMA information needed for meter estimation
@@ -65,7 +67,9 @@ type SWProfSeg = TimedSeg TimeSig SWProf
 toIMAStore :: FilePath -> Either String QMidiScore -> Either String IMAStore
 toIMAStore f eqm = do qm  <- eqm
                       ima <- doIMApreprocess qm 
-                      return $ IMAStore f qm ima
+                      let tpb = ticksPerBeat . qMidiScore $ qm
+                          qbs = toQBins . qShortestNote $ qm
+                      return $ IMAStore f tpb qbs ima
 
 -- | Collects all profiles sorted by time signature in one map
 collectSWProf :: [SWProfSeg] -> Map TimeSig SWProf -> Map TimeSig SWProf
