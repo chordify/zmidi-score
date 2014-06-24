@@ -8,6 +8,7 @@ import ZMidi.IO.IMA                   ( printIMA, analyseProfile, exportIMAStore
                                       , matchIO )
 import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..) )
 import ZMidi.IMA.NSWProf              ( readNSWProf )
+import ZMidi.IMA.Internal             ( parseTimeSig )
 
 
 --------------------------------------------------------------------------------
@@ -79,14 +80,8 @@ myArgs = [
 -- representing the mode of operation
 data Mode = Train | Test | Profile | Store | IMA deriving (Eq)
 
-parseTimeSig :: Args MyArgs -> String -> TimeSig
-parseTimeSig arg s = case s of 
-                       "4/4" -> TimeSig 4 4 0 0
-                       "2/4" -> TimeSig 2 4 0 0
-                       "2/2" -> TimeSig 2 2 0 0
-                       "3/4" -> TimeSig 3 4 0 0
-                       "6/8" -> TimeSig 6 8 0 0
-                       _     -> usageError arg ("Unknown time signature: " ++ s)
+parseTimeSigArg :: Args MyArgs -> String -> TimeSig
+parseTimeSigArg arg s = either (usageError arg) id $ parseTimeSig s 
 
 -- Run from CL
 main :: IO ()
@@ -106,7 +101,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
               od  = getRequiredArg arg OutDir
               b   = getRequiredArg arg NrProfBins
               r   = Rot $ getRequiredArg arg RotationArg
-              ts  = getArg arg TimeSigArg >>= return . parseTimeSig arg
+              ts  = getArg arg TimeSigArg >>= return . parseTimeSigArg arg
               
               -- the input is either a file (Left) or a directory (Right)
               input = case ( getArg arg InputFilepath
