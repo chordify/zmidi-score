@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveFunctor            #-}
 module ZMidi.IMA.RNSWMatch( PMatch (..)
                           , NSWDist (..)
                           , Prob (..)
@@ -19,6 +20,7 @@ import ReadPDF                    ( pdfPrior, multiNormal, ToPDF, pdfTimeSig )
 import Data.Map.Strict            ( Map )
 import Data.List                  ( intercalate, maximumBy )
 import Data.Function              ( on )
+
 import Text.Printf                ( printf, PrintfArg )
 
 -- | Normalised spectral weights distance, obtained by matching two 'SWProf's
@@ -40,14 +42,35 @@ instance Show PMatch where
   show (PMatch ts m r fp) = printf (fp ++ '\t' : show ts ++ ": %1.4f\t R: %2d") m (rot r)
   showList l s = s ++ (intercalate "\n" . map show $ l)
   
-data Result = Result { meterOk :: Bool
-                     , rotOk   :: Bool
-                     } deriving (Eq)
-                     
-                     
+data Result a = Result { meterOk :: a
+                       , rotOk   :: a
+                       } deriving (Eq, Functor)
+
+instance Show a => Show (Result a) where
+  show (Result a b) =    "meter OK:    " ++ show a 
+                    ++ "\nrotation OK: " ++ show b
+
+avgResult :: [Result Bool] -> Result Double
+avgResult l = ap (/) (foldr step (Result 0 0) l) (Result len len)
+
+  where len = fromIntegral . length $ l :: Double
+
+        step :: Result Bool -> Result Double -> Result Double
+        step a b = ap (+) (fmap toInt a) b
+
+        toInt :: Bool -> Double
+        toInt True = 1.0
+        toInt _    = 0.0
+
+ap :: (a -> b -> c) -> Result a -> Result b -> Result c
+ap f (Result a b) (Result c d) = Result (f a c) (f b d)
   
-evalMeter :: [TimedSeg TimeSig PMatch] ->  [Result]
-evalMeter = undefined
+evalMeter :: [TimedSeg TimeSig PMatch] ->  [Result Bool]
+evalMeter = map eval where
+
+  eval :: TimedSeg TimeSig PMatch -> Result Bool
+  eval (TimedSeg ts pm) = Result (pmTimeSig pm == getEvent ts) 
+                                 (pmRot pm == 0)
 
   
 -- | Picks the best matching profile
