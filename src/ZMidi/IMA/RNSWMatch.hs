@@ -1,16 +1,22 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module Ragtime.NSWMatch( PMatch (..)
-                       , NSWDist (..)
-                       , Prob (..)
-                       , pickMeters
-                       , printPickMeter
-                       ) where
+module ZMidi.IMA.RNSWMatch( PMatch (..)
+                          , NSWDist (..)
+                          , Prob (..)
+                          , match
+                          , pickMeters
+                          , printPickMeter
+                          ) where
                        
 import ZMidi.Score 
-import Ragtime.TimeSigSeg         ( TimedSeg (..) )
+import ZMidi.IMA.TimeSigSeg       ( TimedSeg (..) )
 import ZMidi.IMA.SelectProfBins   ( Rot (..) )
+import ZMidi.IMA.Analyse          ( SWMeterSeg, IMAStore (..) )
 
+import ZMidi.IMA.RNSWProf         ( toDoubles, toRNSWProf )
+import ReadPDF                    ( pdfPrior, multiNormal, ToPDF, pdfTimeSig )
+
+import Data.Map.Strict            ( Map )
 import Data.List                  ( intercalate, maximumBy )
 import Data.Function              ( on )
 import Text.Printf                ( printf, PrintfArg )
@@ -26,12 +32,23 @@ newtype Prob    = Prob { prob :: Double }
                              
 data PMatch = PMatch {  pmTimeSig :: TimeSig
                      ,  pmatch    :: NSWDist
-                     ,  rotation  :: Rot
+                     ,  pmRot     :: Rot
+                     ,  pmFile    :: FilePath
                      } deriving (Eq)
                      
 instance Show PMatch where
-  show (PMatch ts m r) = printf (show ts ++ ": %1.4f\t R: %2d") m (rot r)
+  show (PMatch ts m r fp) = printf (fp ++ '\t' : show ts ++ ": %1.4f\t R: %2d") m (rot r)
   showList l s = s ++ (intercalate "\n" . map show $ l)
+  
+data Result = Result { meterOk :: Bool
+                     , rotOk   :: Bool
+                     } deriving (Eq)
+                     
+                     
+  
+evalMeter :: [TimedSeg TimeSig PMatch] ->  [Result]
+evalMeter = undefined
+
   
 -- | Picks the best matching profile
 pickMeters :: [TimedSeg TimeSig [PMatch]] 
@@ -55,4 +72,24 @@ printPickMeter (TimedSeg ts m) =
       -- tsEq (TimeSig 4 4 _ _) (TimeSig 2 2 _ _) = True
       -- tsEq a                 b                 = a == b
   
-  in printf s (pmatch m) (rot . rotation $ m)
+  in printf s (pmatch m) (rot . pmRot $ m)
+
+-- TODO replace vars variable
+-- TODO replace max rotation variable       
+-- TODO can probably be simplified      
+match :: Int -> Rot -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] 
+      -> IMAStore -> [TimedSeg TimeSig [PMatch]]
+match vars mr s pdfs i = map update . swMeterSeg $ i where
+
+  update :: SWMeterSeg ->  TimedSeg TimeSig [PMatch]
+  update x = fmap (const [getProb x r p | r <- [mr, pred mr .. 0], p <- pdfs]) x
+
+  getProb :: SWMeterSeg -> Rot -> ToPDF -> PMatch
+  getProb sg r pdf = 
+    let ts = pdfTimeSig pdf
+        d  = toDoubles vars $ toRNSWProf (imaQBins i) (imaTPB i) r (const ts) s sg
+        p  = NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d)
+    in PMatch ts p r (imaFile i)
+
+         
+  

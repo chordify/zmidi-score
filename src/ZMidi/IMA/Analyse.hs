@@ -5,9 +5,12 @@
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
 module ZMidi.IMA.Analyse ( SWMeterSeg
                          , IMAStore (..)
+                         -- , imaTPB
+                         -- , imaQBins
                          -- | * Inner Metrical Analysis
-                         , doIMA
+                         , doIMA -- TODO remove this export
                          , doIMApreprocess
+                         , toIMAStore
                          -- | * Preprocessing
                          -- , emptySegFilter
                          , collectSWProf
@@ -20,7 +23,7 @@ module ZMidi.IMA.Analyse ( SWMeterSeg
 import ZMidi.IMA.NSWProf 
 import ZMidi.Score
 import ZMidi.Skyline.MelFind      ( mergeTracks )
-import Ragtime.TimeSigSeg         ( TimedSeg (..), segment )
+import ZMidi.IMA.TimeSigSeg       ( TimedSeg (..), segment )
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
@@ -37,10 +40,20 @@ import GHC.Generics                ( Generic )
 -- Calculate Spectral Weight Profiles
 --------------------------------------------------------------------------------
 
-data IMAStore = IMAStore { swMeterSeg :: [SWMeterSeg]
-                         , imaFile    :: FilePath
+data IMAStore = IMAStore { imaFile      :: FilePath
+                         --, imaMidiScore :: QMidiScore
+                         , imaTPB       :: TPB
+                         , imaQBins     :: QBins
+                         , swMeterSeg   :: [SWMeterSeg]
                          } deriving (Show, Eq, Generic)
 instance Binary IMAStore 
+  
+-- imaTPB :: IMAStore -> TPB
+-- imaTPB = ticksPerBeat . qMidiScore . imaMidiScore
+
+-- imaQBins :: IMAStore -> QBins
+-- imaQBins = toQBins . qShortestNote . imaMidiScore
+
   
 -- A type synonym that captures all IMA information needed for meter estimation
 type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
@@ -48,6 +61,15 @@ type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
 -- A type synonym for a Segment in which the IMA info has been compressed into
 -- an Spectral Weight profile
 type SWProfSeg = TimedSeg TimeSig SWProf
+
+-- Performs an Inner Metric Analysis and stores the analysis and the 
+-- ScoreEvents in a 'IMAStore'
+toIMAStore :: FilePath -> Either String QMidiScore -> Either String IMAStore
+toIMAStore f eqm = do qm  <- eqm
+                      ima <- doIMApreprocess qm 
+                      let tpb = ticksPerBeat . qMidiScore $ qm
+                          qbs = toQBins . qShortestNote $ qm
+                      return $ IMAStore f tpb qbs ima
 
 -- | Collects all profiles sorted by time signature in one map
 collectSWProf :: [SWProfSeg] -> Map TimeSig SWProf -> Map TimeSig SWProf

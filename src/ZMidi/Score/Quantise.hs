@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DeriveGeneric              #-}
 module ZMidi.Score.Quantise ( -- * Quantisation specific datatypes
                               QMidiScore (..)
                             , ShortestNote (..)
@@ -26,6 +27,9 @@ import ZMidi.Score.Datatypes
 import Control.Arrow              ( second )
 import Text.Printf                ( printf, PrintfArg )
 
+import Data.Binary                 ( Binary )
+import GHC.Generics                ( Generic )
+
 --------------------------------------------------------------------------------
 -- Quantisation contants
 --------------------------------------------------------------------------------
@@ -43,34 +47,36 @@ data QMidiScore = QMidiScore { qMidiScore    :: MidiScore
                              , qShortestNote :: ShortestNote
                              , qGridUnit     :: GridUnit
                              , totDeviation  :: QDev
-                             } deriving (Show, Eq)
-                             
+                             } deriving (Show, Eq, Generic)
+instance Binary QMidiScore
+
 -- | The 'ShortestNote' determines the minimal grid length of a quantised 
 -- 'QMidiScore', when quantised with 'quantise'.
 data ShortestNote = Eighth | Sixteenth | ThirtySecond 
                   | FourtyEighth | SixtyFourth
-                    deriving (Eq, Show)
+                    deriving (Eq, Show, Generic)
+instance Binary ShortestNote
 
 -- | The 'GridUnit' describes the minimal length of a quantised event and
 -- is controlled by the number of 'QBins' 
 newtype GridUnit  = GridUnit { gridUnit :: Int } 
-                      deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+                      deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary )
 
 -- | The 'QBins' describes the number of quantisation bins per (annotated) beat 
 -- length and is generally controlled by the 'ShortestNote' parameter. 
 -- (see also: 'toQBins' )
 newtype QBins     = QBins    { qbins    :: Int } 
-                      deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+                      deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary )
 
 -- | Represents a quantisation deviation, i.e. the number of ticks that an
 -- event was moved to match the time grid.
 newtype QDev      = QDev     { qDev     :: Int }
-                      deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+                      deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary )
                       
 -- | Represents the average quantisation deviation per onset
 newtype QDevPerc = QDevPerc { qDevPerc :: Double }
                      deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
-                              , Fractional, RealFloat, RealFrac, PrintfArg )
+                              , Fractional, RealFloat, RealFrac, PrintfArg, Binary )
 
 --------------------------------------------------------------------------------
 -- Quantisation function

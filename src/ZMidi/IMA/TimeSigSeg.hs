@@ -1,13 +1,13 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE DeriveFunctor           #-}
 {-# LANGUAGE DeriveGeneric           #-}
-module Ragtime.TimeSigSeg ( TimedSeg (..)
-                  , TimeSigSeg
-                  , TimeSigTrack
-                  , segByTimeSig
-                  , toTimeSigSegs
-                  , segment
-                  ) where
+module ZMidi.IMA.TimeSigSeg ( TimedSeg (..)
+                            , TimeSigSeg
+                            , TimeSigTrack
+                            , segByTimeSig
+                            , toTimeSigSegs
+                            , segment
+                            ) where
 
 import ZMidi.Score.Datatypes
 import Data.List    ( sort )

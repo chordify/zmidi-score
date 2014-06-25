@@ -16,6 +16,7 @@ import ZMidi.IMA.NSWProf
 import Data.List                      ( sort, sortBy )
 import Data.Ord                       ( comparing, Down (..) )
 import Data.Maybe                     ( fromJust )
+import Data.Csv                       ( FromField (..) )
 import Data.Ratio                as R ( numerator, denominator, (%) )
 import qualified Data.Map.Strict as M ( map, lookup )
 import Data.Map.Strict                ( Map, toAscList, filterWithKey
@@ -66,7 +67,7 @@ printMeterStats = mapM_ (putStrLn . showNSWProf) . toAscList
 -- Rotations
 --------------------------------------------------------------------------------
 newtype Rot = Rot { rot :: Int } 
-                  deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+                  deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, FromField )
 
 rotate :: QBins -> TimeSig -> Rot -> (Beat, BeatRat) -> (Beat, BeatRat)
 rotate (QBins q) (TimeSig n _ _ _) (Rot rot) (Beat b, BeatRat r) =

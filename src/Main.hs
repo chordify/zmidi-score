@@ -1,19 +1,20 @@
 module Main (main) where
 
 import System.Console.ParseArgs
-import EncodeNSWProf
 import ZMidi.Score.Datatypes          ( TimeSig (..))
-import ZMidi.Score.Quantise           ( ShortestNote (..) )
-import ZMidi.IO.Common                ( mapDir_, readQMidiScoreSafe )
-import ZMidi.IO.IMA                   ( printIMA, convertToIMA )
+import ZMidi.IO.Common                ( mapDir_ )
+import ZMidi.IO.IMA                   ( printIMA, analyseProfile, exportIMAStore
+                                      , readIMAScoreGeneric, exportCSVProfs, writeCSVHeader
+                                      , matchIO )
 import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..) )
 import ZMidi.IMA.NSWProf              ( readNSWProf )
+import ZMidi.IMA.Internal             ( parseTimeSig )
 
 
 --------------------------------------------------------------------------------
 -- Commandline argument parsing
 --------------------------------------------------------------------------------
-data MyArgs = Mode | InputFilepath | InputDirFilepath | OutFilepath 
+data MyArgs = Mode | InputFilepath | InputDirFilepath | OutFile | OutDir
             | SelProfFilepath | NrProfBins | RotationArg | TimeSigArg
                   deriving (Eq, Ord, Show)
 
@@ -23,14 +24,20 @@ myArgs = [
                  argAbbr  = Just 'm',
                  argName  = Just "mode",
                  argData  = argDataRequired "mode" ArgtypeString,
-                 argDesc  = "The operation mode (train|test|analyse|select)"
+                 argDesc  = "The operation mode (train|test|ima|profile|store)"
                }
-        ,  Arg { argIndex = OutFilepath,
+        ,  Arg { argIndex = OutFile,
                  argAbbr  = Just 'o',
-                 argName  = Just "out",
+                 argName  = Just "out-file",
                  argData  = argDataDefaulted "filepath" ArgtypeString "out.csv",
-                 argDesc  = "Output directory for the profile files"
-               }               
+                 argDesc  = "Output file for writing CSV data"
+               } 
+        ,  Arg { argIndex = OutDir,
+                 argAbbr  = Just 'u',
+                 argName  = Just "out-dir",
+                 argData  = argDataDefaulted "filepath" ArgtypeString "",
+                 argDesc  = "Output directory for the IMA files"
+               }
          , Arg { argIndex = InputFilepath,
                  argAbbr  = Just 'f',
                  argName  = Just "file",
@@ -73,14 +80,8 @@ myArgs = [
 -- representing the mode of operation
 data Mode = Train | Test | Profile | Store | IMA deriving (Eq)
 
-parseTimeSig :: Args MyArgs -> String -> TimeSig
-parseTimeSig arg s = case s of 
-                       "4/4" -> TimeSig 4 4 0 0
-                       "2/4" -> TimeSig 2 4 0 0
-                       "2/2" -> TimeSig 2 2 0 0
-                       "3/4" -> TimeSig 3 4 0 0
-                       "6/8" -> TimeSig 6 8 0 0
-                       _     -> usageError arg ("Unknown time signature: " ++ s)
+parseTimeSigArg :: Args MyArgs -> String -> TimeSig
+parseTimeSigArg arg s = either (usageError arg) id $ parseTimeSig s 
 
 -- Run from CL
 main :: IO ()
@@ -96,10 +97,11 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                          m         -> usageError arg ("unrecognised mode: " ++ m)
               
               -- get parameters
-              out = getRequiredArg arg OutFilepath
+              out = getRequiredArg arg OutFile
+              od  = getRequiredArg arg OutDir
               b   = getRequiredArg arg NrProfBins
               r   = Rot $ getRequiredArg arg RotationArg
-              ts  = getArg arg TimeSigArg >>= return . parseTimeSig arg
+              ts  = getArg arg TimeSigArg >>= return . parseTimeSigArg arg
               
               -- the input is either a file (Left) or a directory (Right)
               input = case ( getArg arg InputFilepath
@@ -113,18 +115,15 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
           s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
           -- do the parsing magic
           case (mode, input) of
-            (Train, Left  f) -> processMidi s out f
-            (Train, Right d) -> writeHeader s out >> mapDir_ (processMidi s out) d
-            (Test , Left  f) -> matchIO b r s f
-            (Test , Right d) -> mapDir_ (matchIO b r s) d
-            (Store, Left  f) -> convertToIMA out f
-            (Store, Right d) -> undefined
-            (IMA  , Left  f) -> readQMidiScoreSafe FourtyEighth f >>= printIMA . either error id
+            (Train, Left  f) -> exportCSVProfs s out f
+            (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
+            (Test , Left  f) -> readIMAScoreGeneric f >>= either error (matchIO b r s )
+            (Test , Right d) -> undefined -- mapDir_ (matchIO b r s) d
+            (Store, Left  f) -> exportIMAStore od f
+            (Store, Right d) -> mapDir_ (exportIMAStore od) d
+            (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
             (IMA  , Right _) -> usageError arg "We can only analyse a file"
-            (Profile, Left  f) -> analyseMidi ts r s f
-            (Profile, Right _) -> usageError arg "We can only profile a file"
-
-            -- (Select, _       ) -> print s
-            
+            (Profile, Left  f) -> readIMAScoreGeneric f >>= either error (analyseProfile ts r s)
+            (Profile, Right _) -> usageError arg "We can only profile a file"            
 
        
