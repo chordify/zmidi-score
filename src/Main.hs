@@ -4,8 +4,9 @@ import System.Console.ParseArgs
 import ZMidi.Score.Datatypes          ( TimeSig (..))
 import ZMidi.IO.Common                ( mapDir_ )
 import ZMidi.IO.IMA                   ( printIMA, analyseProfile, exportIMAStore
-                                      , readIMAScoreGeneric, exportCSVProfs, writeCSVHeader
-                                      , matchIO )
+                                      , readIMAScoreGeneric, exportCSVProfs
+                                      , writeCSVHeader, printMatchVerb
+                                      , printMatchAgr, matchIO )
 import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..) )
 import ZMidi.IMA.NSWProf              ( readNSWProf )
 import ZMidi.IMA.Internal             ( parseTimeSig )
@@ -117,7 +118,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
           case (mode, input) of
             (Train, Left  f) -> exportCSVProfs s out f
             (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
-            (Test , Left  f) -> readIMAScoreGeneric f >>= either error (matchIO b r s )
+            (Test , Left  f) -> readIMAScoreGeneric f >>= either error (\x -> matchIO b r s x >>= printMatchVerb)
             (Test , Right d) -> undefined -- mapDir_ (matchIO b r s) d
             (Store, Left  f) -> exportIMAStore od f
             (Store, Right d) -> mapDir_ (exportIMAStore od) d

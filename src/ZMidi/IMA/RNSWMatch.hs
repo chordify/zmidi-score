@@ -5,6 +5,8 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
                           , NSWDist (..)
                           , Prob (..)
                           , match
+                          , evalMeter
+                          , avgResult
                           , pickMeters
                           , printPickMeter
                           ) where
@@ -74,9 +76,8 @@ evalMeter = map eval where
 
   
 -- | Picks the best matching profile
-pickMeters :: [TimedSeg TimeSig [PMatch]] 
-           -> Either String [TimedSeg TimeSig PMatch]
-pickMeters = Right . map (fmap (maximumBy (compare `on` pmatch)))
+pickMeters :: [TimedSeg TimeSig [PMatch]] -> [TimedSeg TimeSig PMatch]
+pickMeters = map (fmap (maximumBy (compare `on` pmatch)))
 
 printPickMeter :: TimedSeg TimeSig PMatch -> String
 printPickMeter (TimedSeg ts m) = 

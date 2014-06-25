@@ -5,6 +5,8 @@ module ZMidi.IO.IMA ( exportIMAStore
                     , writeCSVHeader
                     , matchIO
                     -- | * Printing
+                    , printMatchVerb
+                    , printMatchAgr
                     , printIMA
                     , analyseProfile
                     ) where
@@ -15,7 +17,8 @@ import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
 import ZMidi.IMA.NSWProf           ( normSWProfByBar )
 import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin )
-import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, match, printPickMeter )
+import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, match
+                                   , avgResult, evalMeter, printPickMeter )
 import ZMidi.IMA.TimeSigSeg        ( TimedSeg (..) )
 
 import ReadPDF                     ( ToPDF, readPDFs )
@@ -71,12 +74,16 @@ writeCSVHeader m out = writeFile out . genHeader $ m
 --------------------------------------------------------------------------------
                      
 -- TODO promote this pattern
-matchIO :: Int -> Rot ->  Map TimeSig [(Beat, BeatRat)] -> IMAStore -> IO ()
+matchIO :: Int -> Rot ->  Map TimeSig [(Beat, BeatRat)] -> IMAStore
+        -> IO [TimedSeg TimeSig PMatch]
 matchIO v r m ima = do ps <- readPDFs ("fit"++show v++".json" )
-                       either putStrLn printMatch . pickMeters $ match v r m ps ima
+                       return . pickMeters $ match v r m ps ima
 
-  where printMatch ::  [TimedSeg TimeSig PMatch] -> IO ()
-        printMatch = putStrLn . intercalate "\n" . map printPickMeter
+printMatchVerb ::  [TimedSeg TimeSig PMatch] -> IO ()
+printMatchVerb = putStrLn . intercalate "\n" . map printPickMeter
+
+printMatchAgr ::  [TimedSeg TimeSig PMatch] -> IO ()
+printMatchAgr = print . avgResult . evalMeter
         
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis
