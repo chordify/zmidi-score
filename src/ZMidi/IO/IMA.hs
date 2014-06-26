@@ -5,7 +5,7 @@ module ZMidi.IO.IMA ( exportIMAStore
                     , writeCSVHeader
                     , matchIO
                     -- | * Printing
-                    , printMatchVerb
+                    , printMatchLine
                     , printMatchAgr
                     , printIMA
                     , analyseProfile
@@ -79,11 +79,14 @@ matchIO :: Int -> Rot ->  Map TimeSig [(Beat, BeatRat)] -> IMAStore
 matchIO v r m ima = do ps <- readPDFs ("fit"++show v++".json" )
                        return . pickMeters $ match v r m ps ima
 
-printMatchVerb ::  [TimedSeg TimeSig PMatch] -> IO ()
-printMatchVerb = putStrLn . intercalate "\n" . map printPickMeter
+printMatchLine ::  [TimedSeg TimeSig PMatch] -> IO [TimedSeg TimeSig PMatch]
+printMatchLine m = do putStrLn . intercalate "\n" . map printPickMeter $ m 
+                      return m
 
 printMatchAgr ::  [TimedSeg TimeSig PMatch] -> IO ()
 printMatchAgr = print . avgResult . evalMeter
+
+
         
 --------------------------------------------------------------------------------
 -- Printing the Inner Metrical Analysis

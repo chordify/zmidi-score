@@ -1,16 +1,19 @@
 module Main (main) where
 
 import System.Console.ParseArgs
+import Data.Maybe                     ( catMaybes )
+
 import ZMidi.Score.Datatypes          ( TimeSig (..))
-import ZMidi.IO.Common                ( mapDir_ )
+import ZMidi.IO.Common                ( mapDir_, mapDir, warning )
 import ZMidi.IO.IMA                   ( printIMA, analyseProfile, exportIMAStore
                                       , readIMAScoreGeneric, exportCSVProfs
-                                      , writeCSVHeader, printMatchVerb
+                                      , writeCSVHeader, printMatchLine
                                       , printMatchAgr, matchIO )
 import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..) )
 import ZMidi.IMA.NSWProf              ( readNSWProf )
 import ZMidi.IMA.Internal             ( parseTimeSig )
-
+import ZMidi.IMA.TimeSigSeg           ( TimedSeg )
+import ZMidi.IMA.RNSWMatch            ( PMatch )
 
 --------------------------------------------------------------------------------
 -- Commandline argument parsing
@@ -98,13 +101,14 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                          m         -> usageError arg ("unrecognised mode: " ++ m)
               
               -- get parameters
-              out = getRequiredArg arg OutFile
-              od  = getRequiredArg arg OutDir
-              b   = getRequiredArg arg NrProfBins
+              out = getRequiredArg arg OutFile :: FilePath
+              od  = getRequiredArg arg OutDir  :: FilePath
+              b   = getRequiredArg arg NrProfBins 
               r   = Rot $ getRequiredArg arg RotationArg
               ts  = getArg arg TimeSigArg >>= return . parseTimeSigArg arg
               
               -- the input is either a file (Left) or a directory (Right)
+              input :: Either FilePath FilePath
               input = case ( getArg arg InputFilepath
                            , getArg arg InputDirFilepath ) of
                         -- we have two ways of identifying a file: by filename
@@ -114,12 +118,19 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                        _                  -> usageError arg "Invalid filepaths" 
               
           s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
+          
+          let readMatchPutLn :: FilePath -> IO (Maybe ([TimedSeg TimeSig PMatch]))
+              readMatchPutLn f = do m <- readIMAScoreGeneric f
+                                    case m of
+                                      Left  s -> warning f s >> return Nothing 
+                                      Right x -> matchIO b r s x >>= printMatchLine >>= return . Just
+          
           -- do the parsing magic
           case (mode, input) of
             (Train, Left  f) -> exportCSVProfs s out f
             (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
-            (Test , Left  f) -> readIMAScoreGeneric f >>= either error (\x -> matchIO b r s x >>= printMatchVerb)
-            (Test , Right d) -> undefined -- mapDir_ (matchIO b r s) d
+            (Test , Left  f) -> readMatchPutLn f >>= maybe (return ()) printMatchAgr
+            (Test , Right d) -> mapDir (readMatchPutLn) d >>= printMatchAgr . concat . catMaybes
             (Store, Left  f) -> exportIMAStore od f
             (Store, Right d) -> mapDir_ (exportIMAStore od) d
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA

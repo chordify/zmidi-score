@@ -1,7 +1,6 @@
-{-# OPTIONS_GHC -Wall                   #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
- {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveGeneric              #-}
+{-# OPTIONS_GHC -Wall          #-}
+{-# LANGUAGE OverloadedStrings #-}
+-- todo move to ZMidi.IO
 module ZMidi.IMA.MeterGT where
 
 import Prelude              hiding ( readFile )
