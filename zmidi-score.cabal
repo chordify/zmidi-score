@@ -72,7 +72,7 @@ executable MidiIMA
                        matrix == 0.3.0.0,
                        parseargs >= 0.1.5.2
                        
-  ghc-options:         -O2 -auto-all -fprof-auto
+  ghc-options:         -O2 -auto-all -fprof-auto -threaded 
   
 executable RagPat
   main-is:             RagPatMain.hs

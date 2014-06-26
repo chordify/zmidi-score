@@ -101,6 +101,8 @@ printPickMeter (TimedSeg ts m) =
 -- TODO replace vars variable
 -- TODO replace max rotation variable       
 -- TODO can probably be simplified      
+-- TODO create a prior based on the Rotation, the chances on rotations > 0
+--      quite low
 match :: Int -> Rot -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] 
       -> IMAStore -> [TimedSeg TimeSig [PMatch]]
 match vars mr s pdfs i = map update . swMeterSeg $ i where
