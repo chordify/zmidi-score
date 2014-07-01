@@ -81,8 +81,8 @@ foldrDir f b fp = do fs  <- getCurDirectoryContents fp
 -- | Reads a 'MidiFile' using 'readMidiScoreSafe', 'quantise'es the result
 -- and checks if the 'MidiScore' has a reasonable average quantisation deviation
 -- (see 'QDevPerc')
-readQMidiScoreSafe :: ShortestNote -> FilePath -> IO (Either String QMidiScore)
-readQMidiScoreSafe sn f = readMidiScoreSafe f >>= return . (>>= quantiseQDevSafe sn)
+readQMidiScoreSafe :: FilePath -> IO (Either String QMidiScore)
+readQMidiScoreSafe f = readMidiScoreSafe f >>= return . (>>= quantiseQDevSafe)
 
 -- | Reads a 'MidiFile' converts it into a 'MidiScore' and checks if the 
 -- 'MidiScore' has a reasonable average quantisation deviation (see 'QDevPerc')
@@ -92,8 +92,8 @@ readMidiScoreSafe f = readMidi f >>= return . either (Left . show)
 -- TODO: maybe solved with an arrow in a nicer way
                                                      
 -- | Reads a 'MidiFile' using 'readMidiScore' but 'quantise'es the result.
-readQMidiScore :: ShortestNote -> FilePath -> IO (QMidiScore)
-readQMidiScore sn f = readMidiScore f >>= return . quantise sn
+readQMidiScore :: FilePath -> IO (QMidiScore)
+readQMidiScore f = readMidiScore f >>= return . quantise
 
 -- | Reads a 'MidiFile' converts it into a 'MidiScore' and returns it
 readMidiScore :: FilePath -> IO (MidiScore)
@@ -132,6 +132,7 @@ removeTrackLabels :: FilePath -> IO ()
 removeTrackLabels f = readMidiFile f >>= 
                       writeMidi (f ++ ".noLab.mid") . removeLabels
        
+-- | Sends a warning about a file that cannot be read to the stderr
 warning :: FilePath -> String -> IO ()
 warning fp w = putErrStrLn ("Warning: skipping " ++ fp ++ ": " ++ w)
 

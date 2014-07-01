@@ -42,7 +42,7 @@ import qualified Data.ByteString.Lazy as BS ( appendFile )
 --------------------------------------------------------------------------------
          
 exportIMAStore :: FilePath -> FilePath -> IO ()
-exportIMAStore dir i =   readQMidiScoreSafe FourtyEighth i >>= writeIMA
+exportIMAStore dir i =   readQMidiScoreSafe i >>= writeIMA
                  
   where writeIMA :: Either String QMidiScore -> IO ()
         writeIMA qm = do let out = dir </> takeFileName i <.> "ima"
@@ -52,7 +52,7 @@ exportIMAStore dir i =   readQMidiScoreSafe FourtyEighth i >>= writeIMA
 readIMAScoreGeneric :: FilePath -> IO (Either String IMAStore)
 readIMAScoreGeneric f = 
   case take 4 . map toLower . takeExtension $ f of
-    ".mid" -> readQMidiScoreSafe FourtyEighth f >>= return . toIMAStore f
+    ".mid" -> readQMidiScoreSafe f >>= return . toIMAStore f
     ".ima" -> decodeFile f >>= return . Right
     e      -> error ("Error: " ++ e ++ " is not an accepted file type")  
     

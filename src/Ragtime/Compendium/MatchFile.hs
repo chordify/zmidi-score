@@ -160,19 +160,20 @@ readRTCMidiPath sn bd fp = -- Path conversions
                      Just rtcf -> do m <- readMidi fp 
                                      case m of
                                        Left  _ -> return Nothing -- ignore erroneous files
-                                       Right x -> let r  = toRTCMidi rtcf bd fp sn (midiFileToMidiScore x)
+                                       Right x -> let r  = toRTCMidi rtcf bd fp (midiFileToMidiScore x)
                                                   in  r `seq` (return . Just $ r)
 
 -- | Strictly extract information needed for the selection of Midifiles from
 -- a 'MidiScore'.
-toRTCMidi :: RTCFolder -> FilePath -> FilePath -> ShortestNote -> MidiScore 
+-- TODO adapt to new quantisation interface etc.
+toRTCMidi :: RTCFolder -> FilePath -> FilePath -> MidiScore 
           -> RTCMidi
-toRTCMidi rtcf bd fp sn ms = 
+toRTCMidi rtcf bd fp ms = 
   let n          = length . getVoices $ ms  
       t          = getTimeSig ms
       g          = canBeQuantisedAt FourtyEighth ms
       p          = if g then getPercTripGridOnsets ms else -1
-      (QMidiScore _ _ gu d) = quantise sn ms -- using the complete MIDI file !
+      (QMidiScore _ _ gu d) = quantise ms -- using the complete MIDI file !
       x          = fromIntegral . nrOfNotes $ ms
       r          = RTCMidi bd rtcf (takeFileName fp) n t p g (fromIntegral d / x) gu
   in n `seq` t `seq` p `seq` g `seq` p `seq` d `seq` gu `seq` x `seq` r

@@ -17,9 +17,6 @@ import Control.Monad      ( when )
 import Ragtime.Evaluation
 
 
--- import Debug.Trace
--- traceShow' a = traceShow a a 
-
 printPatCount :: [RTC] -> FilePath -> IO ()
 printPatCount rtc f = 
   do ms <- readMidiScore f 
@@ -36,6 +33,8 @@ printPatCount rtc f =
                 )
                 
 -- | Match the patterns to one file
+-- TODO replace FourtyEighth by Quantise parameter
+-- TODO adapt to new Quantisation interface
 printFilePatMat :: FilePath -> IO ()
 printFilePatMat f =  
   do ms <-readMidiScore f 
@@ -90,7 +89,7 @@ showPats = intercalate "\n" . map show
 -- 'Pattern' list, where every 'Pattern' represents a beat
 toPatterns :: ShortestNote -> MidiScore -> [Pattern]
 toPatterns q ms = scoreToPatterns (Time . tpb $ getMinGridSize q ms) (toQBins q) 
-                . findMelodyQuant q $ ms where
+                . findMelodyQuant $ ms where
                 
   scoreToPatterns :: Time -> QBins -> Voice -> [Pattern]
   scoreToPatterns ml qb = groupEvery qb . toPat [0, ml .. ] . map onset where

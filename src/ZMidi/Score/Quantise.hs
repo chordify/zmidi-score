@@ -37,6 +37,9 @@ import GHC.Generics                ( Generic )
 acceptableQuantisationDeviation :: QDevPerc
 acceptableQuantisationDeviation = 0.02
 
+shortestNote :: ShortestNote
+shortestNote = FourtyEighth
+
 --------------------------------------------------------------------------------
 -- Quantisation datatypes
 --------------------------------------------------------------------------------
@@ -83,11 +86,11 @@ newtype QDevPerc = QDevPerc { qDevPerc :: Double }
 --------------------------------------------------------------------------------
                       
 -- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid.
-quantise :: ShortestNote -> MidiScore -> QMidiScore
-quantise sn = either error id . quantiseSafe sn
+quantise :: MidiScore -> QMidiScore
+quantise = either error id . quantiseSafe shortestNote
 
-quantiseQDevSafe :: ShortestNote -> MidiScore -> Either String QMidiScore
-quantiseQDevSafe sn ms = quantiseSafe sn ms >>= qDevCheck
+quantiseQDevSafe :: MidiScore -> Either String QMidiScore
+quantiseQDevSafe ms = quantiseSafe shortestNote ms >>= qDevCheck
 
 qDevCheck :: QMidiScore -> Either String QMidiScore
 qDevCheck qm | d < acceptableQuantisationDeviation = Right qm

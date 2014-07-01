@@ -18,17 +18,17 @@ main = do arg <- getArgs
             ["-d", d] -> do putStrLn ("filepath\tprecision\trecall\tf-measure")
                             rs <- mapDir evalHandSep d
                             putStrLn ("averages\t" ++ (show . averagePRF $ rs))
-            ["-b", d] -> mapDir_ (quantiseAndMelFind FourtyEighth) d
+            ["-b", d] -> mapDir_ quantiseAndMelFind d
             ["-f", f] -> createSepHandMidiFile f
             ["-r", f] -> reverse2Tracks f
-            ["-q", f] -> readQMidiScore FourtyEighth f 
+            ["-q", f] -> readQMidiScore f 
                             >>= (flip writeMidiScore) (f ++ ".quant.mid") 
                               . qMidiScore
             ["-l", d] -> logDuplicates d
             ["-n", f] -> removeTrackLabels f
             ["-x", f] -> melodySkyline f 
-            ["-m", f] -> filterMelMidiFile FourtyEighth f 
-            ["-t", f] -> test FourtyEighth f
+            ["-m", f] -> filterMelMidiFile f 
+            ["-t", f] -> test f
             
             _  -> putStrLn ("usage: -f <filename>  do melody finding\n"++
                             "   OR  -r <filename>  reverse track order\n"++
@@ -42,9 +42,9 @@ main = do arg <- getArgs
                             "   OR  -t <filename>  for testing\n" 
                             )
 
-test :: ShortestNote -> FilePath -> IO ()
-test q f = do mf <- readMidiScore f >>= return . filterMelodyQuant q 
-              print . dipDetect (-9) 9 . head . getVoices $ mf
+test ::  FilePath -> IO ()
+test f = do mf <- readMidiScore f >>= return . filterMelodyQuant 
+            print . dipDetect (-9) 9 . head . getVoices $ mf
             
 
                             
@@ -67,17 +67,17 @@ evalHandSep f = do putStr (show f ++ "\t")
                                         . map (show . countChan) $ getVoices m))
                    return r
 
-quantiseAndMelFind ::  ShortestNote -> FilePath -> IO ()
-quantiseAndMelFind q  f = do m <- readMidiScore f
-                             writeMidiScore (qMidiScore $ quantise q m) (f ++ ".quantise.mid")
-                             putStrLn ("written: " ++ f ++ ".quantise.mid")
-                             writeMidiScore (filterMelodyQuant q m) (f ++ ".melody.dip.mid")
-                             putStrLn ("written: " ++ f ++ ".melody.dip.mid")
+quantiseAndMelFind :: FilePath -> IO ()
+quantiseAndMelFind f = do m <- readMidiScore f
+                          writeMidiScore (qMidiScore $ quantise m) (f ++ ".quantise.mid")
+                          putStrLn ("written: " ++ f ++ ".quantise.mid")
+                          writeMidiScore (filterMelodyQuant m) (f ++ ".melody.dip.mid")
+                          putStrLn ("written: " ++ f ++ ".melody.dip.mid")
                    
 -- | 
-filterMelMidiFile :: ShortestNote -> FilePath -> IO ()
-filterMelMidiFile q f = readMidiScore f >>=  writeMidi (f ++ ".melody.mid") 
-                      . midiScoreToMidiFile . filterMelodyQuant q
+filterMelMidiFile :: FilePath -> IO ()
+filterMelMidiFile f = readMidiScore f >>=  writeMidi (f ++ ".melody.mid") 
+                    . midiScoreToMidiFile . filterMelodyQuant
                    
                    
 -- | Takes a 'MidiFile' merges the tracks separates the hands again and 

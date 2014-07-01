@@ -21,23 +21,23 @@ type MelFind = Voice -> (Voice, Voice)
 
 -- | Applies 'findMelodyQuant' to a 'MidiScore' but returns the score instead
 -- of just the 'Voice'.
-filterMelodyQuant :: ShortestNote -> MidiScore -> MidiScore
-filterMelodyQuant q ms = ms {getVoices = [findMelodyQuant q ms]}
+filterMelodyQuant :: MidiScore -> MidiScore
+filterMelodyQuant ms = ms {getVoices = [findMelodyQuant ms]}
 
 -- | Merges all 'Voices' and returns the melody using the skyline algorithm
 -- with a lower limit at the middle C. The melody is quantised by
 -- 'ShortestNote' and the overlapping notes are cut off. [more..?]
-findMelodyQuant :: ShortestNote ->  MidiScore -> Voice
-findMelodyQuant q = removeOverlap . head . getVoices -- get the first voice 
-                                  . sepHand skyLineLLDipDetect -- melody finding
-                                  . qMidiScore . quantise q . mergeTracks   
+findMelodyQuant ::  MidiScore -> Voice
+findMelodyQuant = removeOverlap . head . getVoices -- get the first voice 
+                                . sepHand skyLineLLDipDetect -- melody finding
+                                . qMidiScore . quantise . mergeTracks   
 
 -- | The complement of 'findMelodyQuant', returning only the accompaniment 
 -- without the melody in a single 'Voice'. 
-getAccompQuant  :: ShortestNote ->  MidiScore -> Voice
-getAccompQuant q = (!! 1) . getVoices          -- get the second voice
-                 . sepHand skyLineLLDipDetect  -- melody separation
-                 . qMidiScore . quantise q . mergeTracks 
+getAccompQuant  :: MidiScore -> Voice
+getAccompQuant = (!! 1) . getVoices          -- get the second voice
+               . sepHand skyLineLLDipDetect  -- melody separation
+               . qMidiScore . quantise . mergeTracks 
                                   
 -- | Returns the melody 'Voice', if there the 'MidiScore' has exactly 2 voices
 -- This function assumes that the first track is the melody.
