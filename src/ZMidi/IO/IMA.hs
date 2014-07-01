@@ -32,7 +32,7 @@ import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 import Text.Printf                 ( printf )
 import System.FilePath             ( takeExtension, takeFileName, (</>), (<.>) )
 import Data.Char                   ( toLower )
-import Data.Ratio                  ( numerator, denominator )
+import Data.Ratio                  ( numerator, denominator, (%) )
 import Data.Binary                 ( encodeFile, decodeFile )
 import Data.List                   ( intercalate ) 
 import qualified Data.ByteString.Lazy as BS ( appendFile )
@@ -74,7 +74,7 @@ writeCSVHeader m out = writeFile out . genHeader $ m
 --------------------------------------------------------------------------------
                      
 -- TODO promote this pattern
-matchIO :: Int -> Rot ->  Map TimeSig [(Beat, BeatRat)] -> IMAStore
+matchIO :: Int -> Int ->  Map TimeSig [(Beat, BeatRat)] -> IMAStore
         -> IO [TimedSeg TimeSig PMatch]
 matchIO v r m ima = do ps <- readPDFs ("fit"++show v++".json" )
                        return . pickMeters $ match v r m ps ima
@@ -120,7 +120,7 @@ printIMA is = mapM_ (starMeter (imaTPB is)) . swMeterSeg $ is where
     showMSE = maybe "    " (show . pitch) 
     
 -- Analyses a MidiFile verbosely by printing the spectral weight profiles
-analyseProfile :: Maybe TimeSig -> Rot -> Map TimeSig [(Beat, BeatRat)] -> IMAStore -> IO ()
+analyseProfile :: Maybe TimeSig -> Int -> Map TimeSig [(Beat, BeatRat)] -> IMAStore -> IO ()
 analyseProfile mt r s im = 
   do let pp  = swMeterSeg im
          qb  = imaQBins im 
@@ -131,7 +131,7 @@ analyseProfile mt r s im =
          
          showSel :: SWMeterSeg -> String
          showSel x = let ts = tsf . getEvent . boundary $ x
-                     in show . filterBin qb r s ts
+                     in show . filterBin qb (Rot (r % 12)) s ts
                              . normSWProfByBar  
                              . toNSWProfWithTS ts tb . seg $ x
          
@@ -139,6 +139,6 @@ analyseProfile mt r s im =
          
      putStrLn . prnt $ "original profiles" : 
                 map (show . normSWProfByBar . seg . toSWProf tb) pp
-     putStrLn ("rotation: " ++ show (rot r))
+     putStrLn ("rotation: " ++ show r)
      putStrLn . prnt $ "matched profiles" : map showSel pp
-     putStrLn . prnt $ map (show . toRNSWProf qb tb r tsf s) pp
+     putStrLn . prnt $ map (show . toRNSWProf qb tb (Rot (r % 12)) tsf s) pp

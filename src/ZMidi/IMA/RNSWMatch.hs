@@ -13,7 +13,7 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
                        
 import ZMidi.Score 
 import ZMidi.IMA.TimeSigSeg       ( TimedSeg (..) )
-import ZMidi.IMA.SelectProfBins   ( Rot (..) )
+import ZMidi.IMA.SelectProfBins   ( Rot (..), getNumForQBins )
 import ZMidi.IMA.Analyse          ( SWMeterSeg, IMAStore (..) )
 
 import ZMidi.IMA.RNSWProf         ( toDoubles, toRNSWProf )
@@ -22,6 +22,7 @@ import ReadPDF                    ( pdfPrior, multiNormal, ToPDF, pdfTimeSig )
 import Data.Map.Strict            ( Map )
 import Data.List                  ( intercalate, maximumBy )
 import Data.Function              ( on )
+import Data.Ratio                 ( (%), numerator )
 
 import Text.Printf                ( printf, PrintfArg )
 
@@ -41,7 +42,7 @@ data PMatch = PMatch {  pmTimeSig :: TimeSig
                      } deriving (Eq)
                      
 instance Show PMatch where
-  show (PMatch ts m r fp) = printf (fp ++ '\t' : show ts ++ ": %1.4f\t R: %2d") m (rot r)
+  show (PMatch ts m r fp) = printf (fp ++ '\t' : show ts ++ ": %1.4f\t R: " ++ show (rot r)) m 
   showList l s = s ++ (intercalate "\n" . map show $ l)
   
 data Result a = Result { meterOk :: a
@@ -72,7 +73,7 @@ evalMeter = map eval where
 
   eval :: TimedSeg TimeSig PMatch -> Result Bool
   eval (TimedSeg ts pm) = Result (pmTimeSig pm == getEvent ts) 
-                                 (pmRot pm == 0)
+                                 (getNumForQBins (QBins 12) (rot $ pmRot pm)== 0)
 
   
 -- | Picks the best matching profile
@@ -96,19 +97,22 @@ printPickMeter (TimedSeg ts m) =
       -- tsEq (TimeSig 4 4 _ _) (TimeSig 2 2 _ _) = True
       -- tsEq a                 b                 = a == b
   
-  in printf s (pmatch m) (rot . pmRot $ m)
+  in printf s (pmatch m) (getNumForQBins (QBins 12) . rot . pmRot $ m)
+
+stdRotations :: Int -> [Rot]
+stdRotations mr = map (\r -> Rot (r % 12)) [mr, pred mr .. 0]
 
 -- TODO replace vars variable
 -- TODO replace max rotation variable       
 -- TODO can probably be simplified      
 -- TODO create a prior based on the Rotation, the chances on rotations > 0
 --      quite low
-match :: Int -> Rot -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] 
+match :: Int -> Int -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] 
       -> IMAStore -> [TimedSeg TimeSig [PMatch]]
 match vars mr s pdfs i = map update . swMeterSeg $ i where
 
   update :: SWMeterSeg ->  TimedSeg TimeSig [PMatch]
-  update x = fmap (const [getProb x r p | r <- [mr, pred mr .. 0], p <- pdfs]) x
+  update x = fmap (const [getProb x r p | r <- stdRotations mr, p <- pdfs]) x
 
   getProb :: SWMeterSeg -> Rot -> ToPDF -> PMatch
   getProb sg r pdf = 

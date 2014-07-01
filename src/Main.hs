@@ -104,7 +104,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
               out = getRequiredArg arg OutFile :: FilePath
               od  = getRequiredArg arg OutDir  :: FilePath
               b   = getRequiredArg arg NrProfBins 
-              r   = Rot $ getRequiredArg arg RotationArg
+              r   = getRequiredArg arg RotationArg
               ts  = getArg arg TimeSigArg >>= return . parseTimeSigArg arg
               
               -- the input is either a file (Left) or a directory (Right)

@@ -8,6 +8,7 @@ module ZMidi.IMA.SelectProfBins ( selectQBins
                                 , QBinSelection
                                 -- * Rotations
                                 , Rot (..)
+                                , getNumForQBins
                                 ) where
 
 import ZMidi.Score.Datatypes          ( TimeSig (..) , Beat(..) , BeatRat (..) )
@@ -17,11 +18,13 @@ import Data.List                      ( sort, sortBy )
 import Data.Ord                       ( comparing, Down (..) )
 import Data.Maybe                     ( fromJust )
 import Data.Csv                       ( FromField (..) )
-import Data.Ratio                     ( numerator, denominator, (%) )
+import Data.Ratio                     ( numerator, denominator, (%), Ratio (..)) 
 import qualified Data.Map.Strict as M ( map, lookup )
 import Data.Map.Strict                ( Map, toAscList, filterWithKey
                                       , findWithDefault )
+import Data.ByteString.Char8          ( readInt )
 import Control.Arrow                  ( second )
+import Control.Applicative            ( pure   )
 
 -- | A selection of the SWProf bins with the strongest weights                     
 type QBinSelection = Map TimeSig [(Beat, BeatRat)]
@@ -66,14 +69,36 @@ printMeterStats = mapM_ (putStrLn . showNSWProf) . toAscList
 --------------------------------------------------------------------------------
 -- Rotations
 --------------------------------------------------------------------------------
-newtype Rot = Rot { rot :: Int } 
-                  deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, FromField )
+
+newtype Rot = Rot { rot :: Ratio Int } 
+                  deriving ( Eq, Show, Num, Ord, Enum, Real )
+                  
+instance FromField Rot where
+  parseField r = case readInt r of 
+                  (Just (r',_)) -> pure $ Rot ( r' % 12 ) 
+                  _             -> error "FromInt Rot: Invalid rotation"
 
 rotate :: QBins -> TimeSig -> Rot -> (Beat, BeatRat) -> (Beat, BeatRat)
-rotate (QBins q) (TimeSig n _ _ _) (Rot rot) (Beat b, BeatRat r) =
-  let x         = numerator r * (q `div` (denominator r))
-      (a, rot') = (rot + x) `divMod` q
-      b'        = succ $ (pred b + a) `mod` n
-  in  ( Beat b' , BeatRat ( rot' %  q ))
+rotate q@(QBins k) (TimeSig n _ _ _) (Rot r) (Beat b, BeatRat x) =
+  let nx      = getNumForQBins q x
+      nr      = getNumForQBins q r
+      (a, r') = (nr + nx) `divMod` k
+      b'      = succ $ (pred b + a) `mod` n
+  in  ( Beat b' , BeatRat ( r' % k) )
+  -- let x         = numerator r * (q `div` (denominator r))
+      -- (a, rot') = (rot + x) `divMod` q
+      -- b'        = succ $ (pred b + a) `mod` n
+  -- in  ( Beat b' , BeatRat ( rot' %  q ))
 rotate _ _ _ _ = error "SelectQBins.rotate: invalid arguments"
 
+-- | Returns the numerator of a Ratio given a certain 'QBins' as denominator.
+-- The standard Ratio implementation simplifies the Ration, e.g. 3 % 12 
+-- is converted into 1 % 4. This function reverses that process: 
+-- 
+-- >>> getNumForQBins 12 (1 % 4) 
+-- >>> 3
+-- 
+-- >>> getNumForQBins 12 (1 % 1) 
+-- >>> 12
+getNumForQBins :: QBins -> Ratio Int -> Int
+getNumForQBins (QBins q) r = numerator r * (q `div` denominator r)
