@@ -17,7 +17,7 @@ import Data.List                      ( sort, sortBy )
 import Data.Ord                       ( comparing, Down (..) )
 import Data.Maybe                     ( fromJust )
 import Data.Csv                       ( FromField (..) )
-import Data.Ratio                as R ( numerator, denominator, (%) )
+import Data.Ratio                     ( numerator, denominator, (%) )
 import qualified Data.Map.Strict as M ( map, lookup )
 import Data.Map.Strict                ( Map, toAscList, filterWithKey
                                       , findWithDefault )
@@ -71,9 +71,9 @@ newtype Rot = Rot { rot :: Int }
 
 rotate :: QBins -> TimeSig -> Rot -> (Beat, BeatRat) -> (Beat, BeatRat)
 rotate (QBins q) (TimeSig n _ _ _) (Rot rot) (Beat b, BeatRat r) =
-  let x         = R.numerator r * (q `div` (R.denominator r))
+  let x         = numerator r * (q `div` (denominator r))
       (a, rot') = (rot + x) `divMod` q
       b'        = succ $ (pred b + a) `mod` n
-  in  ( Beat b' , BeatRat ( rot' R.%  q ))
+  in  ( Beat b' , BeatRat ( rot' %  q ))
 rotate _ _ _ _ = error "SelectQBins.rotate: invalid arguments"
 
