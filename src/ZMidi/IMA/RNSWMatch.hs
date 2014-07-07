@@ -22,7 +22,7 @@ import ReadPDF                    ( pdfPrior, multiNormal, ToPDF, pdfTimeSig )
 import Data.Map.Strict            ( Map )
 import Data.List                  ( intercalate, maximumBy )
 import Data.Function              ( on )
-import Data.Ratio                 ( (%), numerator )
+import Data.Ratio                 ( (%) )
 
 import Text.Printf                ( printf, PrintfArg )
 
@@ -38,11 +38,14 @@ newtype Prob    = Prob { prob :: Double }
 data PMatch = PMatch {  pmTimeSig :: TimeSig
                      ,  pmatch    :: NSWDist
                      ,  pmRot     :: Rot
+                     ,  pmQBins   :: QBins
                      ,  pmFile    :: FilePath
                      } deriving (Eq)
                      
 instance Show PMatch where
-  show (PMatch ts m r fp) = printf (fp ++ '\t' : show ts ++ ": %1.4f\t R: " ++ show (rot r)) m 
+  show (PMatch ts m r _ fp) = 
+    printf (fp ++ '\t' : show ts ++ ": %1.4f\t R: " ++ show (rot r)) m 
+    
   showList l s = s ++ (intercalate "\n" . map show $ l)
   
 data Result a = Result { meterOk :: a
@@ -72,8 +75,8 @@ evalMeter :: [TimedSeg TimeSig PMatch] ->  [Result Bool]
 evalMeter = map eval where
 
   eval :: TimedSeg TimeSig PMatch -> Result Bool
-  eval (TimedSeg ts pm) = Result (pmTimeSig pm == getEvent ts) 
-                                 (getNumForQBins (QBins 12) (rot $ pmRot pm)== 0)
+  eval (TimedSeg ts m) = Result (pmTimeSig m == getEvent ts) 
+                                (getNumForQBins (pmQBins m) (rot $ pmRot m)== 0)
 
   
 -- | Picks the best matching profile
@@ -97,7 +100,7 @@ printPickMeter (TimedSeg ts m) =
       -- tsEq (TimeSig 4 4 _ _) (TimeSig 2 2 _ _) = True
       -- tsEq a                 b                 = a == b
   
-  in printf s (pmatch m) (getNumForQBins (QBins 12) . rot . pmRot $ m)
+  in printf s (pmatch m) (getNumForQBins (pmQBins m) . rot . pmRot $ m)
 
 stdRotations :: Int -> [Rot]
 stdRotations mr = map (\r -> Rot (r % 12)) [mr, pred mr .. 0]
@@ -119,7 +122,7 @@ match vars mr s pdfs i = map update . swMeterSeg $ i where
     let ts = pdfTimeSig pdf
         d  = toDoubles vars $ toRNSWProf (imaQBins i) (imaTPB i) r (const ts) s sg
         p  = NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d)
-    in PMatch ts p r (imaFile i)
+    in PMatch ts p r (imaQBins i) (imaFile i)
 
          
   
