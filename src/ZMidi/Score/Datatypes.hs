@@ -349,8 +349,8 @@ buildTickMap = foldr oneVoice M.empty where
 getBeatInBar :: TimeSig -> TPB -> Time -> (Bar, Beat, BeatRat)
 getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
 getBeatInBar (TimeSig num _den _ _) t o = 
-  let (bt, rat) = getRatInBeat t o
-      (br, bib) = (succ *** succ) $ fromIntegral bt `divMod` num 
+  let (Beat bt, rat) = getRatInBeat t o
+      (br, bib)      = (succ *** succ) $ bt `divMod` num 
   in (Bar br, Beat bib, rat)
 
 -- | Returns the position within a 'Bar', see 'getBeatInBar'.
