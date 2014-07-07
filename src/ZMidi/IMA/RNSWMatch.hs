@@ -14,9 +14,10 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
 import ZMidi.Score 
 import ZMidi.IMA.TimeSigSeg       ( TimedSeg (..) )
 import ZMidi.IMA.SelectProfBins   ( Rot (..), getNumForQBins )
-import ZMidi.IMA.Analyse          ( SWMeterSeg, IMAStore (..) )
+import ZMidi.IMA.Analyse          ( SWMeterSeg, IMAStore (..), toSWProfWithTS )
 
-import ZMidi.IMA.RNSWProf         ( toDoubles, toRNSWProf )
+import ZMidi.IMA.NSWProf          ( NSWProf, normSWProfByBar )
+import ZMidi.IMA.RNSWProf         ( toDoubles, toRNSWProfWithTS )
 import ReadPDF                    ( pdfPrior, multiNormal, ToPDF, pdfTimeSig )
 
 import Data.Map.Strict            ( Map )
@@ -119,18 +120,21 @@ match :: Int -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF]
       -> IMAStore -> [TimedSeg TimeSig [PMatch]]
 match vars s pdfs i = map update . swMeterSeg $ i where
   
-  q = imaQBins i
+  q  = imaQBins i
+  tb = imaTPB i
 
   update :: SWMeterSeg ->  TimedSeg TimeSig [PMatch]
   update sg =  fmap (const . concatMap (matchPDF sg) $ pdfs) sg
 
   matchPDF :: SWMeterSeg -> ToPDF -> [PMatch]
-  matchPDF sg pdf = let ts = pdfTimeSig pdf 
-                    in [ getProb sg r ts pdf | r <- threePerNum q ts ]
+  matchPDF (TimedSeg _ sg) pdf = 
+    let ts = pdfTimeSig pdf 
+        pf = normSWProfByBar . toSWProfWithTS ts tb $ sg
+    in [ getRotProb pf r ts pdf | r <- threePerNum q ts ]
     
-  getProb :: SWMeterSeg -> Rot -> TimeSig -> ToPDF -> PMatch
-  getProb sg r ts pdf = 
-    let d  = toDoubles vars $ toRNSWProf q (imaTPB i) r (const ts) s sg
+  getRotProb :: NSWProf -> Rot -> TimeSig -> ToPDF -> PMatch
+  getRotProb pf r ts pdf = 
+    let d  = toDoubles vars $ toRNSWProfWithTS q tb r ts s pf
         p  = NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d)
     in PMatch ts p r q (imaFile i)
 

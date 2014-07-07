@@ -16,7 +16,7 @@ module ZMidi.IMA.Analyse ( SWMeterSeg
                          , collectSWProf
                          -- , toSWProfSegs 
                          -- | * Utilities
-                         , toNSWProfWithTS
+                         , toSWProfWithTS
                          , toSWProf
                          ) where
 
@@ -81,12 +81,12 @@ collectSWProf s m = foldr doSeg m s where
 -- | Sums all NSW profiles per bar for a meter section using the annotated
 -- meter of that section
 toSWProf :: TPB ->  SWMeterSeg -> SWProfSeg
-toSWProf tb s = fmap (toNSWProfWithTS (getEvent . boundary $ s) tb) s
+toSWProf tb s = fmap (toSWProfWithTS (getEvent . boundary $ s) tb) s
 
 -- | Sums all NSW profiles per bar for a meter section using a specific meter
-toNSWProfWithTS :: TimeSig ->TPB ->[Timed (Maybe ScoreEvent, SWeight)] -> SWProf
-toNSWProfWithTS NoTimeSig _ _ = error "toNSWProfWithTS applied to NoTimeSig"
-toNSWProfWithTS ts tb td = foldl' toProf (SWProf (1, empty)) td
+toSWProfWithTS :: TimeSig ->TPB ->[Timed (Maybe ScoreEvent, SWeight)] -> SWProf
+toSWProfWithTS NoTimeSig _ _ = error "toNSWProfWithTS applied to NoTimeSig"
+toSWProfWithTS ts tb td = foldl' toProf (SWProf (1, empty)) td
 
   where toProf :: SWProf -> Timed (Maybe ScoreEvent, SWeight) -> SWProf
         toProf (SWProf (_b, m)) (Timed g (_se,w)) = 

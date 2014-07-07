@@ -1,5 +1,6 @@
 module ZMidi.IMA.RNSWProf ( RNSWProf (..)
                           , toRNSWProf
+                          , toRNSWProfWithTS
                           , toDoubles
                           , toCSV
                           , genHeader
@@ -10,8 +11,8 @@ import Data.ByteString.Lazy          ( ByteString )
 import Data.Csv              hiding ()             
 import ZMidi.Score.Datatypes 
 import ZMidi.Score.Quantise          ( QBins)
-import ZMidi.IMA.NSWProf             ( NSWeight (..), normSWProfByBar )
-import ZMidi.IMA.Analyse             ( toNSWProfWithTS, SWMeterSeg
+import ZMidi.IMA.NSWProf             ( NSWeight (..), normSWProfByBar, NSWProf )
+import ZMidi.IMA.Analyse             ( toSWProfWithTS, SWMeterSeg
                                      , IMAStore (..), imaQBins, imaTPB )
 import ZMidi.IMA.TimeSigSeg          ( TimedSeg (..))
 import ZMidi.IMA.SelectProfBins      ( filterToList, Rot (..) )
@@ -49,20 +50,33 @@ toDoubles i (RNSWProf _ts ws) = map nsweight . take i $ ws
 
 -- | Top-level function that converts a 'QMidiFile' into CSV-writeable profiles
 toCSV :: Map TimeSig [(Beat, BeatRat)] -> IMAStore -> ByteString
-toCSV s i = let f = toRNSWProf (imaQBins i) (imaTPB i) 0 id s -- no rotation
+toCSV s i = let f = toRNSWProf (imaQBins i) (imaTPB i) 0 s -- no rotation
             in  encode . map f . swMeterSeg $ i
 
 
+            
 -- | Converts one segment into a RNSWProf, preserving only the profile bins
 -- with heavy weights. The 'TimeSig' argument determines the time signature
 -- of the 'RNSWProf'.
+toRNSWProf :: QBins -> TPB -> Rot -> Map TimeSig [(Beat, BeatRat)] 
+           -> SWMeterSeg -> RNSWProf
+toRNSWProf q tb r s (TimedSeg (Timed _ ts) d) = 
+  toRNSWProfWithTS q tb r ts s . normSWProfByBar . toSWProfWithTS ts tb $ d
+              
+toRNSWProfWithTS :: QBins -> TPB -> Rot -> TimeSig -> Map TimeSig [(Beat, BeatRat)] 
+           -> NSWProf -> RNSWProf
+toRNSWProfWithTS q tb r ts s = RNSWProf ts . filterToList q r s ts
+              
+{-
 toRNSWProf :: QBins -> TPB -> Rot -> (TimeSig -> TimeSig) -> Map TimeSig [(Beat, BeatRat)] 
            -> SWMeterSeg -> RNSWProf
 toRNSWProf q tb r f s (TimedSeg (Timed _ ts) d) = 
   RNSWProf (f ts) . filterToList q r s (f ts) 
                   . normSWProfByBar 
                   . toNSWProfWithTS (f ts) tb $ d 
-
+-}
+                  
+                  
 -- writes a CSV Header to a file 
 genHeader :: Map TimeSig [(Beat, BeatRat)] -> String
 genHeader m = (++ "\n") . intercalate "," $ "meter" : 

@@ -120,20 +120,17 @@ printIMA is = mapM_ (starMeter (imaTPB is)) . swMeterSeg $ is where
     showMSE = maybe "    " (show . pitch) 
     
 -- Analyses a MidiFile verbosely by printing the spectral weight profiles
-analyseProfile :: Maybe TimeSig -> Int -> Map TimeSig [(Beat, BeatRat)] -> IMAStore -> IO ()
-analyseProfile mt r s im = 
+analyseProfile :: Int -> Map TimeSig [(Beat, BeatRat)] -> IMAStore -> IO ()
+analyseProfile r s im = 
   do let pp  = swMeterSeg im
          qb  = imaQBins im 
          tb  = imaTPB im 
          
-         tsf = case mt of Just ts -> const ts
-                          _       -> id
-         
          showSel :: SWMeterSeg -> String
-         showSel x = let ts = tsf . getEvent . boundary $ x
+         showSel x = let ts = getEvent . boundary $ x
                      in show . filterBin qb (Rot (r % 12)) s ts
                              . normSWProfByBar  
-                             . toNSWProfWithTS ts tb . seg $ x
+                             . toSWProfWithTS ts tb . seg $ x
          
          prnt = intercalate "\n"
          
@@ -141,4 +138,4 @@ analyseProfile mt r s im =
                 map (show . normSWProfByBar . seg . toSWProf tb) pp
      putStrLn ("rotation: " ++ show r)
      putStrLn . prnt $ "matched profiles" : map showSel pp
-     putStrLn . prnt $ map (show . toRNSWProf qb tb (Rot (r % 12)) tsf s) pp
+     putStrLn . prnt $ map (show . toRNSWProf qb tb (Rot (r % 12)) s) pp

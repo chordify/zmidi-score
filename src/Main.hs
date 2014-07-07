@@ -135,7 +135,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (Store, Right d) -> mapDir_ (exportIMAStore od) d
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
             (IMA  , Right _) -> usageError arg "We can only analyse a file"
-            (Profile, Left  f) -> readIMAScoreGeneric f >>= either error (analyseProfile ts r s)
+            (Profile, Left  f) -> readIMAScoreGeneric f >>= either error (analyseProfile r s)
             (Profile, Right _) -> usageError arg "We can only profile a file"            
 
        
