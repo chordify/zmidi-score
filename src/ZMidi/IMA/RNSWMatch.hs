@@ -105,24 +105,34 @@ printPickMeter (TimedSeg ts m) =
 stdRotations :: Int -> [Rot]
 stdRotations mr = map (\r -> Rot (r % 12)) [mr, pred mr .. 0]
 
+-- | Returs a list of four 'Rot'ations per time signature numerator:
+threePerNum :: QBins -> TimeSig -> [Rot]
+threePerNum (QBins q) ts = reverse $ map f [0, 3 .. ((tsNum ts * q) - 3)]
+  where f x = Rot (x % q)
+  
 -- TODO replace vars variable
 -- TODO replace max rotation variable       
 -- TODO can probably be simplified      
 -- TODO create a prior based on the Rotation, the chances on rotations > 0
 --      quite low
-match :: Int -> Int -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] 
+match :: Int -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] 
       -> IMAStore -> [TimedSeg TimeSig [PMatch]]
-match vars mr s pdfs i = map update . swMeterSeg $ i where
+match vars s pdfs i = map update . swMeterSeg $ i where
+  
+  q = imaQBins i
 
   update :: SWMeterSeg ->  TimedSeg TimeSig [PMatch]
-  update x = fmap (const [getProb x r p | r <- stdRotations mr, p <- pdfs]) x
+  update sg =  fmap (const . concatMap (matchPDF sg) $ pdfs) sg
 
-  getProb :: SWMeterSeg -> Rot -> ToPDF -> PMatch
-  getProb sg r pdf = 
-    let ts = pdfTimeSig pdf
-        d  = toDoubles vars $ toRNSWProf (imaQBins i) (imaTPB i) r (const ts) s sg
+  matchPDF :: SWMeterSeg -> ToPDF -> [PMatch]
+  matchPDF sg pdf = let ts = pdfTimeSig pdf 
+                    in [ getProb sg r ts pdf | r <- threePerNum q ts ]
+    
+  getProb :: SWMeterSeg -> Rot -> TimeSig -> ToPDF -> PMatch
+  getProb sg r ts pdf = 
+    let d  = toDoubles vars $ toRNSWProf q (imaTPB i) r (const ts) s sg
         p  = NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d)
-    in PMatch ts p r (imaQBins i) (imaFile i)
+    in PMatch ts p r q (imaFile i)
 
          
   

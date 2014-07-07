@@ -123,7 +123,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
               readMatchPutLn f = do m <- readIMAScoreGeneric f
                                     case m of
                                       Left  s -> warning f s >> return Nothing 
-                                      Right x -> matchIO b r s x >>= printMatchLine >>= return . Just
+                                      Right x -> matchIO b s x >>= printMatchLine >>= return . Just
           
           -- do the parsing magic
           case (mode, input) of
