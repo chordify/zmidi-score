@@ -54,28 +54,16 @@ toCSV s i = let f = toRNSWProf (imaQBins i) (imaTPB i) 0 s -- no rotation
             in  encode . map f . swMeterSeg $ i
 
 
-            
--- | Converts one segment into a RNSWProf, preserving only the profile bins
--- with heavy weights. The 'TimeSig' argument determines the time signature
--- of the 'RNSWProf'.
+-- | Converts one segment into a RNSWProf using it's original 'TimeSig'nature.
 toRNSWProf :: QBins -> TPB -> Rot -> Map TimeSig [(Beat, BeatRat)] 
            -> SWMeterSeg -> RNSWProf
 toRNSWProf q tb r s (TimedSeg (Timed _ ts) d) = 
   toRNSWProfWithTS q tb r ts s . normSWProfByBar . toSWProfWithTS ts tb $ d
               
+-- | transforms a 'NSWProf' into a n 'RNSWProf' given a particular 'TimeSig'
 toRNSWProfWithTS :: QBins -> TPB -> Rot -> TimeSig -> Map TimeSig [(Beat, BeatRat)] 
            -> NSWProf -> RNSWProf
-toRNSWProfWithTS q tb r ts s = RNSWProf ts . filterToList q r s ts
-              
-{-
-toRNSWProf :: QBins -> TPB -> Rot -> (TimeSig -> TimeSig) -> Map TimeSig [(Beat, BeatRat)] 
-           -> SWMeterSeg -> RNSWProf
-toRNSWProf q tb r f s (TimedSeg (Timed _ ts) d) = 
-  RNSWProf (f ts) . filterToList q r s (f ts) 
-                  . normSWProfByBar 
-                  . toNSWProfWithTS (f ts) tb $ d 
--}
-                  
+toRNSWProfWithTS q tb r ts s = RNSWProf ts . filterToList q r s ts          
                   
 -- writes a CSV Header to a file 
 genHeader :: Map TimeSig [(Beat, BeatRat)] -> String
