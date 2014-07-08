@@ -13,7 +13,7 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
                        
 import ZMidi.Score 
 import ZMidi.IMA.TimeSigSeg       ( TimedSeg (..) )
-import ZMidi.IMA.SelectProfBins   ( Rot (..), getNumForQBins )
+import ZMidi.IMA.SelectProfBins   ( Rot (..), getNumForQBins, QBinSelection )
 import ZMidi.IMA.Analyse          ( SWMeterSeg, IMAStore (..), toSWProfWithTS )
 
 import ZMidi.IMA.NSWProf          ( NSWProf, normSWProfByBar )
@@ -103,38 +103,33 @@ printPickMeter (TimedSeg ts m) =
   
   in printf s (pmatch m) (getNumForQBins (pmQBins m) . rot . pmRot $ m)
 
-stdRotations :: Int -> [Rot]
-stdRotations mr = map (\r -> Rot (r % 12)) [mr, pred mr .. 0]
-
 -- | Returs a list of four 'Rot'ations per time signature numerator:
 threePerNum :: QBins -> TimeSig -> [Rot]
 threePerNum (QBins q) ts = reverse $ map f [0, 3 .. ((tsNum ts * q) - 3)]
   where f x = Rot (x % q)
   
--- TODO replace vars variable
--- TODO replace max rotation variable       
--- TODO can probably be simplified      
--- TODO create a prior based on the Rotation, the chances on rotations > 0
---      quite low
-match :: Int -> Map TimeSig [(Beat, BeatRat)] -> [IMAPDF] 
-      -> IMAStore -> [TimedSeg TimeSig [PMatch]]
-match vars s pdfs i = map update . swMeterSeg $ i where
+-- | Matches the a segment against it's annotated 'TimeSig'nature
+match :: QBinSelection -> [IMAPDF] -> IMAStore -> [TimedSeg TimeSig [PMatch]]
+match s pdfs i = map update . swMeterSeg $ i where
   
   q  = imaQBins i
   tb = imaTPB i
 
-  update :: SWMeterSeg ->  TimedSeg TimeSig [PMatch]
+  update :: SWMeterSeg -> TimedSeg TimeSig [PMatch]
   update sg =  fmap (const . concatMap (matchPDF sg) $ pdfs) sg
 
+  -- matches a single pdf, creating the profile is independent of the rotation
+  -- and happens here
   matchPDF :: SWMeterSeg -> IMAPDF -> [PMatch]
   matchPDF (TimedSeg _ sg) ip = 
     let ts = pdfTimeSig ip 
         pf = normSWProfByBar . toSWProfWithTS ts tb $ sg
     in [ getRotProb pf r ts ip | r <- threePerNum q ts ]
     
+  -- Calculates the match for all rotations  
   getRotProb :: NSWProf -> Rot -> TimeSig -> IMAPDF -> PMatch
   getRotProb pf r ts ip = 
-    let d  = toDoubles vars $ toRNSWProfWithTS q tb r ts s pf
+    let d  = toDoubles s $ toRNSWProfWithTS q tb r ts s pf
         p  = NSWDist $ log (pdfPrior ip) + log (pdf ip d)
     in PMatch ts p r q (imaFile i)
 

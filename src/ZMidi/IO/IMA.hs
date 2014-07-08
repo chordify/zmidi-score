@@ -77,7 +77,7 @@ writeCSVHeader m out = writeFile out . genHeader $ m
 matchIO :: Int -> Map TimeSig [(Beat, BeatRat)] -> IMAStore
         -> IO [TimedSeg TimeSig PMatch]
 matchIO v m ima = do ps <- readPDFs ("fit"++show v++".json" )
-                     return . pickMeters $ match v m ps ima
+                     return . pickMeters $ match m ps ima
 
 printMatchLine ::  [TimedSeg TimeSig PMatch] -> IO [TimedSeg TimeSig PMatch]
 printMatchLine m = do putStrLn . intercalate "\n" . map printPickMeter $ m 

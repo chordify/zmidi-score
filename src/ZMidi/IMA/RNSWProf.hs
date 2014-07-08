@@ -15,7 +15,7 @@ import ZMidi.IMA.NSWProf             ( NSWeight (..), normSWProfByBar, NSWProf )
 import ZMidi.IMA.Analyse             ( toSWProfWithTS, SWMeterSeg
                                      , IMAStore (..), imaQBins, imaTPB )
 import ZMidi.IMA.TimeSigSeg          ( TimedSeg (..))
-import ZMidi.IMA.SelectProfBins      ( filterToList, Rot (..) )
+import ZMidi.IMA.SelectProfBins      ( filterToList, Rot (..), QBinSelection )
 import Data.List                     ( intercalate )
 import Data.Maybe                    ( fromJust )
 import Data.Ratio                    ( numerator, denominator)
@@ -43,8 +43,11 @@ printKey (Beat b, BeatRat br) = show b ++ "."
                              ++ show (numerator br) ++ "." 
                              ++ show (denominator br)
 
-toDoubles :: Int -> RNSWProf -> [Double]
-toDoubles i (RNSWProf _ts ws) = map nsweight . take i $ ws
+toDoubles :: QBinSelection -> RNSWProf -> [Double]
+toDoubles s (RNSWProf t w) = case M.lookup t s of 
+                              Just l  -> map nsweight . take (length l) $ w
+                              Nothing -> error ("ZMidi.IMA.RNSWProf.toDoubles: " 
+                                       ++"Unknown Timesignature: " ++ show t)
 
 -- type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
 
