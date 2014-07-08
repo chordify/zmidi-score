@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wall                    #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
+{-# LANGUAGE FlexibleInstances           #-}
 -- | This module deals with selecting the SWProf bins used to estimate the meter
 module ZMidi.IMA.SelectProfBins ( selectQBins
                                 , getSel
@@ -21,6 +22,7 @@ module ZMidi.IMA.SelectProfBins ( selectQBins
 
 import ZMidi.Score.Datatypes          ( TimeSig (..) , Beat(..) , BeatRat (..) )
 import ZMidi.Score.Quantise           ( QBins (..) )
+import ZMidi.IMA.Analyse              ( IMAStore ) 
 import ZMidi.IMA.NSWProf
 import Data.List                      ( sort, sortBy )
 import Data.Ord                       ( comparing, Down (..) )
@@ -38,6 +40,7 @@ import Data.Aeson                     ( ToJSON (..), FromJSON (..), decode
                                       , encode, (.=), (.:), Value (..), object)
 import Data.Text                      ( pack )
 import qualified Data.ByteString.Lazy as BL ( readFile, writeFile )
+import GA                             (Entity(..))
 
 
 -- | A selection of the SWProf bins with the strongest weights                     
@@ -144,7 +147,24 @@ getNumForQBins :: QBins -> Ratio Int -> Int
 getNumForQBins (QBins q) r = numerator r * (q `div` denominator r)
 
 --------------------------------------------------------------------------------
--- JSON in- and export
+-- GA instances
+--------------------------------------------------------------------------------
+
+instance Entity (Map TimeSig [(Rot, RPrior)]) Double [IMAStore] [RPrior] IO where
+  genRandom pool seed = undefined
+
+  crossover pool par seed a b = undefined
+
+  mutation pool par seed e = undefined
+
+  score' dat e = undefined
+
+  -- showGeneration ix 
+  
+
+
+--------------------------------------------------------------------------------
+-- JSON import and export
 --------------------------------------------------------------------------------
 
 instance (Integral a, ToJSON a) => ToJSON (Ratio a) where
