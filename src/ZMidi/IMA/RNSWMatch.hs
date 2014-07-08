@@ -13,7 +13,8 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
                        
 import ZMidi.Score 
 import ZMidi.IMA.TimeSigSeg       ( TimedSeg (..) )
-import ZMidi.IMA.SelectProfBins   ( Rot (..), getNumForQBins, QBinSelection )
+import ZMidi.IMA.SelectProfBins   ( Rot (..), getNumForQBins, QBinSelection
+                                  , Rotations, getRot, RPrior (..))
 import ZMidi.IMA.Analyse          ( SWMeterSeg, IMAStore (..), toSWProfWithTS )
 
 import ZMidi.IMA.NSWProf          ( NSWProf, normSWProfByBar )
@@ -102,15 +103,10 @@ printPickMeter (TimedSeg ts m) =
       -- tsEq a                 b                 = a == b
   
   in printf s (pmatch m) (getNumForQBins (pmQBins m) . rot . pmRot $ m)
-
--- | Returs a list of four 'Rot'ations per time signature numerator:
-threePerNum :: QBins -> TimeSig -> [Rot]
-threePerNum (QBins q) ts = reverse $ map f [0, 3 .. ((tsNum ts * q) - 3)]
-  where f x = Rot (x % q)
   
 -- | Matches the a segment against it's annotated 'TimeSig'nature
-match :: QBinSelection -> [IMAPDF] -> IMAStore -> [TimedSeg TimeSig [PMatch]]
-match s pdfs i = map update . swMeterSeg $ i where
+match :: Rotations -> QBinSelection -> [IMAPDF] -> IMAStore -> [TimedSeg TimeSig [PMatch]]
+match rs s pdfs i = map update . swMeterSeg $ i where
   
   q  = imaQBins i
   tb = imaTPB i
@@ -124,13 +120,13 @@ match s pdfs i = map update . swMeterSeg $ i where
   matchPDF (TimedSeg _ sg) ip = 
     let ts = pdfTimeSig ip 
         pf = normSWProfByBar . toSWProfWithTS ts tb $ sg
-    in [ getRotProb pf r ts ip | r <- threePerNum q ts ]
+    in [ getRotProb pf r ts ip | r <- getRot rs ts ]
     
   -- Calculates the match for all rotations  
-  getRotProb :: NSWProf -> Rot -> TimeSig -> IMAPDF -> PMatch
-  getRotProb pf r ts ip = 
+  getRotProb :: NSWProf -> (Rot, RPrior) -> TimeSig -> IMAPDF -> PMatch
+  getRotProb pf (r,rp) ts ip = 
     let d  = toDoubles s $ toRNSWProfWithTS q tb r ts s pf
-        p  = NSWDist $ log (pdfPrior ip) + log (pdf ip d)
+        p  = NSWDist $ log (pdfPrior ip) + log (pdf ip d) + log (rprior rp)
     in PMatch ts p r q (imaFile i)
 
          
