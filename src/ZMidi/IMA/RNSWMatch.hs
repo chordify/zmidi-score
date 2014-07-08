@@ -18,7 +18,7 @@ import ZMidi.IMA.Analyse          ( SWMeterSeg, IMAStore (..), toSWProfWithTS )
 
 import ZMidi.IMA.NSWProf          ( NSWProf, normSWProfByBar )
 import ZMidi.IMA.RNSWProf         ( toDoubles, toRNSWProfWithTS )
-import ReadPDF                    ( pdfPrior, multiNormal, ToPDF, pdfTimeSig )
+import ReadPDF                    ( IMAPDF(..) )
 
 import Data.Map.Strict            ( Map )
 import Data.List                  ( intercalate, maximumBy )
@@ -116,7 +116,7 @@ threePerNum (QBins q) ts = reverse $ map f [0, 3 .. ((tsNum ts * q) - 3)]
 -- TODO can probably be simplified      
 -- TODO create a prior based on the Rotation, the chances on rotations > 0
 --      quite low
-match :: Int -> Map TimeSig [(Beat, BeatRat)] -> [ToPDF] 
+match :: Int -> Map TimeSig [(Beat, BeatRat)] -> [IMAPDF] 
       -> IMAStore -> [TimedSeg TimeSig [PMatch]]
 match vars s pdfs i = map update . swMeterSeg $ i where
   
@@ -126,16 +126,16 @@ match vars s pdfs i = map update . swMeterSeg $ i where
   update :: SWMeterSeg ->  TimedSeg TimeSig [PMatch]
   update sg =  fmap (const . concatMap (matchPDF sg) $ pdfs) sg
 
-  matchPDF :: SWMeterSeg -> ToPDF -> [PMatch]
-  matchPDF (TimedSeg _ sg) pdf = 
-    let ts = pdfTimeSig pdf 
+  matchPDF :: SWMeterSeg -> IMAPDF -> [PMatch]
+  matchPDF (TimedSeg _ sg) ip = 
+    let ts = pdfTimeSig ip 
         pf = normSWProfByBar . toSWProfWithTS ts tb $ sg
-    in [ getRotProb pf r ts pdf | r <- threePerNum q ts ]
+    in [ getRotProb pf r ts ip | r <- threePerNum q ts ]
     
-  getRotProb :: NSWProf -> Rot -> TimeSig -> ToPDF -> PMatch
-  getRotProb pf r ts pdf = 
+  getRotProb :: NSWProf -> Rot -> TimeSig -> IMAPDF -> PMatch
+  getRotProb pf r ts ip = 
     let d  = toDoubles vars $ toRNSWProfWithTS q tb r ts s pf
-        p  = NSWDist $ log (pdfPrior pdf) + log (multiNormal pdf d)
+        p  = NSWDist $ log (pdfPrior ip) + log (pdf ip d)
     in PMatch ts p r q (imaFile i)
 
          

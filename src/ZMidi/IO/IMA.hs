@@ -21,7 +21,7 @@ import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, match
                                    , avgResult, evalMeter, printPickMeter )
 import ZMidi.IMA.TimeSigSeg        ( TimedSeg (..) )
 
-import ReadPDF                     ( ToPDF, readPDFs )
+import ReadPDF                     ( readPDFs )
 import ZMidi.IMA.RNSWProf          ( toRNSWProf, toCSV, genHeader )
 
 import Data.Map.Strict             ( Map )
