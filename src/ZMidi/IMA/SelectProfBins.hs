@@ -14,22 +14,31 @@ module ZMidi.IMA.SelectProfBins ( selectQBins
                                 , getRot
                                 , getNumForQBins
                                 , stdRotations
+                                -- * JSON import and export
+                                , writeJSON
+                                , readJSON
                                 ) where
 
 import ZMidi.Score.Datatypes          ( TimeSig (..) , Beat(..) , BeatRat (..) )
 import ZMidi.Score.Quantise           ( QBins (..) )
 import ZMidi.IMA.NSWProf
-import Data.List                      ( sort, sortBy, genericLength )
+import Data.List                      ( sort, sortBy )
 import Data.Ord                       ( comparing, Down (..) )
 import Data.Maybe                     ( fromJust )
 import Data.Csv                       ( FromField (..) )
-import Data.Ratio                     ( numerator, denominator, (%), Ratio (..)) 
+import Data.Ratio                     ( numerator, denominator, (%), Ratio) 
 import qualified Data.Map.Strict as M ( map, lookup )
 import Data.Map.Strict                ( Map, toAscList, filterWithKey, empty
-                                      , findWithDefault, insert )
+                                      , findWithDefault, insert, toList, fromList )
 import Data.ByteString.Char8          ( readInt )
+import Control.Monad                  ( mzero )
 import Control.Arrow                  ( second )
-import Control.Applicative            ( pure   )
+import Control.Applicative            ( pure, (<$>), (<*>) )
+import Data.Aeson                     ( ToJSON (..), FromJSON (..), decode
+                                      , encode, (.=), (.:), Value (..), object)
+import Data.Text                      ( pack )
+import qualified Data.ByteString.Lazy as BL ( readFile, writeFile )
+
 
 -- | A selection of the SWProf bins with the strongest weights                     
 type QBinSelection = Map TimeSig [(Beat, BeatRat)]
@@ -101,12 +110,12 @@ type Rotations = Map TimeSig [(Rot, RPrior)]
   
 -- | The Rotation
 newtype Rot = Rot { rot :: Ratio Int } 
-                  deriving ( Eq, Show, Num, Ord, Enum, Real )
+                  deriving ( Eq, Show, Num, Ord, Enum, Real, FromJSON, ToJSON )
 
 -- | A prior for the Rotation
 newtype RPrior = RPrior { rprior :: Double }
                   deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
-                           , Fractional, RealFloat, RealFrac )
+                           , Fractional, RealFloat, RealFrac, FromJSON, ToJSON )
                   
 instance FromField Rot where
   parseField r = case readInt r of 
@@ -133,3 +142,32 @@ rotate _ _ _ _ = error "SelectQBins.rotate: invalid arguments"
 -- >>> 12
 getNumForQBins :: QBins -> Ratio Int -> Int
 getNumForQBins (QBins q) r = numerator r * (q `div` denominator r)
+
+--------------------------------------------------------------------------------
+-- JSON in- and export
+--------------------------------------------------------------------------------
+
+instance (Integral a, ToJSON a) => ToJSON (Ratio a) where
+     toJSON r = object [pack "num" .= numerator r, pack "den" .= denominator r]  
+
+instance ToJSON (TimeSig) where
+     toJSON (TimeSig n d _ _) = object [pack "ts_num" .= n, pack "ts_den" .= d]
+     toJSON NoTimeSig         = object [pack "ts" .= pack "none"]     
+
+instance (Integral a, FromJSON a) => FromJSON (Ratio a) where
+     parseJSON (Object v) = (%) <$> v .: (pack "num") <*> v .: (pack "den")
+     parseJSON _          = mzero
+     
+instance FromJSON (TimeSig) where
+     parseJSON (Object v) =  (\d n -> TimeSig d n 0 0) 
+                          <$> v .: (pack "ts_num") <*> v .: (pack "ts_den")  
+     parseJSON _          = mzero
+     
+writeJSON :: ToJSON a => FilePath -> Map TimeSig a -> IO ()
+writeJSON fp = BL.writeFile fp . encode . toList 
+
+readJSON :: FromJSON a => FilePath -> IO (Map TimeSig a)
+readJSON fp = do mr <- BL.readFile fp >>= return . decode
+                 case mr of 
+                   Just r  -> return . fromList $ r
+                   Nothing -> error "readRotations: cannot parse rotations JSON"                        
