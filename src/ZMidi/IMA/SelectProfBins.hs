@@ -95,22 +95,16 @@ printMeterStats = mapM_ (putStrLn . showNSWProf) . toAscList
 --------------------------------------------------------------------------------
 -- | Returs a list of four 'Rot'ations per time signature numerator:
 
-stdRotations :: QBins -> Rotations
-stdRotations q = foldr f empty [ TimeSig 2 2 0 0, TimeSig 2 4 0 0
-                               , TimeSig 4 4 0 0, TimeSig 3 4 0 0
-                               , TimeSig 6 8 0 0 ]
-  where f ts m = insert ts (threePerNum q ts) m
+stdRotations :: QBins -> (QBins -> TimeSig -> [(Rot, RPrior)]) -> Rotations
+stdRotations q f = foldr g empty [ TimeSig 2 2 0 0, TimeSig 2 4 0 0
+                                 , TimeSig 4 4 0 0, TimeSig 3 4 0 0
+                                 , TimeSig 6 8 0 0 ]
+  where g ts m = insert ts (f q ts) m
 
 threePerNum :: QBins -> TimeSig -> [(Rot, RPrior)]
 threePerNum (QBins q) ts = reverse $ map f [0, 3 .. ((tsNum ts * q) - 3)]
   where len = (2 + 2 + 4 + 3 + 6) * 4
         f x = (Rot (x % q), RPrior (1.0 / len))
-
-rndRotations :: Int -> QBins -> Rotations
-rndRotations s q = foldr f empty [ TimeSig 2 2 0 0, TimeSig 2 4 0 0
-                               , TimeSig 4 4 0 0, TimeSig 3 4 0 0
-                               , TimeSig 6 8 0 0 ]
-  where f ts m = insert ts (randomPrior s q ts) m
         
 randomPrior :: Int -> QBins -> TimeSig -> [(Rot, RPrior)]
 randomPrior s (QBins q) t = reverse $ zipWith f [0, 3 .. ((tsNum t * q) - 3)] r
@@ -164,8 +158,8 @@ getNumForQBins (QBins q) r = numerator r * (q `div` denominator r)
 -- GA instances
 --------------------------------------------------------------------------------
 
-instance Entity Rotations Double [IMAStore] [RPrior] IO where
-  genRandom pool seed = undefined
+instance Entity Rotations Double [IMAStore] QBins IO where
+  genRandom qb seed = return $ stdRotations qb (randomPrior seed) 
 
   crossover pool par seed a b = undefined
 
