@@ -1,6 +1,8 @@
 {-# OPTIONS_GHC -Wall                    #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
+{-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE FlexibleInstances           #-}
+{-# LANGUAGE TypeSynonymInstances        #-}
 -- | This module deals with selecting the SWProf bins used to estimate the meter
 module ZMidi.IMA.SelectProfBins ( selectQBins
                                 , getSel
@@ -41,7 +43,7 @@ import Data.Aeson                     ( ToJSON (..), FromJSON (..), decode
 import Data.Text                      ( pack )
 import qualified Data.ByteString.Lazy as BL ( readFile, writeFile )
 import GA                             (Entity(..))
-
+import System.Random                  ( Random (..), mkStdGen, RandomGen (..) )
 
 -- | A selection of the SWProf bins with the strongest weights                     
 type QBinSelection = Map TimeSig [(Beat, BeatRat)]
@@ -104,6 +106,18 @@ threePerNum (QBins q) ts = reverse $ map f [0, 3 .. ((tsNum ts * q) - 3)]
   where len = (2 + 2 + 4 + 3 + 6) * 4
         f x = (Rot (x % q), RPrior (1.0 / len))
 
+rndRotations :: Int -> QBins -> Rotations
+rndRotations s q = foldr f empty [ TimeSig 2 2 0 0, TimeSig 2 4 0 0
+                               , TimeSig 4 4 0 0, TimeSig 3 4 0 0
+                               , TimeSig 6 8 0 0 ]
+  where f ts m = insert ts (randomPrior s q ts) m
+        
+randomPrior :: Int -> QBins -> TimeSig -> [(Rot, RPrior)]
+randomPrior s (QBins q) t = reverse $ zipWith f [0, 3 .. ((tsNum t * q) - 3)] r
+  -- Hacky, but let's make sure we have different numbers for every timesig
+  where r = randomRs (0.0,1.0) (mkStdGen (s + tsNum t + tsDen t))
+        f x p = (Rot (x % q), RPrior p)
+        
 getRot :: Rotations -> TimeSig -> [(Rot,RPrior)]
 getRot rs ts = case M.lookup ts rs of 
   Just r  -> r
@@ -113,11 +127,11 @@ type Rotations = Map TimeSig [(Rot, RPrior)]
   
 -- | The Rotation
 newtype Rot = Rot { rot :: Ratio Int } 
-                  deriving ( Eq, Show, Num, Ord, Enum, Real, FromJSON, ToJSON )
+                  deriving ( Eq, Show, Num, Ord, Enum, Real, Read, FromJSON, ToJSON )
 
 -- | A prior for the Rotation
 newtype RPrior = RPrior { rprior :: Double }
-                  deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
+                  deriving ( Eq, Show, Num, Ord, Enum, Real, Floating, Read
                            , Fractional, RealFloat, RealFrac, FromJSON, ToJSON )
                   
 instance FromField Rot where
@@ -150,7 +164,7 @@ getNumForQBins (QBins q) r = numerator r * (q `div` denominator r)
 -- GA instances
 --------------------------------------------------------------------------------
 
-instance Entity (Map TimeSig [(Rot, RPrior)]) Double [IMAStore] [RPrior] IO where
+instance Entity Rotations Double [IMAStore] [RPrior] IO where
   genRandom pool seed = undefined
 
   crossover pool par seed a b = undefined

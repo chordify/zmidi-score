@@ -21,10 +21,8 @@ import ZMidi.IMA.NSWProf          ( NSWProf, normSWProfByBar )
 import ZMidi.IMA.RNSWProf         ( toDoubles, toRNSWProfWithTS )
 import ReadPDF                    ( IMAPDF(..) )
 
-import Data.Map.Strict            ( Map )
 import Data.List                  ( intercalate, maximumBy )
 import Data.Function              ( on )
-import Data.Ratio                 ( (%) )
 
 import Text.Printf                ( printf, PrintfArg )
 

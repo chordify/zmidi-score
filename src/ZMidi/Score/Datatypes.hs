@@ -111,7 +111,7 @@ data TimeSig    = TimeSig       { tsNum      :: Int
 -- | A 'Voice' is a list of 'ScoreEvent's that have time stamps.
 type Voice      = [Timed ScoreEvent]
 
-newtype Channel    = Channel {channel :: Word8 }
+newtype Channel = Channel {channel :: Word8 }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary )
 -- TODO: better changed to Pitch (Int, PitchClass)
 newtype Pitch   = Pitch    (Int, Int) deriving (Eq, Ord, Binary) -- (Octave, Pitch class)
@@ -179,6 +179,9 @@ instance Show TimeSig where
   show (TimeSig n d _ _) = show n ++ '/' : show d
   show NoTimeSig         = "NoTimeSig"  
 
+instance Read TimeSig where 
+  readsPrec _ = error "Read TimeSig: implement me"
+  
 instance Show Key where
   show NoKey      = "NoKey"
   show (Key rt m) = showRoot rt ++ ' ' : (map toLower . show $ m) where
