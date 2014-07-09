@@ -16,7 +16,7 @@ import ZMidi.IO.Common             -- ( readQMidiScoreSafe, warning )
 import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
 import ZMidi.IMA.NSWProf           ( normSWProfByBar )
-import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin, stdRotations )
+import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin, stdRotations, threePerNum )
 import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, match
                                    , avgResult, evalMeter, printPickMeter )
 import ZMidi.IMA.TimeSigSeg        ( TimedSeg (..) )
@@ -77,7 +77,7 @@ writeCSVHeader m out = writeFile out . genHeader $ m
 matchIO :: Int -> Map TimeSig [(Beat, BeatRat)] -> IMAStore
         -> IO [TimedSeg TimeSig PMatch]
 matchIO v m ima = do ps <- readPDFs ("fit"++show v++".json" )
-                     return . pickMeters $ match (stdRotations (QBins 12)) m ps ima
+                     return . pickMeters $ match (stdRotations (QBins 12) threePerNum) m ps ima
 
 printMatchLine ::  [TimedSeg TimeSig PMatch] -> IO [TimedSeg TimeSig PMatch]
 printMatchLine m = do putStrLn . intercalate "\n" . map printPickMeter $ m 

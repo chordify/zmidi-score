@@ -17,6 +17,7 @@ module ZMidi.IMA.SelectProfBins ( selectQBins
                                 , getRot
                                 , getNumForQBins
                                 , stdRotations
+                                , threePerNum
                                 -- * JSON import and export
                                 , writeJSON
                                 , readJSON
@@ -24,6 +25,7 @@ module ZMidi.IMA.SelectProfBins ( selectQBins
 
 import ZMidi.Score.Datatypes          ( TimeSig (..) , Beat(..) , BeatRat (..) )
 import ZMidi.Score.Quantise           ( QBins (..) )
+import ZMidi.IMA.Internal             ( lookupErr )
 import ZMidi.IMA.Analyse              ( IMAStore ) 
 import ZMidi.IMA.NSWProf
 import Data.List                      ( sort, sortBy )
@@ -45,13 +47,25 @@ import qualified Data.ByteString.Lazy as BL ( readFile, writeFile )
 import GA                             (Entity(..))
 import System.Random                  ( Random (..), mkStdGen, RandomGen (..) )
 
+--------------------------------------------------------------------------------
+-- parameters
+--------------------------------------------------------------------------------
+
+acceptedTimeSigs :: [TimeSig]
+acceptedTimeSigs = [ TimeSig 2 2 0 0, TimeSig 2 4 0 0
+                   , TimeSig 4 4 0 0, TimeSig 3 4 0 0
+                   , TimeSig 6 8 0 0 ]
+
+--------------------------------------------------------------------------------
+-- QBinSelection stuff
+--------------------------------------------------------------------------------
+
+                   
 -- | A selection of the SWProf bins with the strongest weights                     
 type QBinSelection = Map TimeSig [(Beat, BeatRat)]
         
 getSel :: QBinSelection -> TimeSig -> [(Beat, BeatRat)]
-getSel rs ts = case M.lookup ts rs of 
-  Just r  -> r
-  Nothing -> error ("QBinSelection.getSel: TimeSig not found " ++ show ts)
+getSel s t = lookupErr ("QBinSelection.getSel: TimeSig not found "++ show t) s t
         
 -- | creates a QBinSelection on a map of averaged NSWProfiles
 selectQBins :: Int -> Map TimeSig NSWProf -> QBinSelection
@@ -96,9 +110,7 @@ printMeterStats = mapM_ (putStrLn . showNSWProf) . toAscList
 -- | Returs a list of four 'Rot'ations per time signature numerator:
 
 stdRotations :: QBins -> (QBins -> TimeSig -> [(Rot, RPrior)]) -> Rotations
-stdRotations q f = foldr g empty [ TimeSig 2 2 0 0, TimeSig 2 4 0 0
-                                 , TimeSig 4 4 0 0, TimeSig 3 4 0 0
-                                 , TimeSig 6 8 0 0 ]
+stdRotations q f = foldr g empty acceptedTimeSigs
   where g ts m = insert ts (f q ts) m
 
 threePerNum :: QBins -> TimeSig -> [(Rot, RPrior)]
@@ -113,9 +125,7 @@ randomPrior s (QBins q) t = reverse $ zipWith f [0, 3 .. ((tsNum t * q) - 3)] r
         f x p = (Rot (x % q), RPrior p)
         
 getRot :: Rotations -> TimeSig -> [(Rot,RPrior)]
-getRot rs ts = case M.lookup ts rs of 
-  Just r  -> r
-  Nothing -> error ("QBinSelection.getRot: TimeSig not found " ++ show ts)
+getRot r t = lookupErr ("QBinSelection.getRot: TimeSig not found "++ show t) r t
 
 type Rotations = Map TimeSig [(Rot, RPrior)]
   
@@ -161,7 +171,7 @@ getNumForQBins (QBins q) r = numerator r * (q `div` denominator r)
 instance Entity Rotations Double [IMAStore] QBins IO where
   genRandom qb seed = return $ stdRotations qb (randomPrior seed) 
 
-  crossover pool par seed a b = undefined
+  crossover _pool _par seed a b = undefined
 
   mutation pool par seed e = undefined
 
@@ -169,7 +179,13 @@ instance Entity Rotations Double [IMAStore] QBins IO where
 
   -- showGeneration ix 
   
+getRandomTS :: (Read a, Show a) => Int -> Map TimeSig a -> a
+getRandomTS s m = 
+  let t = acceptedTimeSigs !! 
+         (fst . randomR (0, pred (length acceptedTimeSigs)) . mkStdGen $ s)
+  in lookupErr ("getRandomTS: TimeSig not found "++ show t) m t
 
+-- getTS :: Map
 
 --------------------------------------------------------------------------------
 -- JSON import and export
