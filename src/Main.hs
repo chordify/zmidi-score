@@ -130,7 +130,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (Train, Left  f) -> exportCSVProfs s out f
             (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
             (Test , Left  f) -> readMatchPutLn f >>= maybe (return ()) printMatchAgr
-            (Test , Right d) -> mapDir (readMatchPutLn) d >>= printMatchAgr . concat . catMaybes
+            (Test , Right d) -> mapDir readMatchPutLn d >>= printMatchAgr . concat . catMaybes
             (Store, Left  f) -> exportIMAStore od f
             (Store, Right d) -> mapDir_ (exportIMAStore od) d
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA

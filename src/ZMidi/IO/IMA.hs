@@ -74,6 +74,9 @@ writeCSVHeader m out = writeFile out . genHeader $ m
 --------------------------------------------------------------------------------
                      
 -- TODO promote this pattern
+-- TODO remove v variable -> denotes the number of selected bins, and should
+-- be controlled by the QBinSelection m
+-- | Matches an IMAStore with the meter(s) annotated in the file. 
 matchIO :: Int -> Map TimeSig [(Beat, BeatRat)] -> IMAStore
         -> IO [TimedSeg TimeSig PMatch]
 matchIO v m ima = do ps <- readPDFs ("fit"++show v++".json" )

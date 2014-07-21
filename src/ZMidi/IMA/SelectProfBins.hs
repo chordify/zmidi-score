@@ -55,6 +55,9 @@ acceptedTimeSigs :: [TimeSig]
 acceptedTimeSigs = [ TimeSig 2 2 0 0, TimeSig 2 4 0 0
                    , TimeSig 4 4 0 0, TimeSig 3 4 0 0
                    , TimeSig 6 8 0 0 ]
+                   
+totNrOfProfBeats :: Int
+totNrOfProfBeats = foldr (\(TimeSig n d _ _) r -> r + (n * d)) 0 acceptedTimeSigs
 
 --------------------------------------------------------------------------------
 -- QBinSelection stuff
@@ -113,16 +116,22 @@ stdRotations :: QBins -> (QBins -> TimeSig -> [(Rot, RPrior)]) -> Rotations
 stdRotations q f = foldr g empty acceptedTimeSigs
   where g ts m = insert ts (f q ts) m
 
+-- Considering twelve bins we rotate at bins 0, 3, 6, etc.
 threePerNum :: QBins -> TimeSig -> [(Rot, RPrior)]
-threePerNum (QBins q) ts = reverse $ map f [0, 3 .. ((tsNum ts * q) - 3)]
-  where len = (2 + 2 + 4 + 3 + 6) * 4
-        f x = (Rot (x % q), RPrior (1.0 / len))
+threePerNum (QBins q) ts = normPriors . reverse $ map f [0, 3 .. ((tsNum ts * q) - 3)]
+  where -- len = (2 + 2 + 4 + 3 + 6) * 4 -- TODO use acceptedTimeSigs ...
+        f x = (Rot (x % q), RPrior 1.0 )
         
 randomPrior :: Int -> QBins -> TimeSig -> [(Rot, RPrior)]
 randomPrior s (QBins q) t = reverse $ zipWith f [0, 3 .. ((tsNum t * q) - 3)] r
   -- Hacky, but let's make sure we have different numbers for every timesig
   where r = randomRs (0.0,1.0) (mkStdGen (s + tsNum t + tsDen t))
         f x p = (Rot (x % q), RPrior p)
+        
+normPriors :: [(Rot, RPrior)] -> [(Rot,RPrior)]
+normPriors l = let s   = foldr (\x s -> s + snd x) 0 l -- sum of all priors
+                  -- s = totNrOfProfBeats
+               in map (second (/ s)) l
         
 getRot :: Rotations -> TimeSig -> [(Rot,RPrior)]
 getRot r t = lookupErr ("QBinSelection.getRot: TimeSig not found "++ show t) r t
