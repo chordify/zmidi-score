@@ -97,7 +97,9 @@ printPickMeter (TimedSeg ts m) =
                            , shwTs est
                            , show (ann == est)
                            , "%.2f" 
-                           , "r:%2d"]
+                           , "r:%2d"
+                           , pmFile m
+                           ]
       
       shwTs :: TimeSig -> String
       shwTs x = '\'' : show x ++ "\'"
