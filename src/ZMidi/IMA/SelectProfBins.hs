@@ -111,7 +111,6 @@ printMeterStats = mapM_ (putStrLn . showNSWProf) . toAscList
 -- Rotations
 --------------------------------------------------------------------------------
 -- | Returs a list of four 'Rot'ations per time signature numerator:
-
 stdRotations :: QBins -> (QBins -> TimeSig -> [(Rot, RPrior)]) -> Rotations
 stdRotations q f = normPriors $ foldr g empty acceptedTimeSigs
   where g ts m = insert ts (f q ts) m
@@ -127,24 +126,16 @@ randomPrior s (QBins q) t = reverse $ zipWith f [0, 3 .. ((tsNum t * q) - 3)] r
   where r = randomRs (0.0,1.0) (mkStdGen (s + tsNum t + tsDen t))
         f x p = (Rot (x % q), RPrior p)
  
+-- normalises the 'Rotations' priors to sum to 1.0
 normPriors :: Rotations -> Rotations
-normPriors r = let s = sumPriors r in M.map (map (second (/ s))) r
+normPriors r = let s = sumPriors r in M.map (map (second (/ s))) r 
                
 sumPriors :: Rotations -> RPrior
 sumPriors = M.foldr perTS 0 where
   
   perTS :: [(Rot, RPrior)] -> RPrior -> RPrior
   perTS l s = s + foldr (\x s -> s + snd x) 0 l
-        
-{-        
-normPriors :: [(Rot, RPrior)] -> [(Rot,RPrior)]
-normPriors l = let s = foldr (\x s -> s + snd x) 0 l -- sum of all priors
-                   -- normalise the divider by the sum of priors, this way
-                   -- the priors will always sum to 1. We do assume here that
-                   
-                   d = fromIntegral totNrOfProfBeats / s 
-               in map (second (/ d)) l
-  -}      
+
 getRot :: Rotations -> TimeSig -> [(Rot,RPrior)]
 getRot r t = lookupErr ("QBinSelection.getRot: TimeSig not found "++ show t) r t
 

@@ -39,13 +39,15 @@ newtype Prob    = Prob { prob :: Double }
 data PMatch = PMatch {  pmTimeSig :: TimeSig
                      ,  pmatch    :: NSWDist
                      ,  pmRot     :: Rot
+                     ,  pmRPrior  :: RPrior
                      ,  pmQBins   :: QBins
                      ,  pmFile    :: FilePath
                      } deriving (Eq)
                      
 instance Show PMatch where
-  show (PMatch ts m r _ fp) = 
-    printf (fp ++ '\t' : show ts ++ ": %1.4f\t R: " ++ show (rot r)) m 
+  show (PMatch ts m r rp q fp) = 
+    printf (fp ++ '\t' : show ts ++ ": %1.4f\tR: %d2 \tRp: %f1.4")  
+            m (getNumForQBins q . rot $ r) (rprior rp)
     
   showList l s = s ++ (intercalate "\n" . map show $ l)
   
@@ -98,6 +100,7 @@ printPickMeter (TimedSeg ts m) =
                            , show (ann == est)
                            , "%.2f" 
                            , "r:%2d"
+                           , "rp:%.2f"
                            , pmFile m
                            ]
       
@@ -108,7 +111,9 @@ printPickMeter (TimedSeg ts m) =
       -- tsEq (TimeSig 4 4 _ _) (TimeSig 2 2 _ _) = True
       -- tsEq a                 b                 = a == b
   
-  in printf s (pmatch m) (getNumForQBins (pmQBins m) . rot . pmRot $ m)
+  in printf s (pmatch m) 
+              (getNumForQBins (pmQBins m) . rot . pmRot $ m) 
+              (rprior . pmRPrior $ m)
   
 -- | Matches the a segment against it's annotated 'TimeSig'nature
 match :: Rotations -> QBinSelection -> [IMAPDF] -> IMAStore -> [TimedSeg TimeSig [PMatch]]
@@ -133,7 +138,7 @@ match rs s pdfs i = map update . swMeterSeg $ i where
   getRotProb pf (r,rp) ts ip = 
     let d  = toDoubles s $ toRNSWProfWithTS q tb r ts s pf
         p  = NSWDist $ log (pdfPrior ip) + log (pdf ip d) + log (rprior rp)
-    in PMatch ts p r q (imaFile i)
+    in PMatch ts p r rp q (imaFile i)
 
          
   
