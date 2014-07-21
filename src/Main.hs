@@ -119,18 +119,18 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
               
           s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
           
-          let readMatchPutLn :: FilePath -> IO (Maybe ([TimedSeg TimeSig PMatch]))
-              readMatchPutLn f = do m <- readIMAScoreGeneric f
-                                    case m of
-                                      Left  s -> warning f s >> return Nothing 
-                                      Right x -> matchIO b s x >>= printMatchLine >>= return . Just
+          let readMatchPutLn :: Bool -> FilePath -> IO (Maybe ([TimedSeg TimeSig PMatch]))
+              readMatchPutLn p f = do m <- readIMAScoreGeneric f
+                                      case m of
+                                        Left  s -> warning f s >> return Nothing 
+                                        Right x -> matchIO p b s x >>= printMatchLine >>= return . Just
           
           -- do the parsing magic
           case (mode, input) of
             (Train, Left  f) -> exportCSVProfs s out f
             (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
-            (Test , Left  f) -> readMatchPutLn f >>= maybe (return ()) printMatchAgr
-            (Test , Right d) -> mapDir readMatchPutLn d >>= printMatchAgr . concat . catMaybes
+            (Test , Left  f) -> readMatchPutLn True f >> return ()
+            (Test , Right d) -> mapDir (readMatchPutLn False) d >>= printMatchAgr . concat . catMaybes
             (Store, Left  f) -> exportIMAStore od f
             (Store, Right d) -> mapDir_ (exportIMAStore od) d
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA

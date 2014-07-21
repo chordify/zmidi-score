@@ -8,6 +8,7 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
                           , evalMeter
                           , avgResult
                           , pickMeters
+                          , dontPickMeters
                           , printPickMeter
                           ) where
                        
@@ -83,6 +84,11 @@ evalMeter = map eval where
 pickMeters :: [TimedSeg TimeSig [PMatch]] -> [TimedSeg TimeSig PMatch]
 pickMeters = map (fmap (maximumBy (compare `on` pmatch)))
 
+-- | Copies the TimedSeg for every Match for printing
+dontPickMeters :: [TimedSeg TimeSig [PMatch]] -> [TimedSeg TimeSig PMatch]
+dontPickMeters = concatMap f 
+  where f (TimedSeg t ms) = map (\x -> (TimedSeg t x)) ms
+
 printPickMeter :: TimedSeg TimeSig PMatch -> String
 printPickMeter (TimedSeg ts m) = 
   let ann = getEvent ts
@@ -90,7 +96,7 @@ printPickMeter (TimedSeg ts m) =
       s = intercalate "\t" [ shwTs ann
                            , shwTs est
                            , show (ann == est)
-                           , "%.3f" 
+                           , "%.2f" 
                            , "r:%2d"]
       
       shwTs :: TimeSig -> String

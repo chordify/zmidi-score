@@ -17,7 +17,7 @@ import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
 import ZMidi.IMA.NSWProf           ( normSWProfByBar )
 import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin, stdRotations, threePerNum )
-import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, match
+import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters, match
                                    , avgResult, evalMeter, printPickMeter )
 import ZMidi.IMA.TimeSigSeg        ( TimedSeg (..) )
 
@@ -77,10 +77,12 @@ writeCSVHeader m out = writeFile out . genHeader $ m
 -- TODO remove v variable -> denotes the number of selected bins, and should
 -- be controlled by the QBinSelection m
 -- | Matches an IMAStore with the meter(s) annotated in the file. 
-matchIO :: Int -> Map TimeSig [(Beat, BeatRat)] -> IMAStore
+matchIO :: Bool -> Int -> Map TimeSig [(Beat, BeatRat)] -> IMAStore
         -> IO [TimedSeg TimeSig PMatch]
-matchIO v m ima = do ps <- readPDFs ("fit"++show v++".json" )
-                     return . pickMeters $ match (stdRotations (QBins 12) threePerNum) m ps ima
+matchIO prnt v m ima = 
+  do let f = if prnt then dontPickMeters else pickMeters
+     ps <- readPDFs ("fit"++show v++".json" )
+     return . f $ match (stdRotations (QBins 12) threePerNum) m ps ima
 
 printMatchLine ::  [TimedSeg TimeSig PMatch] -> IO [TimedSeg TimeSig PMatch]
 printMatchLine m = do putStrLn . intercalate "\n" . map printPickMeter $ m 
