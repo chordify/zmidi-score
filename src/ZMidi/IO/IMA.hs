@@ -3,8 +3,8 @@ module ZMidi.IO.IMA ( exportIMAStore
                     , readIMAScoreGeneric
                     , exportCSVProfs
                     , writeCSVHeader
+                    , Print (..)
                     , readMatchPutLn
-                    , matchIO
                     -- | * Printing
                     , printMatchLine
                     , printMatchAgr
@@ -17,8 +17,8 @@ import ZMidi.IO.Common             -- ( readQMidiScoreSafe, warning )
 import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
 import ZMidi.IMA.NSWProf           ( normSWProfByBar )
-import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin, stdRotations
-                                   , threePerNum, QBinSelection )
+import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin
+                                   , QBinSelection, Rotations )
 import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters, match
                                    , avgResult, evalMeter, printPickMeter )
 import ZMidi.IMA.TimeSigSeg        ( TimedSeg (..) )
@@ -79,20 +79,20 @@ writeCSVHeader m out = writeFile out . genHeader $ m
 -- TODO remove v variable -> denotes the number of selected bins, and should
 -- be controlled by the QBinSelection m
 
-readMatchPutLn :: Bool -> QBinSelection -> [IMAPDF] -> FilePath -> IO (Maybe ([TimedSeg TimeSig PMatch]))
-readMatchPutLn p s i f = 
-  do m <- readIMAScoreGeneric f
-     case m of
-       Left  s -> warning f s >> return Nothing 
-       Right x -> matchIO p s i x 
-              >>= printMatchLine >>= return . Just
+data Print = PRot | PFile | None
 
--- | Matches an IMAStore with the meter(s) annotated in the file. 
-matchIO :: Bool -> QBinSelection -> [IMAPDF] -> IMAStore
-        -> IO [TimedSeg TimeSig PMatch]
-matchIO prnt m ps ima = 
-  do let f = if prnt then dontPickMeters else pickMeters
-     return . f $ match (stdRotations (QBins 12) threePerNum) m ps ima
+readMatchPutLn :: Print -> QBinSelection -> [IMAPDF] -> Rotations -> FilePath 
+               -> IO (Maybe ([TimedSeg TimeSig PMatch]))
+readMatchPutLn prnt s ps r fp = 
+  do let f = case prnt of
+               PRot  -> printMatchLine . dontPickMeters 
+               PFile -> printMatchLine . pickMeters 
+               None  -> return . pickMeters 
+              
+     ima <- readIMAScoreGeneric fp
+     case ima of
+       Left  s -> warning fp s >> return Nothing 
+       Right x -> f (match r s ps x) >>= return . Just
 
 printMatchLine ::  [TimedSeg TimeSig PMatch] -> IO [TimedSeg TimeSig PMatch]
 printMatchLine m = do putStrLn . intercalate "\n" . map printPickMeter $ m 

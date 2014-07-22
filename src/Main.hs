@@ -4,12 +4,14 @@ import System.Console.ParseArgs
 import Data.Maybe                     ( catMaybes )
 
 import ZMidi.Score.Datatypes          ( TimeSig (..))
+import ZMidi.Score.Quantise           ( QBins (..) )
 import ZMidi.IO.Common                ( mapDir_, mapDir, warning )
 import ZMidi.IO.IMA                   ( printIMA, analyseProfile, exportIMAStore
                                       , readIMAScoreGeneric, exportCSVProfs
                                       , writeCSVHeader, printMatchLine
-                                      , printMatchAgr, matchIO, readMatchPutLn )
-import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..), QBinSelection )
+                                      , printMatchAgr, readMatchPutLn, Print (..) )
+import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..), QBinSelection
+                                      , stdRotations, threePerNum )
 import ZMidi.IMA.NSWProf              ( readNSWProf )
 import ZMidi.IMA.Internal             ( parseTimeSig )
 import ZMidi.IMA.TimeSigSeg           ( TimedSeg )
@@ -72,13 +74,7 @@ myArgs = [
                  argName  = Just "rot",
                  argData  = argDataDefaulted "integer" ArgtypeInt 0,
                  argDesc  = "The rotation of the spectral weight profile"
-                }
-         -- , Arg { argIndex = TimeSigArg,
-                 -- argAbbr  = Just 't',
-                 -- argName  = Just "ts",
-                 -- argData  = argDataOptional "TimeSig" ArgtypeString,
-                 -- argDesc  = "The time signature to be used in the analysis"
-                -- }               
+                }             
          ]
 
 -- representing the mode of operation
@@ -105,7 +101,10 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
               od  = getRequiredArg arg OutDir  :: FilePath
               b   = getRequiredArg arg NrProfBins 
               r   = getRequiredArg arg RotationArg
-              -- ts  = getArg arg TimeSigArg >>= return . parseTimeSigArg arg
+              
+              -- standard rotations
+              rs = stdRotations (QBins 12) threePerNum
+              
               
               -- the input is either a file (Left) or a directory (Right)
               input :: Either FilePath FilePath
@@ -124,8 +123,8 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
           case (mode, input) of
             (Train, Left  f) -> exportCSVProfs s out f
             (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
-            (Test , Left  f) -> readMatchPutLn True s p f >> return ()
-            (Test , Right d) -> mapDir (readMatchPutLn False s p) d >>= printMatchAgr . concat . catMaybes
+            (Test , Left  f) -> readMatchPutLn PRot s p rs f >> return ()
+            (Test , Right d) -> mapDir (readMatchPutLn PFile s p rs) d >>= printMatchAgr . concat . catMaybes
             (Store, Left  f) -> exportIMAStore od f
             (Store, Right d) -> mapDir_ (exportIMAStore od) d
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
