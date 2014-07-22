@@ -171,7 +171,8 @@ replaceRotations seed p = mapWithRand seed replace
 
   where replace :: Int -> [(Rot, RPrior)] -> [(Rot, RPrior)]
         replace s r = let (rs, ps) = unzip r
-                      in zip rs (mixList s p ps (randoms . mkStdGen . succ $ s))
+                          x        = randomRs (0,1) . mkStdGen . succ $ s
+                      in zip rs (mixList s p ps x)
                        
 randBool :: Int -> Float -> [Bool]
 randBool seed p = map toBool . randoms . mkStdGen $ seed

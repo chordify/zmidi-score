@@ -3,6 +3,7 @@ module ZMidi.IO.IMA ( exportIMAStore
                     , readIMAScoreGeneric
                     , exportCSVProfs
                     , writeCSVHeader
+                    , readMatchPutLn
                     , matchIO
                     -- | * Printing
                     , printMatchLine
@@ -16,12 +17,13 @@ import ZMidi.IO.Common             -- ( readQMidiScoreSafe, warning )
 import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
 import ZMidi.IMA.NSWProf           ( normSWProfByBar )
-import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin, stdRotations, threePerNum )
+import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin, stdRotations
+                                   , threePerNum, QBinSelection )
 import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters, match
                                    , avgResult, evalMeter, printPickMeter )
 import ZMidi.IMA.TimeSigSeg        ( TimedSeg (..) )
 
-import ReadPDF                     ( readPDFs )
+import ReadPDF                     ( IMAPDF )
 import ZMidi.IMA.RNSWProf          ( toRNSWProf, toCSV, genHeader )
 
 import Data.Map.Strict             ( Map )
@@ -71,17 +73,25 @@ writeCSVHeader m out = writeFile out . genHeader $ m
     
 --------------------------------------------------------------------------------
 -- Matching
---------------------------------------------------------------------------------
+--------------------------------------------------------------------------------  
                      
 -- TODO promote this pattern
 -- TODO remove v variable -> denotes the number of selected bins, and should
 -- be controlled by the QBinSelection m
+
+readMatchPutLn :: Bool -> QBinSelection -> [IMAPDF] -> FilePath -> IO (Maybe ([TimedSeg TimeSig PMatch]))
+readMatchPutLn p s i f = 
+  do m <- readIMAScoreGeneric f
+     case m of
+       Left  s -> warning f s >> return Nothing 
+       Right x -> matchIO p s i x 
+              >>= printMatchLine >>= return . Just
+
 -- | Matches an IMAStore with the meter(s) annotated in the file. 
-matchIO :: Bool -> Int -> Map TimeSig [(Beat, BeatRat)] -> IMAStore
+matchIO :: Bool -> QBinSelection -> [IMAPDF] -> IMAStore
         -> IO [TimedSeg TimeSig PMatch]
-matchIO prnt v m ima = 
+matchIO prnt m ps ima = 
   do let f = if prnt then dontPickMeters else pickMeters
-     ps <- readPDFs ("fit"++show v++".json" )
      return . f $ match (stdRotations (QBins 12) threePerNum) m ps ima
 
 printMatchLine ::  [TimedSeg TimeSig PMatch] -> IO [TimedSeg TimeSig PMatch]

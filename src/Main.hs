@@ -8,13 +8,13 @@ import ZMidi.IO.Common                ( mapDir_, mapDir, warning )
 import ZMidi.IO.IMA                   ( printIMA, analyseProfile, exportIMAStore
                                       , readIMAScoreGeneric, exportCSVProfs
                                       , writeCSVHeader, printMatchLine
-                                      , printMatchAgr, matchIO )
-import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..) )
+                                      , printMatchAgr, matchIO, readMatchPutLn )
+import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..), QBinSelection )
 import ZMidi.IMA.NSWProf              ( readNSWProf )
 import ZMidi.IMA.Internal             ( parseTimeSig )
 import ZMidi.IMA.TimeSigSeg           ( TimedSeg )
 import ZMidi.IMA.RNSWMatch            ( PMatch )
-
+import ReadPDF                        ( readPDFs )
 --------------------------------------------------------------------------------
 -- Commandline argument parsing
 --------------------------------------------------------------------------------
@@ -73,12 +73,12 @@ myArgs = [
                  argData  = argDataDefaulted "integer" ArgtypeInt 0,
                  argDesc  = "The rotation of the spectral weight profile"
                 }
-         , Arg { argIndex = TimeSigArg,
-                 argAbbr  = Just 't',
-                 argName  = Just "ts",
-                 argData  = argDataOptional "TimeSig" ArgtypeString,
-                 argDesc  = "The time signature to be used in the analysis"
-                }               
+         -- , Arg { argIndex = TimeSigArg,
+                 -- argAbbr  = Just 't',
+                 -- argName  = Just "ts",
+                 -- argData  = argDataOptional "TimeSig" ArgtypeString,
+                 -- argDesc  = "The time signature to be used in the analysis"
+                -- }               
          ]
 
 -- representing the mode of operation
@@ -105,7 +105,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
               od  = getRequiredArg arg OutDir  :: FilePath
               b   = getRequiredArg arg NrProfBins 
               r   = getRequiredArg arg RotationArg
-              ts  = getArg arg TimeSigArg >>= return . parseTimeSigArg arg
+              -- ts  = getArg arg TimeSigArg >>= return . parseTimeSigArg arg
               
               -- the input is either a file (Left) or a directory (Right)
               input :: Either FilePath FilePath
@@ -118,19 +118,14 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                        _                  -> usageError arg "Invalid filepaths" 
               
           s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
-          
-          let readMatchPutLn :: Bool -> FilePath -> IO (Maybe ([TimedSeg TimeSig PMatch]))
-              readMatchPutLn p f = do m <- readIMAScoreGeneric f
-                                      case m of
-                                        Left  s -> warning f s >> return Nothing 
-                                        Right x -> matchIO p b s x >>= printMatchLine >>= return . Just
+          p <- readPDFs ("fit"++show b++".json" ) -- TODO replace...
           
           -- do the parsing magic
           case (mode, input) of
             (Train, Left  f) -> exportCSVProfs s out f
             (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
-            (Test , Left  f) -> readMatchPutLn True f >> return ()
-            (Test , Right d) -> mapDir (readMatchPutLn False) d >>= printMatchAgr . concat . catMaybes
+            (Test , Left  f) -> readMatchPutLn True s p f >> return ()
+            (Test , Right d) -> mapDir (readMatchPutLn False s p) d >>= printMatchAgr . concat . catMaybes
             (Store, Left  f) -> exportIMAStore od f
             (Store, Right d) -> mapDir_ (exportIMAStore od) d
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
