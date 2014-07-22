@@ -1,8 +1,5 @@
 {-# OPTIONS_GHC -Wall                    #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving  #-}
-{-# LANGUAGE MultiParamTypeClasses       #-}
-{-# LANGUAGE FlexibleInstances           #-}
-{-# LANGUAGE TypeSynonymInstances        #-}
 -- | This module deals with selecting the SWProf bins used to estimate the meter
 module ZMidi.IMA.SelectProfBins ( selectQBins
                                 , getSel
@@ -18,25 +15,25 @@ module ZMidi.IMA.SelectProfBins ( selectQBins
                                 , getNumForQBins
                                 , stdRotations
                                 , threePerNum
+                                , normPriors
                                 -- * JSON import and export
                                 , writeJSON
                                 , readJSON
-                                ) where
+                                ) 
+                                where
 
 import ZMidi.Score.Datatypes          ( TimeSig (..) , Beat(..) , BeatRat (..) )
 import ZMidi.Score.Quantise           ( QBins (..) )
 import ZMidi.IMA.Internal             ( lookupErr )
-import ZMidi.IMA.Analyse              ( IMAStore ) 
 import ZMidi.IMA.NSWProf
-import Data.List                      ( sort, sortBy, zipWith4 )
+import Data.List                      ( sort, sortBy )
 import Data.Ord                       ( comparing, Down (..) )
 import Data.Maybe                     ( fromJust )
 import Data.Csv                       ( FromField (..) )
 import Data.Ratio                     ( numerator, denominator, (%), Ratio) 
 import qualified Data.Map.Strict as M ( map, lookup, foldr )
 import Data.Map.Strict                ( Map, toAscList, filterWithKey, empty
-                                      , findWithDefault, insert, toList, elems
-                                      , fromList, keys, mapAccum)
+                                      , findWithDefault, insert, toList, fromList)
 import Data.ByteString.Char8          ( readInt )
 import Control.Monad                  ( mzero )
 import Control.Arrow                  ( second )
@@ -45,8 +42,7 @@ import Data.Aeson                     ( ToJSON (..), FromJSON (..), decode
                                       , encode, (.=), (.:), Value (..), object)
 import Data.Text                      ( pack )
 import qualified Data.ByteString.Lazy as BL ( readFile, writeFile )
-import GA                             (Entity(..))
-import System.Random                  ( Random (..), mkStdGen, RandomGen (..) )
+import System.Random                  ( Random (..) )
 
 --------------------------------------------------------------------------------
 -- parameters
@@ -57,9 +53,9 @@ acceptedTimeSigs = [ TimeSig 2 2 0 0, TimeSig 2 4 0 0
                    , TimeSig 4 4 0 0, TimeSig 3 4 0 0
                    , TimeSig 6 8 0 0 ]
                    
-randTimeSig :: Int -> TimeSig
-randTimeSig seed = let l = pred $ length acceptedTimeSigs
-                   in acceptedTimeSigs !! (fst $ randomR (0,l) (mkStdGen seed))
+-- randTimeSig :: Int -> TimeSig
+-- randTimeSig seed = let l = pred $ length acceptedTimeSigs
+                   -- in acceptedTimeSigs !! (fst $ randomR (0,l) (mkStdGen seed))
 
 --------------------------------------------------------------------------------
 -- QBinSelection stuff
@@ -121,12 +117,6 @@ stdRotations q f = normPriors $ foldr g empty acceptedTimeSigs
 threePerNum :: QBins -> TimeSig -> [(Rot, RPrior)]
 threePerNum (QBins q) ts = reverse $ map f [0, 3 .. ((tsNum ts * q) - 3)]
   where f x = (Rot (x % q), RPrior 1.0 )
-        
-randomPrior :: Int -> QBins -> TimeSig -> [(Rot, RPrior)]
-randomPrior s (QBins q) t = reverse $ zipWith f [0, 3 .. ((tsNum t * q) - 3)] r
-  -- Hacky, but let's make sure we have different numbers for every timesig
-  where r = randoms (mkStdGen (s + tsNum t + tsDen t))
-        f x p = (Rot (x % q), RPrior p)
  
 -- normalises the 'Rotations' priors to sum to 1.0
 normPriors :: Rotations -> Rotations
@@ -136,56 +126,11 @@ normPriors r = let s = sumPriors r in M.map (map (second (/ s))) r where
   sumPriors = M.foldr perTS 0 where
     
     perTS :: [(Rot, RPrior)] -> RPrior -> RPrior
-    perTS l s = s + foldr (\x s -> s + snd x) 0 l
+    perTS l s = s + foldr (\x y -> y + snd x) 0 l
 
 getRot :: Rotations -> TimeSig -> [(Rot,RPrior)]
 getRot r t = lookupErr ("QBinSelection.getRot: TimeSig not found "++ show t) r t
 
--- | it assumed the two rotations have the same length.
-crossRot :: Int -> [a] -> [a] -> ([a],[a])
-crossRot seed a b = 
-  let i        = fst $ randomR (0, pred . length $ a) (mkStdGen seed)
-      (a1, a2) = splitAt i a
-      (b1, b2) = splitAt i b
-  in (a1 ++ b2, b1 ++ a2)
-
-mixList :: Int -> Float -> [a] -> [a] -> [a]
-mixList seed p a b = zipWith3 select (randBool seed p) a b
-  where select :: Bool -> a -> a -> a
-        select rand x y | rand      = x
-                        | otherwise = y
-  
-mixRotations :: Int -> Float -> Rotations -> Rotations -> Rotations
--- converting back to lists and then back to maps, not a very nice solutions
--- N.B. it's a pattern that might be useful at other places to...
-mixRotations seed p a b = normPriors . fromList 
-                        $ zipWith4 mix (randoms $ mkStdGen seed) 
-                                       (keys a) (elems a) (elems b) 
-
-  where mix :: Int -> TimeSig -> [(Rot,RPrior)] -> [(Rot,RPrior)] 
-            -> (TimeSig, [(Rot,RPrior)])
-        mix s ts x y = (ts, mixList s p x y)
-        
-replaceRotations :: Int -> Float -> Rotations -> Rotations
-replaceRotations seed p = mapWithRand seed replace
-
-  where replace :: Int -> [(Rot, RPrior)] -> [(Rot, RPrior)]
-        replace s r = let (rs, ps) = unzip r
-                          x        = randomRs (0,1) . mkStdGen . succ $ s
-                      in zip rs (mixList s p ps x)
-                       
-randBool :: Int -> Float -> [Bool]
-randBool seed p = map toBool . randoms . mkStdGen $ seed
-  where k = round (1 / p)
-        
-        toBool :: Int -> Bool 
-        toBool s = s `mod` k == 0
-    
-mapWithRand :: Int -> (Int -> a -> b) -> Map k a -> Map k b
-mapWithRand seed f = snd . mapAccum apply (mkStdGen seed)
-
-  where -- apply :: RandomGen g => g -> a -> (g, b)
-        apply g x = let (r, g') = random g in (g', f r x)
                    
 type Rotations = Map TimeSig [(Rot, RPrior)]
   
@@ -224,29 +169,6 @@ rotate _ _ _ _ = error "SelectQBins.rotate: invalid arguments"
 -- >>> 12
 getNumForQBins :: QBins -> Ratio Int -> Int
 getNumForQBins (QBins q) r = numerator r * (q `div` denominator r)
-
---------------------------------------------------------------------------------
--- GA instances
---------------------------------------------------------------------------------
-
-instance Entity Rotations Double [IMAStore] QBins IO where
-  genRandom qb seed = return $ stdRotations qb (randomPrior seed) 
-
-  crossover _pool par seed a b = return . Just $ mixRotations seed par a b
-
-  mutation pool par seed e = return . Just $ replaceRotations seed par e
-
-  score' dat e = undefined
-
-  -- showGeneration ix 
-  
-getRandomTS :: (Read a, Show a) => Int -> Map TimeSig a -> a
-getRandomTS s m = 
-  let t = acceptedTimeSigs !! 
-         (fst . randomR (0, pred (length acceptedTimeSigs)) . mkStdGen $ s)
-  in lookupErr ("getRandomTS: TimeSig not found "++ show t) m t
-
--- getTS :: Map
 
 --------------------------------------------------------------------------------
 -- JSON import and export
