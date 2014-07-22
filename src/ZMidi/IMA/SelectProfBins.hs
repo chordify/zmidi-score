@@ -28,14 +28,15 @@ import ZMidi.Score.Quantise           ( QBins (..) )
 import ZMidi.IMA.Internal             ( lookupErr )
 import ZMidi.IMA.Analyse              ( IMAStore ) 
 import ZMidi.IMA.NSWProf
-import Data.List                      ( sort, sortBy )
+import Data.List                      ( sort, sortBy, zipWith4 )
 import Data.Ord                       ( comparing, Down (..) )
 import Data.Maybe                     ( fromJust )
 import Data.Csv                       ( FromField (..) )
 import Data.Ratio                     ( numerator, denominator, (%), Ratio) 
 import qualified Data.Map.Strict as M ( map, lookup, foldr )
 import Data.Map.Strict                ( Map, toAscList, filterWithKey, empty
-                                      , findWithDefault, insert, toList, fromList )
+                                      , findWithDefault, insert, toList, elems
+                                      , fromList, keys)
 import Data.ByteString.Char8          ( readInt )
 import Control.Monad                  ( mzero )
 import Control.Arrow                  ( second )
@@ -56,8 +57,9 @@ acceptedTimeSigs = [ TimeSig 2 2 0 0, TimeSig 2 4 0 0
                    , TimeSig 4 4 0 0, TimeSig 3 4 0 0
                    , TimeSig 6 8 0 0 ]
                    
--- totNrOfProfBeats :: Int
--- totNrOfProfBeats = foldr (\(TimeSig n d _ _) r -> r + (n * d)) 0 acceptedTimeSigs
+randTimeSig :: Int -> TimeSig
+randTimeSig seed = let l = pred $ length acceptedTimeSigs
+                   in acceptedTimeSigs !! (fst $ randomR (0,l) (mkStdGen seed))
 
 --------------------------------------------------------------------------------
 -- QBinSelection stuff
@@ -139,8 +141,28 @@ normPriors r = let s = sumPriors r in M.map (map (second (/ s))) r where
 getRot :: Rotations -> TimeSig -> [(Rot,RPrior)]
 getRot r t = lookupErr ("QBinSelection.getRot: TimeSig not found "++ show t) r t
 
+-- | it assumed the two rotations have the same length.
+crossRot :: Int -> [a] -> [a] -> ([a],[a])
+crossRot seed a b = 
+  let i        = fst $ randomR (0, pred . length $ a) (mkStdGen seed)
+      (a1, a2) = splitAt i a
+      (b1, b2) = splitAt i b
+  in (a1 ++ b2, b1 ++ a2)
 
+mixList :: Int -> [a] -> [a] -> [a]
+mixList seed a b = zipWith3 select (randoms $ mkStdGen seed) a b
+  where select :: Bool -> a -> a -> a
+        select rand x y | rand      = x
+                        | otherwise = y
+  
+mixRotations :: Int -> Rotations -> Rotations -> Rotations
+mixRotations seed a b = fromList $ zipWith4 mix (randoms $ mkStdGen seed) 
+                                                (keys a) (elems a) (elems b) 
 
+  where mix :: Int -> TimeSig -> [(Rot,RPrior)] -> [(Rot,RPrior)] 
+            -> (TimeSig, [(Rot,RPrior)])
+        mix s ts x y = (ts, mixList s x y)
+        
 type Rotations = Map TimeSig [(Rot, RPrior)]
   
 -- | The Rotation
@@ -185,7 +207,7 @@ getNumForQBins (QBins q) r = numerator r * (q `div` denominator r)
 instance Entity Rotations Double [IMAStore] QBins IO where
   genRandom qb seed = return $ stdRotations qb (randomPrior seed) 
 
-  crossover _pool _par seed a b = undefined
+  crossover _pool _par seed a b = return . Just $ mixRotations seed a b
 
   mutation pool par seed e = undefined
 
