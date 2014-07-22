@@ -7,11 +7,15 @@ module ZMidi.IMA.GA (Entity (..)) where
 import ZMidi.Score.Datatypes          ( TimeSig (..) )
 import ZMidi.Score.Quantise           ( QBins (..) )
 import ZMidi.IMA.SelectProfBins
+import ZMidi.IMA.RNSWMatch            ( avgResult, evalMeter, Result (..) )
+import ZMidi.IO.IMA                   ( readMatchPutLn, Print (..) )
 import Data.List                      ( zipWith4 )
+import Data.Maybe                     ( catMaybes )
 import Data.Ratio                     ( (%)) 
 import Data.Map.Strict                ( Map, elems, fromList, keys, mapAccum)
 import GA                             (Entity(..))
 import System.Random                  ( Random (..), mkStdGen )
+import ZMidi.IO.Common                ( mapDir )
 import ReadPDF                        ( IMAPDF )
 
 --------------------------------------------------------------------------------
@@ -25,7 +29,10 @@ instance Entity Rotations Double (QBinSelection, [IMAPDF], FilePath) QBins IO wh
 
   mutation pool par seed e = return . Just $ replaceRotations seed par e
 
-  score' (sel, pdfs, fp) e = undefined
+  score (sel, pdfs, dirfp) e = mapDir (readMatchPutLn None sel pdfs e) dirfp 
+                       >>= return . Just . meterOk . avgResult 
+                                  . evalMeter . concat . catMaybes
+       
 
   -- showGeneration ix 
 

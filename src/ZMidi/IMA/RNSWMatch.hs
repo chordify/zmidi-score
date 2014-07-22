@@ -4,6 +4,7 @@
 module ZMidi.IMA.RNSWMatch( PMatch (..)
                           , NSWDist (..)
                           , Prob (..)
+                          , Result (..)
                           , match
                           , evalMeter
                           , avgResult
