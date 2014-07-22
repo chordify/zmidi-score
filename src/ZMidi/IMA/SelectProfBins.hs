@@ -56,8 +56,8 @@ acceptedTimeSigs = [ TimeSig 2 2 0 0, TimeSig 2 4 0 0
                    , TimeSig 4 4 0 0, TimeSig 3 4 0 0
                    , TimeSig 6 8 0 0 ]
                    
-totNrOfProfBeats :: Int
-totNrOfProfBeats = foldr (\(TimeSig n d _ _) r -> r + (n * d)) 0 acceptedTimeSigs
+-- totNrOfProfBeats :: Int
+-- totNrOfProfBeats = foldr (\(TimeSig n d _ _) r -> r + (n * d)) 0 acceptedTimeSigs
 
 --------------------------------------------------------------------------------
 -- QBinSelection stuff
@@ -128,16 +128,18 @@ randomPrior s (QBins q) t = reverse $ zipWith f [0, 3 .. ((tsNum t * q) - 3)] r
  
 -- normalises the 'Rotations' priors to sum to 1.0
 normPriors :: Rotations -> Rotations
-normPriors r = let s = sumPriors r in M.map (map (second (/ s))) r 
+normPriors r = let s = sumPriors r in M.map (map (second (/ s))) r where
                
-sumPriors :: Rotations -> RPrior
-sumPriors = M.foldr perTS 0 where
-  
-  perTS :: [(Rot, RPrior)] -> RPrior -> RPrior
-  perTS l s = s + foldr (\x s -> s + snd x) 0 l
+  sumPriors :: Rotations -> RPrior
+  sumPriors = M.foldr perTS 0 where
+    
+    perTS :: [(Rot, RPrior)] -> RPrior -> RPrior
+    perTS l s = s + foldr (\x s -> s + snd x) 0 l
 
 getRot :: Rotations -> TimeSig -> [(Rot,RPrior)]
 getRot r t = lookupErr ("QBinSelection.getRot: TimeSig not found "++ show t) r t
+
+
 
 type Rotations = Map TimeSig [(Rot, RPrior)]
   
