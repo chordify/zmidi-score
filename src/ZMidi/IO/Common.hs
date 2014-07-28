@@ -31,7 +31,7 @@ import System.Directory   ( getDirectoryContents, canonicalizePath
 import System.IO          ( stderr, hPutStrLn )
 import System.FilePath    ( (</>) )
 import Data.Foldable      ( foldrM )
-import Control.Concurrent.ParallelIO.Global ( parallel, stopGlobalPool )
+import Control.Concurrent.ParallelIO.Global ( parallel )
 
 --------------------------------------------------------------------------------
 -- Mapping
@@ -54,9 +54,8 @@ mapDir :: (FilePath -> IO a) ->  FilePath -> IO [a]
 mapDir f fp = do fs  <- getCurDirectoryContents fp
                  cin <- canonicalizePath fp
                  putErrStrLn cin
-                 -- mapM (f . (cin </>)) $ fs 
+                 -- res <- parallel . map (\s -> let z = f (cin </> s) in s `seq` z `seq` z) $ fs 
                  res <- parallel . map (f . (cin </>)) $ fs 
-                 stopGlobalPool
                  return res
                  
 

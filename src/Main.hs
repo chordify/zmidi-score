@@ -18,6 +18,7 @@ import ZMidi.IMA.TimeSigSeg           ( TimedSeg )
 import ZMidi.IMA.RNSWMatch            ( PMatch )
 import ReadPDF                        ( readPDFs )
 import ZMidi.IMA.GA                   ( runGA )
+import Control.Concurrent.ParallelIO  ( stopGlobalPool )
 --------------------------------------------------------------------------------
 -- Commandline argument parsing
 --------------------------------------------------------------------------------
@@ -134,6 +135,8 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (Prof , Left  f) -> readIMAScoreGeneric f >>= either error (analyseProfile r s)
             (Prof , Right _) -> usageError arg "We can only profile a file" 
             (GARot, Left  _) -> usageError arg "We can only evolve on a directory"
-            (GARot, Right d) -> runGA (QBins 12) s p d 
+            (GARot, Right d) -> runGA (QBins 12) s p d  
+          
+          stopGlobalPool
 
        

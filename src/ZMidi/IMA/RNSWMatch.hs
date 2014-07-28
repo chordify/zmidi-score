@@ -131,7 +131,7 @@ match rs s pdfs i = map update . swMeterSeg $ i where
   tb = imaTPB i
 
   update :: SWMeterSeg -> TimedSeg TimeSig [PMatch]
-  update sg =  fmap (const . concatMap (matchPDF sg) $ pdfs) sg
+  update sg = fmap (const . concatMap (matchPDF sg) $ pdfs) sg
 
   -- matches a single pdf, creating the profile is independent of the rotation
   -- and happens here

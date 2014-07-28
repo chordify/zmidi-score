@@ -63,12 +63,18 @@ instance Entity Rotations Double (QBinSelection, [IMAPDF], FilePath) QBins IO wh
 
   mutation _pool par seed e = return . Just $ replaceRotations seed par e
 
-  score (sel, pdfs, dirfp) e = mapDir (readMatchPutLn None sel pdfs e) dirfp 
-                           >>= return . Just      . meterFail . avgResult 
-                                      . evalMeter . concat    . catMaybes
-       
+  score (sel, pdfs, dirfp) e = 
+    do d <- mapDir (readMatchPutLn None sel pdfs e) dirfp 
+       let s = meterFail . avgResult . evalMeter . concat . catMaybes $ d
+       s `seq` print s
+       return (Just s)
 
-  -- showGeneration ix 
+  showGeneration gi (_,archive) = 
+    let (Just fitness, e) = head archive
+    in  "best entity (gen. "  ++ show gi ++ "): " ++ (showRotations (QBins 12) e) 
+                              ++ " [fitness: " ++ show fitness ++ "]"
+          
+      
 
 --------------------------------------------------------------------------------
 -- GA helper functions

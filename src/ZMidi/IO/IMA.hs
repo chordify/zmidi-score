@@ -55,7 +55,8 @@ readIMAScoreGeneric :: FilePath -> IO (Either String IMAStore)
 readIMAScoreGeneric f = 
   case take 4 . map toLower . takeExtension $ f of
     ".mid" -> readQMidiScoreSafe f >>= return . toIMAStore f
-    ".ima" -> decodeFile f >>= return . Right
+    ".ima" -> do r <- decodeFile f 
+                 r `seq` return (Right r)
     e      -> error ("Error: " ++ e ++ " is not an accepted file type")  
     
 --------------------------------------------------------------------------------
@@ -87,12 +88,13 @@ readMatchPutLn prnt s ps r fp =
   do let f = case prnt of
                PRot  -> printMatchLine . dontPickMeters 
                PFile -> printMatchLine . pickMeters 
-               None  -> return . pickMeters 
+               -- None  -> \x -> let y = (pickMeters x) in y `seq` return y
+               None  -> \x -> return $! pickMeters $! x 
               
      ima <- readIMAScoreGeneric fp
      case ima of
        Left  s -> warning fp s >> return Nothing 
-       Right x -> f (match r s ps x) >>= return . Just
+       Right x -> (f . match r s ps $! x) >>= return . Just
 
 printMatchLine ::  [TimedSeg TimeSig PMatch] -> IO [TimedSeg TimeSig PMatch]
 printMatchLine m = do putStrLn . intercalate "\n" . map printPickMeter $ m 
