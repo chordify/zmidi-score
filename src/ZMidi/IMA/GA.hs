@@ -6,19 +6,19 @@ module ZMidi.IMA.GA ( Entity (..)
                     , runGA
                     ) where
 
-import ZMidi.Score.Datatypes          ( TimeSig (..) )
-import ZMidi.Score.Quantise           ( QBins (..) )
+import ZMidi.Score.Datatypes    ( TimeSig (..) )
+import ZMidi.Score.Quantise     ( QBins (..) )
 import ZMidi.IMA.SelectProfBins
-import ZMidi.IMA.RNSWMatch            ( avgResult, evalMeter, Result (..) )
-import ZMidi.IO.IMA                   ( readMatchPutLn, Print (..) )
-import Data.List                      ( zipWith4 )
-import Data.Maybe                     ( catMaybes )
-import Data.Ratio                     ( (%)) 
-import Data.Map.Strict                ( Map, elems, fromList, keys, mapAccum)
-import GA                             (Entity(..))
-import System.Random                  ( Random (..), mkStdGen )
-import ZMidi.IO.Common                ( mapDir )
-import ReadPDF                        ( IMAPDF )
+import ZMidi.IMA.RNSWMatch      ( avgResult, evalMeter, Result (..), meterFail )
+import ZMidi.IO.IMA             ( readMatchPutLn, Print (..) )
+import Data.List                ( zipWith4 )
+import Data.Maybe               ( catMaybes )
+import Data.Ratio               ( (%)) 
+import Data.Map.Strict          ( Map, elems, fromList, keys, mapAccum)
+import GA                       ( Entity(..), GAConfig (..), evolveVerbose )
+import System.Random            ( Random (..), mkStdGen, getStdGen )
+import ZMidi.IO.Common          ( mapDir )
+import ReadPDF                  ( IMAPDF )
 
 --------------------------------------------------------------------------------
 -- GA configuration
@@ -39,18 +39,13 @@ runGA qb sel pdfs dir =
 
          -- g = mkStdGen 0 -- random generator
 
-         -- pool of characters to pick from: printable ASCII characters
-         charsPool = map chr [32..126]
-
-         fileName = "goal.txt"
-     
      g <- getStdGen
      -- Do the evolution!
      -- Note: if either of the last two arguments is unused, just use () as a value
      -- evolveVerbose :: StdGen -> GAConfig -> QBins 
      --               -> (QBinSelection, [IMAPDF], FilePath)
-     es <- evolveVerbose g cfg qb (sel,pdf, dir)
-     let e = head es 
+     es <- evolveVerbose g cfg qb (sel,pdfs, dir)
+     let e = head es :: (Maybe Double, Rotations)
      
      putStrLn $ "best entity (GA): \n" ++ (show e)
 

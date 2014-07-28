@@ -16,6 +16,7 @@ module ZMidi.IMA.SelectProfBins ( selectQBins
                                 , stdRotations
                                 , threePerNum
                                 , normPriors
+                                , showRotations
                                 -- * JSON import and export
                                 , writeJSON
                                 , readJSON
@@ -26,14 +27,15 @@ import ZMidi.Score.Datatypes          ( TimeSig (..) , Beat(..) , BeatRat (..) )
 import ZMidi.Score.Quantise           ( QBins (..) )
 import ZMidi.IMA.Internal             ( lookupErr )
 import ZMidi.IMA.NSWProf
-import Data.List                      ( sort, sortBy )
+import Data.List                      ( sort, sortBy, intercalate )
 import Data.Ord                       ( comparing, Down (..) )
 import Data.Maybe                     ( fromJust )
 import Data.Csv                       ( FromField (..) )
 import Data.Ratio                     ( numerator, denominator, (%), Ratio) 
 import qualified Data.Map.Strict as M ( map, lookup, foldr )
 import Data.Map.Strict                ( Map, toAscList, filterWithKey, empty
-                                      , findWithDefault, insert, toList, fromList)
+                                      , findWithDefault, insert, toList
+                                      , fromList, foldrWithKey)
 import Data.ByteString.Char8          ( readInt )
 import Control.Monad                  ( mzero )
 import Control.Arrow                  ( second )
@@ -41,6 +43,7 @@ import Control.Applicative            ( pure, (<$>), (<*>) )
 import Data.Aeson                     ( ToJSON (..), FromJSON (..), decode
                                       , encode, (.=), (.:), Value (..), object)
 import Data.Text                      ( pack )
+import Text.Printf                    ( printf, PrintfArg)
 import qualified Data.ByteString.Lazy as BL ( readFile, writeFile )
 import System.Random                  ( Random (..) )
 
@@ -142,7 +145,7 @@ newtype Rot = Rot { rot :: Ratio Int }
 newtype RPrior = RPrior { rprior :: Double }
                   deriving ( Eq, Show, Num, Ord, Enum, Real, Floating, Read
                            , Fractional, RealFloat, RealFrac, FromJSON, ToJSON
-                           , Random)
+                           , Random, PrintfArg)
                   
 instance FromField Rot where
   parseField r = case readInt r of 
@@ -170,11 +173,18 @@ rotate _ _ _ _ = error "SelectQBins.rotate: invalid arguments"
 getNumForQBins :: QBins -> Ratio Int -> Int
 getNumForQBins (QBins q) r = numerator r * (q `div` denominator r)
 
-showRotations :: Rotations -> String
-showRotations = undefined
+showRotations :: QBins -> Rotations -> String
+showRotations q = foldrWithKey showRPs "" where
 
-showRot :: [(Rot, RPrior)] -> String
-showRot = undefined
+  showRPs :: TimeSig -> [(Rot, RPrior)] -> String -> String
+  showRPs t r s = let (rs,ps) = unzip . reverse $ r
+                  in intercalate "\n" [s, show t ++ ":", showRs rs, showPs ps]
+
+  showRs :: [Rot] -> String
+  showRs rs = concatMap (\(Rot r) -> printf "  %2d " $ getNumForQBins q r) rs
+
+  showPs :: [RPrior] -> String
+  showPs ps = concatMap (\p -> printf "%.2f " p) ps
 
 --------------------------------------------------------------------------------
 -- JSON import and export
