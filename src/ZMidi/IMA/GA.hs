@@ -34,7 +34,7 @@ runGA qb sel pdfs dir =
                  0.2 -- mutation rate (% of entities by mutation)
                  0.2 -- parameter for crossover (% of split points)
                  0.2 -- parameter for mutation (% of replaced rotations)
-                 False -- whether or not to use checkpointing
+                 True -- whether or not to use checkpointing
                  False -- don't rescore archive in each generation
 
          -- g = mkStdGen 0 -- random generator

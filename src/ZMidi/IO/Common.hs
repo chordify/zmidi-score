@@ -53,8 +53,7 @@ mapDir_ f = void . mapDir f
 mapDir :: (FilePath -> IO a) ->  FilePath -> IO [a]
 mapDir f fp = do fs  <- getCurDirectoryContents fp
                  cin <- canonicalizePath fp
-                 putErrStrLn cin
-                 -- res <- parallel . map (\s -> let z = f (cin </> s) in s `seq` z `seq` z) $ fs 
+                 -- putErrStrLn cin
                  res <- parallel . map (f . (cin </>)) $ fs 
                  return res
                  
