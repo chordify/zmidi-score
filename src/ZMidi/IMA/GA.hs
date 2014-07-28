@@ -104,7 +104,7 @@ mixRotations seed p a b = normPriors . fromList
         mix s ts x y = (ts, mixList s p x y)
         
 replaceRotations :: Int -> Float -> Rotations -> Rotations
-replaceRotations seed p = mapWithRand seed replace
+replaceRotations seed p = normPriors . mapWithRand seed replace
 
   where replace :: Int -> [(Rot, RPrior)] -> [(Rot, RPrior)]
         replace s r = let (rs, ps) = unzip r
