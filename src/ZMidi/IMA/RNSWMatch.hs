@@ -5,6 +5,7 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
                           , NSWDist (..)
                           , Prob (..)
                           , Result (..)
+                          , meterFail
                           , match
                           , evalMeter
                           , avgResult
@@ -60,6 +61,12 @@ instance Show a => Show (Result a) where
   show (Result a b) =    "meter OK:    " ++ show a 
                     ++ "\nrotation OK: " ++ show b
 
+-- | Returns 1 - the results. (It is assumed, but not checked that resultOk
+-- returns the percentage of the cases in which the meter is correct)
+meterFail :: Result Double -> Double
+meterFail r = 1.0 - meterOk r
+
+-- | aggregates a list of results
 avgResult :: [Result Bool] -> Result Double
 avgResult l = ap (/) (foldr step (Result 0 0) l) (Result len len)
 

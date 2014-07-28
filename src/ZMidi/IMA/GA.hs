@@ -19,6 +19,13 @@ import ZMidi.IO.Common                ( mapDir )
 import ReadPDF                        ( IMAPDF )
 
 --------------------------------------------------------------------------------
+-- GA configuration
+--------------------------------------------------------------------------------
+
+runGA :: IO ()
+runGA = undefined
+
+--------------------------------------------------------------------------------
 -- GA instances
 --------------------------------------------------------------------------------
 
@@ -30,7 +37,7 @@ instance Entity Rotations Double (QBinSelection, [IMAPDF], FilePath) QBins IO wh
   mutation pool par seed e = return . Just $ replaceRotations seed par e
 
   score (sel, pdfs, dirfp) e = mapDir (readMatchPutLn None sel pdfs e) dirfp 
-                       >>= return . Just . meterOk . avgResult 
+                       >>= return . Just . meterFail . avgResult 
                                   . evalMeter . concat . catMaybes
        
 
