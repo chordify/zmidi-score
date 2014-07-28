@@ -2,7 +2,9 @@
 {-# LANGUAGE MultiParamTypeClasses       #-}
 {-# LANGUAGE FlexibleInstances           #-}
 {-# LANGUAGE TypeSynonymInstances        #-}
-module ZMidi.IMA.GA (Entity (..)) where
+module ZMidi.IMA.GA ( Entity (..)
+                    , runGA
+                    ) where
 
 import ZMidi.Score.Datatypes          ( TimeSig (..) )
 import ZMidi.Score.Quantise           ( QBins (..) )
@@ -22,23 +24,50 @@ import ReadPDF                        ( IMAPDF )
 -- GA configuration
 --------------------------------------------------------------------------------
 
-runGA :: IO ()
-runGA = undefined
+runGA :: QBins -> QBinSelection -> [IMAPDF] -> FilePath -> IO ()
+runGA qb sel pdfs dir = 
+  do let cfg = GAConfig 
+                 100 -- population size
+                 25  -- archive size (best entities to keep track of)
+                 500 -- maximum number of generations
+                 0.8 -- crossover rate (% of entities by crossover)
+                 0.2 -- mutation rate (% of entities by mutation)
+                 0.2 -- parameter for crossover (% of split points)
+                 0.2 -- parameter for mutation (% of replaced rotations)
+                 False -- whether or not to use checkpointing
+                 False -- don't rescore archive in each generation
+
+         -- g = mkStdGen 0 -- random generator
+
+         -- pool of characters to pick from: printable ASCII characters
+         charsPool = map chr [32..126]
+
+         fileName = "goal.txt"
+     
+     g <- getStdGen
+     -- Do the evolution!
+     -- Note: if either of the last two arguments is unused, just use () as a value
+     -- evolveVerbose :: StdGen -> GAConfig -> QBins 
+     --               -> (QBinSelection, [IMAPDF], FilePath)
+     es <- evolveVerbose g cfg qb (sel,pdf, dir)
+     let e = head es 
+     
+     putStrLn $ "best entity (GA): \n" ++ (show e)
 
 --------------------------------------------------------------------------------
 -- GA instances
 --------------------------------------------------------------------------------
 
 instance Entity Rotations Double (QBinSelection, [IMAPDF], FilePath) QBins IO where
-  genRandom qb seed = return $ stdRotations qb (randomPrior seed) 
+  genRandom pool seed = return $ stdRotations pool (randomPrior seed) 
 
   crossover _pool par seed a b = return . Just $ mixRotations seed par a b
 
-  mutation pool par seed e = return . Just $ replaceRotations seed par e
+  mutation _pool par seed e = return . Just $ replaceRotations seed par e
 
   score (sel, pdfs, dirfp) e = mapDir (readMatchPutLn None sel pdfs e) dirfp 
-                       >>= return . Just . meterFail . avgResult 
-                                  . evalMeter . concat . catMaybes
+                           >>= return . Just      . meterFail . avgResult 
+                                      . evalMeter . concat    . catMaybes
        
 
   -- showGeneration ix 

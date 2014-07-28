@@ -170,6 +170,12 @@ rotate _ _ _ _ = error "SelectQBins.rotate: invalid arguments"
 getNumForQBins :: QBins -> Ratio Int -> Int
 getNumForQBins (QBins q) r = numerator r * (q `div` denominator r)
 
+showRotations :: Rotations -> String
+showRotations = undefined
+
+showRot :: [(Rot, RPrior)] -> String
+showRot = undefined
+
 --------------------------------------------------------------------------------
 -- JSON import and export
 --------------------------------------------------------------------------------
