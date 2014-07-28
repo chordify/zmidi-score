@@ -45,9 +45,12 @@ runGA qb sel pdfs dir =
      -- evolveVerbose :: StdGen -> GAConfig -> QBins 
      --               -> (QBinSelection, [IMAPDF], FilePath)
      es <- evolveVerbose g cfg qb (sel,pdfs, dir)
-     let e = head es :: (Maybe Double, Rotations)
+     let (s,r) = head es :: (Maybe Double, Rotations)
      
-     putStrLn $ "best entity (GA): \n" ++ (show e)
+     writeJSON "evolvedRotations.json" r
+     
+     putStrLn $ "best entity (GA): \n" ++ (showRotations qb r)
+     putStrLn $ "score: " ++ show s
 
 --------------------------------------------------------------------------------
 -- GA instances

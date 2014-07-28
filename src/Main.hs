@@ -17,6 +17,7 @@ import ZMidi.IMA.Internal             ( parseTimeSig )
 import ZMidi.IMA.TimeSigSeg           ( TimedSeg )
 import ZMidi.IMA.RNSWMatch            ( PMatch )
 import ReadPDF                        ( readPDFs )
+import ZMidi.IMA.GA                   ( runGA )
 --------------------------------------------------------------------------------
 -- Commandline argument parsing
 --------------------------------------------------------------------------------
@@ -30,7 +31,7 @@ myArgs = [
                  argAbbr  = Just 'm',
                  argName  = Just "mode",
                  argData  = argDataRequired "mode" ArgtypeString,
-                 argDesc  = "The operation mode (train|test|ima|profile|store)"
+                 argDesc  = "The operation mode (train|test|ima|profile|store|ga-rot)"
                }
         ,  Arg { argIndex = OutFile,
                  argAbbr  = Just 'o',
@@ -78,7 +79,7 @@ myArgs = [
          ]
 
 -- representing the mode of operation
-data Mode = Train | Test | Profile | Store | IMA deriving (Eq)
+data Mode = Train | Test | Prof | Store | IMA | GARot deriving (Eq)
 
 parseTimeSigArg :: Args MyArgs -> String -> TimeSig
 parseTimeSigArg arg s = either (usageError arg) id $ parseTimeSig s 
@@ -90,9 +91,10 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
           let mode   = case (getRequiredArg arg Mode) of
                          "train"   -> Train
                          "test"    -> Test
-                         "profile" -> Profile
+                         "profile" -> Prof
                          "store"   -> Store
                          "ima"     -> IMA
+                         "ga-rot"  -> GARot
                          -- "select"  -> Select
                          m         -> usageError arg ("unrecognised mode: " ++ m)
               
@@ -129,7 +131,9 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (Store, Right d) -> mapDir_ (exportIMAStore od) d
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
             (IMA  , Right _) -> usageError arg "We can only analyse a file"
-            (Profile, Left  f) -> readIMAScoreGeneric f >>= either error (analyseProfile r s)
-            (Profile, Right _) -> usageError arg "We can only profile a file"            
+            (Prof , Left  f) -> readIMAScoreGeneric f >>= either error (analyseProfile r s)
+            (Prof , Right _) -> usageError arg "We can only profile a file" 
+            (GARot, Left  _) -> usageError arg "We can only evolve on a directory"
+            (GARot, Right d) -> runGA (QBins 12) s p d 
 
        
