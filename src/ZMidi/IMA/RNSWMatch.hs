@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE DeriveFunctor            #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveFunctor              #-}
 module ZMidi.IMA.RNSWMatch( PMatch (..)
                           , NSWDist (..)
                           , Prob (..)
@@ -29,14 +30,20 @@ import Data.Function              ( on )
 
 import Text.Printf                ( printf, PrintfArg )
 
+import GHC.Generics        ( Generic )
+import Control.DeepSeq
+import Control.DeepSeq.Generics (genericRnf)
+
 -- | Normalised spectral weights distance, obtained by matching two 'SWProf's
 newtype NSWDist = NSWDist { nswdist :: Double }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
-                             , Fractional, RealFloat, RealFrac, PrintfArg )
+                             , Fractional, RealFloat, RealFrac, PrintfArg
+                             , NFData )
 
 newtype Prob    = Prob { prob :: Double }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
-                             , Fractional, RealFloat, RealFrac, PrintfArg )
+                             , Fractional, RealFloat, RealFrac, PrintfArg 
+                             , NFData )
                              
 data PMatch = PMatch {  pmTimeSig :: TimeSig
                      ,  pmatch    :: NSWDist
@@ -44,8 +51,10 @@ data PMatch = PMatch {  pmTimeSig :: TimeSig
                      ,  pmRPrior  :: RPrior
                      ,  pmQBins   :: QBins
                      ,  pmFile    :: FilePath
-                     } deriving (Eq)
-                     
+                     } deriving (Eq, Generic)
+
+instance NFData PMatch where rnf = genericRnf                     
+    
 instance Show PMatch where
   show (PMatch ts m r rp q fp) = 
     printf (fp ++ '\t' : show ts ++ ": %1.4f\tR: %d2 \tRp: %f1.4")  

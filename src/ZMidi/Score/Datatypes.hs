@@ -71,6 +71,8 @@ import Text.Printf         ( printf, PrintfArg )
 import Data.Binary         ( Binary, Get )
 import qualified Data.Binary       as B    ( get, put )
 import GHC.Generics        ( Generic )
+import Control.DeepSeq
+import Control.DeepSeq.Generics (genericRnf)
 
 --------------------------------------------------------------------------------                                   
 -- A less low-level MIDI data representation
@@ -112,25 +114,25 @@ data TimeSig    = TimeSig       { tsNum      :: Int
 type Voice      = [Timed ScoreEvent]
 
 newtype Channel = Channel {channel :: Word8 }
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, NFData )
 -- TODO: better changed to Pitch (Int, PitchClass)
-newtype Pitch   = Pitch    (Int, Int) deriving (Eq, Ord, Binary) -- (Octave, Pitch class)
+newtype Pitch   = Pitch    (Int, Int) deriving (Eq, Ord, Binary, NFData) -- (Octave, Pitch class)
 type    Interval= Int
 
 newtype PitchClass = PitchClass Int deriving (Eq, Ord) 
 
 newtype Velocity = Velocity { velocity :: Word8 }
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, NFData )
 newtype Time    = Time { time :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData )
 newtype Bar     = Bar  { bar  :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData )
 newtype Beat    = Beat { beat :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData )
 newtype BeatRat = BeatRat { beatRat  :: Ratio Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Binary )                    
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Binary, NFData )                    
 newtype TPB     = TPB { tpb :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData )
                     
 -- perhaps add duration??
 data Timed a    = Timed         { onset       :: Time 
@@ -250,6 +252,16 @@ instance Binary MidiFormat where
              1 -> return MF1           
              2 -> return MF2
              _ -> error "invalid binary encoding of MidiFormat"
+             
+-- NFData instances
+instance NFData MidiScore  where rnf = genericRnf
+instance NFData TimeSig    where rnf = genericRnf
+instance NFData ScoreEvent where rnf = genericRnf
+instance NFData Key        where rnf = genericRnf
+instance NFData a => NFData (Timed a) where rnf = genericRnf
+instance NFData MidiScaleType where rnf a = a `seq` ()
+instance NFData MidiFormat    where rnf a = a `seq` ()
+
 --------------------------------------------------------------------------------
 -- Printing MidiScores
 --------------------------------------------------------------------------------

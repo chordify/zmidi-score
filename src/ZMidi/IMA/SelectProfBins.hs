@@ -46,6 +46,9 @@ import Data.Text                      ( pack )
 import Text.Printf                    ( printf, PrintfArg)
 import qualified Data.ByteString.Lazy as BL ( readFile, writeFile )
 import System.Random                  ( Random (..) )
+-- import GHC.Generics        ( Generic )
+import Control.DeepSeq
+import Control.DeepSeq.Generics (genericRnf)
 
 --------------------------------------------------------------------------------
 -- parameters
@@ -139,13 +142,13 @@ type Rotations = Map TimeSig [(Rot, RPrior)]
   
 -- | The Rotation
 newtype Rot = Rot { rot :: Ratio Int } 
-                  deriving ( Eq, Show, Num, Ord, Enum, Real, Read, FromJSON, ToJSON )
+                  deriving ( Eq, Show, Num, Ord, Enum, Real, Read, FromJSON, ToJSON, NFData )
 
 -- | A prior for the Rotation
 newtype RPrior = RPrior { rprior :: Double }
                   deriving ( Eq, Show, Num, Ord, Enum, Real, Floating, Read
                            , Fractional, RealFloat, RealFrac, FromJSON, ToJSON
-                           , Random, PrintfArg)
+                           , Random, PrintfArg, NFData)
                   
 instance FromField Rot where
   parseField r = case readInt r of 

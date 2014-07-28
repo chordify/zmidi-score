@@ -38,6 +38,7 @@ import Data.Ratio                  ( numerator, denominator, (%) )
 import Data.Binary                 ( encodeFile, decodeFile )
 import Data.List                   ( intercalate ) 
 import qualified Data.ByteString.Lazy as BS ( appendFile )
+import Control.DeepSeq
 
 --------------------------------------------------------------------------------
 -- Reading and writing 
@@ -89,7 +90,7 @@ readMatchPutLn prnt s ps r fp =
                PRot  -> printMatchLine . dontPickMeters 
                PFile -> printMatchLine . pickMeters 
                -- None  -> \x -> let y = (pickMeters x) in y `seq` return y
-               None  -> \x -> return $! pickMeters $! x 
+               None  -> \x -> return $!! pickMeters $!! x 
               
      ima <- readIMAScoreGeneric fp
      case ima of

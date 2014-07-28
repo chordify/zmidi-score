@@ -29,6 +29,7 @@ import Text.Printf                ( printf, PrintfArg )
 
 import Data.Binary                 ( Binary )
 import GHC.Generics                ( Generic )
+import Control.DeepSeq             ( NFData )
 
 --------------------------------------------------------------------------------
 -- Quantisation contants
@@ -69,7 +70,7 @@ newtype GridUnit  = GridUnit { gridUnit :: Int }
 -- length and is generally controlled by the 'ShortestNote' parameter. 
 -- (see also: 'toQBins' )
 newtype QBins     = QBins    { qbins    :: Int } 
-                      deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary )
+                      deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, NFData )
 
 -- | Represents a quantisation deviation, i.e. the number of ticks that an
 -- event was moved to match the time grid.
