@@ -9,7 +9,7 @@ module ZMidi.IMA.GA ( Entity (..)
 import ZMidi.Score.Datatypes    ( TimeSig (..) )
 import ZMidi.Score.Quantise     ( QBins (..) )
 import ZMidi.IMA.SelectProfBins
-import ZMidi.IMA.RNSWMatch      ( avgResult, evalMeter, Result (..), meterFail )
+import ZMidi.IMA.RNSWMatch      ( avgResult, evalMeter, meterFail )
 import ZMidi.IO.IMA             ( readMatchPutLn, Print (..) )
 import Data.List                ( zipWith4 )
 import Data.Maybe               ( catMaybes )
@@ -85,14 +85,6 @@ randomPrior s (QBins q) t = reverse $ zipWith f [0, 3 .. ((tsNum t * q) - 3)] r
   -- Hacky, but let's make sure we have different numbers for every timesig
   where r = randoms (mkStdGen (s + tsNum t + tsDen t))
         f x p = (Rot (x % q), RPrior p)    
-
--- | it assumed the two rotations have the same length.
-crossRot :: Int -> [a] -> [a] -> ([a],[a])
-crossRot seed a b = 
-  let i        = fst $ randomR (0, pred . length $ a) (mkStdGen seed)
-      (a1, a2) = splitAt i a
-      (b1, b2) = splitAt i b
-  in (a1 ++ b2, b1 ++ a2)
 
 mixList :: Int -> Float -> [a] -> [a] -> [a]
 mixList seed p a b = zipWith3 select (randBool seed p) a b

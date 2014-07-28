@@ -22,7 +22,7 @@ module ZMidi.IO.Common (-- * Mapping
                     )where
                     
 import ZMidi.Core         ( MidiFile (..), readMidi, writeMidi )
-import ZMidi.Score        ( MidiScore (..), midiFileToMidiScore, ShortestNote (..)
+import ZMidi.Score        ( MidiScore (..), midiFileToMidiScore
                           , midiScoreToMidiFile, removeLabels, QMidiScore (..)
                           , quantiseQDevSafe, quantise )
 import Control.Monad      ( filterM, void )

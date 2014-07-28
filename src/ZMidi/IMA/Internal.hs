@@ -1,7 +1,7 @@
 {-# OPTIONS_GHC -Wall                   #-}
 module ZMidi.IMA.Internal where
 
-import ZMidi.Score             ( TimeSig (..), Beat, BeatRat )
+import ZMidi.Score             ( TimeSig (..) )
 import qualified Data.Map as M ( Map, lookup )
 
 -- | assumes a number between 0 and 1 and prints them as a sequence of asterisks 
