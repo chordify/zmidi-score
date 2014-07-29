@@ -9,7 +9,8 @@ import ZMidi.IO.Common                ( mapDir_, mapDir, warning )
 import ZMidi.IO.IMA                   ( printIMA, analyseProfile, exportIMAStore
                                       , readIMAScoreGeneric, exportCSVProfs
                                       , writeCSVHeader, printMatchLine
-                                      , printMatchAgr, readMatchPutLn, Print (..) )
+                                      , printMatchAgr, readMatchPutLn, Print (..)
+                                      , exportNSWPStore )
 import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..), QBinSelection
                                       , stdRotations, threePerNum )
 import ZMidi.IMA.NSWProf              ( readNSWProf )
@@ -130,6 +131,8 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (Test , Right d) -> mapDir (readMatchPutLn PFile s p rs) d >>= printMatchAgr . concat . catMaybes
             (StoreIMA, Left  f) -> exportIMAStore od f
             (StoreIMA, Right d) -> mapDir_ (exportIMAStore od) d
+            (StoreProf, Left  f) -> exportNSWPStore od f
+            (StoreProf, Right d) -> mapDir_ (exportNSWPStore od) d
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
             (IMA  , Right _) -> usageError arg "We can only analyse a file"
             (Prof , Left  f) -> readIMAScoreGeneric f >>= either error (analyseProfile r s)

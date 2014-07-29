@@ -16,13 +16,12 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
                           ) where
                        
 import ZMidi.Score 
-import ZMidi.IMA.TimeSigSeg     ( TimedSeg (..) )
+-- import ZMidi.IMA.TimeSigSeg     ( TimedSeg (..) )
 import ZMidi.IMA.SelectProfBins ( Rot (..), getNumForQBins, QBinSelection
                                 , Rotations, getRot, RPrior (..))
-import ZMidi.IMA.Analyse        ( SWMeterSeg, IMAStore (..), toSWProfWithTS
-                                , toNSWProfs, toNSWPStore )
-import ZMidi.IMA.NSWProf        ( NSWProf, normSWProfByBar, NSWPStore (..)
-                                , getProf )
+-- import ZMidi.IMA.Analyse        ( SWMeterSeg, IMAStore (..), toSWProfWithTS
+                                -- , toNSWProfs, toNSWPStore )
+import ZMidi.IMA.NSWProf        ( NSWProf, NSWPStore (..), getProf )
 import ZMidi.IMA.RNSWProf       ( toDoubles, toRNSWProfWithTS )
 import ReadPDF                  ( IMAPDF(..) )
 
@@ -134,9 +133,10 @@ printPickMeter (ts, m) =
   
   
 -- | Matches the a segment against it's annotated 'TimeSig'nature
-match :: Rotations -> QBinSelection -> [IMAPDF] -> IMAStore -> [(TimeSig, [PMatch])]
-match rs s pdf = map (matchNSWPStore rs s pdf) . toNSWPStore
+-- match :: Rotations -> QBinSelection -> [IMAPDF] -> IMAStore -> [(TimeSig, [PMatch])]
+-- match rs s pdf = map (matchNSWPStore rs s pdf) . toNSWPStore
 
+-- | Matches meter profiles
 matchNSWPStore :: Rotations -> QBinSelection -> [IMAPDF] -> NSWPStore -> (TimeSig, [PMatch])
 matchNSWPStore rs s pdfs (NSWPStore q ps gt fp) = (gt, concatMap matchPDF pdfs) 
   

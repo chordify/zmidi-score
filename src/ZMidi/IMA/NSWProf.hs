@@ -15,8 +15,6 @@ module ZMidi.IMA.NSWProf ( -- * types
                            -- * Printing
                          , showNSWProf
                            -- * Serialization
-                         , writeNSWPStore  
-                         , readNSWPStore  
                          , readNSWProf 
                          )where
 
@@ -108,13 +106,6 @@ maxVal s = fst . mapAccum (\v m -> (max v m, m)) s
 --------------------------------------------------------------------------------
 -- exporting / importing IMA profiles
 --------------------------------------------------------------------------------
-
--- exports a normalised inner metric analysis profiles to a binary file
-writeNSWPStore :: FilePath -> NSWPStore -> IO NSWPStore
-writeNSWPStore fp m = encodeFile fp m >> putStrLn ("written: " ++ fp) >> return m
-  
-readNSWPStore :: FilePath -> IO NSWPStore
-readNSWPStore fp = putStrLn ("read: " ++ fp) >> decodeFile fp  
 
 readNSWProf :: FilePath -> IO (Map TimeSig NSWProf)
 readNSWProf fp = putStrLn ("read: " ++ fp) >> decodeFile fp  

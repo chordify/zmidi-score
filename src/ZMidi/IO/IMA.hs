@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wall                   #-}
 module ZMidi.IO.IMA ( exportIMAStore
+                    , exportNSWPStore
                     , readIMAScoreGeneric
                     , exportCSVProfs
                     , writeCSVHeader
@@ -16,7 +17,7 @@ import ZMidi.Score
 import ZMidi.IO.Common             -- ( readQMidiScoreSafe, warning )
 import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
-import ZMidi.IMA.NSWProf           ( normSWProfByBar, NSWPStore (..), readNSWPStore )
+import ZMidi.IMA.NSWProf           ( normSWProfByBar, NSWPStore (..) )
 import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin
                                    , QBinSelection, Rotations )
 import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters, matchNSWPStore
@@ -51,6 +52,15 @@ exportIMAStore dir i =   readQMidiScoreSafe i >>= writeIMA
         writeIMA qm = do let out = dir </> takeFileName i <.> "ima"
                          either (warning i) (encodeFile out) $ toIMAStore i qm
                          putStrLn ("written: " ++ out)
+                         
+exportNSWPStore :: FilePath -> FilePath -> IO ()
+exportNSWPStore dir i =   readIMAScoreGeneric i 
+                      >>= either (warning i) (mapM_ write . toNSWPStore)
+                 
+  where write :: NSWPStore -> IO ()
+        write n = do let out = dir </> takeFileName i <.> "prof"
+                     encodeFile out n
+                     putStrLn ("written: " ++ out)
         
 readIMAScoreGeneric :: FilePath -> IO (Either String IMAStore)
 readIMAScoreGeneric f = 
@@ -62,8 +72,8 @@ readIMAScoreGeneric f =
     
 readNSWPStoreGeneric :: FilePath -> IO (Either String [NSWPStore])
 readNSWPStoreGeneric f =  
-  case take 4 . map toLower . takeExtension $ f of
-    ".prof" -> readNSWPStore f >>= return . Right . (: [])
+  case take 5 . map toLower . takeExtension $ f of
+    ".prof" -> decodeFile f >>= return . Right . (: [])
     _       -> readIMAScoreGeneric f >>= return . fmap toNSWPStore 
 --------------------------------------------------------------------------------
 -- Exporting CSV profiles
@@ -98,7 +108,7 @@ readMatchPutLn prnt s ps r fp =
               
      ima <- readNSWPStoreGeneric fp
      case ima of
-       Left  s -> warning fp s >> return Nothing 
+       Left  w -> warning fp w >> return Nothing 
        Right x -> (f . map (matchNSWPStore r s ps) $ x) >>= return . Just
 
 printMatchLine ::  [(TimeSig, PMatch)] -> IO [(TimeSig, PMatch)]
