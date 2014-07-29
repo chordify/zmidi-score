@@ -16,10 +16,10 @@ import ZMidi.Score
 import ZMidi.IO.Common             -- ( readQMidiScoreSafe, warning )
 import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
-import ZMidi.IMA.NSWProf           ( normSWProfByBar )
+import ZMidi.IMA.NSWProf           ( normSWProfByBar, NSWPStore (..), readNSWPStore )
 import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin
                                    , QBinSelection, Rotations )
-import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters, match
+import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters, matchNSWPStore
                                    , avgResult, evalMeter, printPickMeter )
 import ZMidi.IMA.TimeSigSeg        ( TimedSeg (..) )
 
@@ -60,6 +60,11 @@ readIMAScoreGeneric f =
                  r `seq` return (Right r)
     e      -> error ("Error: " ++ e ++ " is not an accepted file type")  
     
+readNSWPStoreGeneric :: FilePath -> IO (Either String [NSWPStore])
+readNSWPStoreGeneric f =  
+  case take 4 . map toLower . takeExtension $ f of
+    ".prof" -> readNSWPStore f >>= return . Right . (: [])
+    _       -> readIMAScoreGeneric f >>= return . fmap toNSWPStore 
 --------------------------------------------------------------------------------
 -- Exporting CSV profiles
 --------------------------------------------------------------------------------
@@ -91,10 +96,10 @@ readMatchPutLn prnt s ps r fp =
                PFile -> printMatchLine . pickMeters 
                None  -> \x -> return $!! pickMeters $!! x 
               
-     ima <- readIMAScoreGeneric fp
+     ima <- readNSWPStoreGeneric fp
      case ima of
        Left  s -> warning fp s >> return Nothing 
-       Right x -> (f . match r s ps $! x) >>= return . Just
+       Right x -> (f . map (matchNSWPStore r s ps) $ x) >>= return . Just
 
 printMatchLine ::  [(TimeSig, PMatch)] -> IO [(TimeSig, PMatch)]
 printMatchLine m = do putStrLn . intercalate "\n" . map printPickMeter $ m 

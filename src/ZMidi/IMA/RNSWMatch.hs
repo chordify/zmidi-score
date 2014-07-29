@@ -7,7 +7,7 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
                           , Prob (..)
                           , Result (..)
                           , meterFail
-                          , match
+                          , matchNSWPStore
                           , evalMeter
                           , avgResult
                           , pickMeters

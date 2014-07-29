@@ -80,7 +80,7 @@ myArgs = [
          ]
 
 -- representing the mode of operation
-data Mode = Train | Test | Prof | Store | IMA | GARot deriving (Eq)
+data Mode = Train | Test | Prof | StoreIMA | StoreProf | IMA | GARot deriving (Eq)
 
 parseTimeSigArg :: Args MyArgs -> String -> TimeSig
 parseTimeSigArg arg s = either (usageError arg) id $ parseTimeSig s 
@@ -90,13 +90,13 @@ main :: IO ()
 main = do arg <- parseArgsIO ArgsComplete myArgs
           -- check whether we have a usable mode
           let mode   = case (getRequiredArg arg Mode) of
-                         "train"   -> Train
-                         "test"    -> Test
-                         "profile" -> Prof
-                         "store"   -> Store
+                         "train"      -> Train
+                         "test"       -> Test
+                         "profile"    -> Prof
+                         "store-ima"  -> StoreIMA
+                         "store-prof" -> StoreProf
                          "ima"     -> IMA
                          "ga-rot"  -> GARot
-                         -- "select"  -> Select
                          m         -> usageError arg ("unrecognised mode: " ++ m)
               
               -- get parameters
@@ -128,8 +128,8 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
             (Test , Left  f) -> readMatchPutLn PRot s p rs f >> return ()
             (Test , Right d) -> mapDir (readMatchPutLn PFile s p rs) d >>= printMatchAgr . concat . catMaybes
-            (Store, Left  f) -> exportIMAStore od f
-            (Store, Right d) -> mapDir_ (exportIMAStore od) d
+            (StoreIMA, Left  f) -> exportIMAStore od f
+            (StoreIMA, Right d) -> mapDir_ (exportIMAStore od) d
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
             (IMA  , Right _) -> usageError arg "We can only analyse a file"
             (Prof , Left  f) -> readIMAScoreGeneric f >>= either error (analyseProfile r s)
