@@ -27,6 +27,7 @@ import ZMidi.Score.Datatypes          ( TimeSig (..) , Beat(..) , BeatRat (..) )
 import ZMidi.Score.Quantise           ( QBins (..) )
 import ZMidi.IMA.Internal             ( lookupErr )
 import ZMidi.IMA.NSWProf
+import ZMidi.IMA.Constants            ( acceptedTimeSigs )
 import Data.List                      ( sort, sortBy, intercalate )
 import Data.Ord                       ( comparing, Down (..) )
 import Data.Maybe                     ( fromJust )
@@ -47,15 +48,6 @@ import Text.Printf                    ( printf, PrintfArg)
 import qualified Data.ByteString.Lazy as BL ( readFile, writeFile )
 import System.Random                  ( Random (..) )
 import Control.DeepSeq                ( NFData )
-
---------------------------------------------------------------------------------
--- parameters
---------------------------------------------------------------------------------
-
-acceptedTimeSigs :: [TimeSig]
-acceptedTimeSigs = [ TimeSig 2 2 0 0, TimeSig 2 4 0 0
-                   , TimeSig 4 4 0 0, TimeSig 3 4 0 0
-                   , TimeSig 6 8 0 0 ]
 
 --------------------------------------------------------------------------------
 -- QBinSelection stuff

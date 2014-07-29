@@ -20,7 +20,6 @@ import ZMidi.IMA.TimeSigSeg       ( TimedSeg (..) )
 import ZMidi.IMA.SelectProfBins   ( Rot (..), getNumForQBins, QBinSelection
                                   , Rotations, getRot, RPrior (..))
 import ZMidi.IMA.Analyse          ( SWMeterSeg, IMAStore (..), toSWProfWithTS )
-
 import ZMidi.IMA.NSWProf          ( NSWProf, normSWProfByBar )
 import ZMidi.IMA.RNSWProf         ( toDoubles, toRNSWProfWithTS )
 import ReadPDF                    ( IMAPDF(..) )

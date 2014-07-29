@@ -18,6 +18,7 @@ import ZMidi.IMA.NSWProf
 import ZMidi.Score
 import ZMidi.Skyline.MelFind      ( mergeTracks )
 import ZMidi.IMA.TimeSigSeg       ( TimedSeg (..), segment )
+import ZMidi.IMA.Constants        ( acceptedTimeSigs )
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
@@ -77,6 +78,7 @@ toSWProfWithTS ts tb td = foldl' toProf (SWProf (1, empty)) td
               -- number of bars correctly
           in  m' `seq` SWProf (NrOfBars br, m')
 
+          
 --------------------------------------------------------------------------------
 -- Filtering Meter Segments
 --------------------------------------------------------------------------------
