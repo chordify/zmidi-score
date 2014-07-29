@@ -9,9 +9,6 @@ module ZMidi.IMA.NSWProf ( -- | Newtypes
                          , SWProf (..)
                          , NrOfBars (..)
                            -- | NSW profile functions
-                         , mergeProf
-                         , mergeSWProf
-                         , normSWProf
                          , normSWProfByBar
                            -- | Printing
                          , showNSWProf
@@ -24,10 +21,11 @@ module ZMidi.IMA.NSWProf ( -- | Newtypes
 import IMA.InnerMetricalAnalysis      ( SWeight )
 import ZMidi.Score
 import ZMidi.IMA.Internal  
+
 import Data.List                      ( intercalate )
 import Data.Ratio                     ( numerator, denominator )
 import qualified Data.Map.Strict as M ( map )
-import Data.Map.Strict                ( Map, foldrWithKey, mapAccum, unionWith )
+import Data.Map.Strict                ( Map, foldrWithKey, mapAccum )
 import Data.Binary                    ( Binary, encodeFile, decodeFile )
 import Text.Printf                    ( PrintfArg, printf )
 import GHC.Generics
@@ -70,22 +68,10 @@ newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
 -- | Plots an 'SWProf'ile by calculating the average profile
 showNSWProf :: (TimeSig, NSWProf) -> String
 showNSWProf (ts, p) = show ts ++ "\n" ++ show p
-  
-mergeSWProf :: SWProf -> SWProf -> SWProf
-mergeSWProf (SWProf a) (SWProf b) = SWProf (mergeProf a b)  
-  
--- | merges two 'SWProf's by summing its values
-mergeProf :: Num a => (NrOfBars, Map (Beat, BeatRat) a) 
-                   -> (NrOfBars, Map (Beat, BeatRat) a)
-                   -> (NrOfBars, Map (Beat, BeatRat) a)
-mergeProf (a, ma) (b, mb) = let m = unionWith (+) ma mb in m `seq` (a + b, m)
 
--- Normalises an 'SWProf' to an 'NSWProf' (normalised SWProf), which will
--- only contain values between 0 and 1
-normSWProf :: SWProf -> NSWProf 
-normSWProf (SWProf (b, wp)) = 
-  let m = maxVal 0 wp
-  in  NSWProf (b, M.map (\x -> fromIntegral x / fromIntegral m) wp)
+toNSWProfs :: TPB -> Map TimeSig [(Beat, BeatRat)] -> [Timed (Maybe ScoreEvent, SWeight)] 
+           -> Map TimeSig NSWProf
+toNSWProfs sel d = undefined
 
 -- Normalises an 'SWProf' to an 'NSWProf' (normalised SWProf), by dividing
 -- the spectral weight by the square of the number of bars and taking the log

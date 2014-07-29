@@ -5,16 +5,10 @@
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
 module ZMidi.IMA.Analyse ( SWMeterSeg
                          , IMAStore (..)
-                         -- , imaTPB
-                         -- , imaQBins
                          -- | * Inner Metrical Analysis
                          , doIMA -- TODO remove this export
                          , doIMApreprocess
                          , toIMAStore
-                         -- | * Preprocessing
-                         -- , emptySegFilter
-                         , collectSWProf
-                         -- , toSWProfSegs 
                          -- | * Utilities
                          , toSWProfWithTS
                          , toSWProf
@@ -30,7 +24,7 @@ import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
 
 import Data.List                   ( nubBy, foldl' )
 import Data.Function               ( on )
-import Data.Map.Strict             ( empty, Map, insertWith )
+import Data.Map.Strict             ( empty, insertWith )
 import Control.Arrow               ( first )
 
 import Data.Binary                 ( Binary )
@@ -48,13 +42,6 @@ data IMAStore = IMAStore { imaFile      :: FilePath
                          } deriving (Show, Eq, Generic)
 instance Binary IMAStore 
   
--- imaTPB :: IMAStore -> TPB
--- imaTPB = ticksPerBeat . qMidiScore . imaMidiScore
-
--- imaQBins :: IMAStore -> QBins
--- imaQBins = toQBins . qShortestNote . imaMidiScore
-
-  
 -- A type synonym that captures all IMA information needed for meter estimation
 type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
 
@@ -70,13 +57,6 @@ toIMAStore f eqm = do qm  <- eqm
                       let tpb = ticksPerBeat . qMidiScore $ qm
                           qbs = toQBins . qShortestNote $ qm
                       return $ IMAStore f tpb qbs ima
-
--- | Collects all profiles sorted by time signature in one map
-collectSWProf :: [SWProfSeg] -> Map TimeSig SWProf -> Map TimeSig SWProf
-collectSWProf s m = foldr doSeg m s where
-
-  doSeg :: SWProfSeg -> Map TimeSig SWProf -> Map TimeSig SWProf
-  doSeg (TimedSeg ts p) m' = insertWith mergeSWProf (getEvent ts) p m'
 
 -- | Sums all NSW profiles per bar for a meter section using the annotated
 -- meter of that section
