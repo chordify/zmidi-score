@@ -25,7 +25,7 @@ import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
 
 import Data.List                   ( nubBy, foldl' )
 import Data.Function               ( on )
-import Data.Map.Strict             ( empty, insertWith )
+import Data.Map.Strict             ( Map, empty, insertWith, insert )
 import Control.Arrow               ( first )
 
 import Data.Binary                 ( Binary )
@@ -78,6 +78,9 @@ toSWProfWithTS ts tb td = foldl' toProf (SWProf (1, empty)) td
               -- number of bars correctly
           in  m' `seq` SWProf (NrOfBars br, m')
 
+toNSWProfs :: TPB -> [Timed (Maybe ScoreEvent, SWeight)] -> Map TimeSig NSWProf
+toNSWProfs tb dat = foldr f empty acceptedTimeSigs
+  where f ts m = insert ts (normSWProfByBar $ toSWProfWithTS ts tb dat) m 
           
 --------------------------------------------------------------------------------
 -- Filtering Meter Segments
