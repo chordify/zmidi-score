@@ -46,9 +46,7 @@ import Data.Text                      ( pack )
 import Text.Printf                    ( printf, PrintfArg)
 import qualified Data.ByteString.Lazy as BL ( readFile, writeFile )
 import System.Random                  ( Random (..) )
--- import GHC.Generics        ( Generic )
-import Control.DeepSeq
-import Control.DeepSeq.Generics (genericRnf)
+import Control.DeepSeq                ( NFData )
 
 --------------------------------------------------------------------------------
 -- parameters
@@ -93,8 +91,7 @@ filterBin q r s ts = NSWProf . second (filterWithKey f) . nswprof
 -- and returns them in a list. If the selected bin is not present in the 
 -- profile 0 is returned
 filterToList ::QBins -> Rot -> QBinSelection -> TimeSig -> NSWProf -> [NSWeight]
-filterToList q r s ts (NSWProf (_,p)) = -- reverse . sort -- sort by Weight
-                                        map fnd . fromJust . M.lookup ts $ s
+filterToList q r s ts (NSWProf (_,p)) = map fnd . fromJust . M.lookup ts $ s
   
   where fnd :: (Beat, BeatRat) -> NSWeight
         -- N.B. NSWeight is a log of the SWeight, we apply laplacian 

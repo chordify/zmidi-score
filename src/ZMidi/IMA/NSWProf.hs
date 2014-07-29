@@ -3,17 +3,16 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE DeriveGeneric              #-}
 
-module ZMidi.IMA.NSWProf ( -- | Newtypes
+module ZMidi.IMA.NSWProf ( -- * Newtypes
                            NSWeight (..)
                          , NSWProf (..)
                          , SWProf (..)
                          , NrOfBars (..)
-                           -- | NSW profile functions
+                           -- * NSW profile functions
                          , normSWProfByBar
-                           -- | Printing
+                           -- * Printing
                          , showNSWProf
-                         , stars
-                           -- | Serialization
+                           -- * Serialization
                          , writeNSWProf  
                          , readNSWProf 
                          )where
@@ -68,10 +67,6 @@ newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
 -- | Plots an 'SWProf'ile by calculating the average profile
 showNSWProf :: (TimeSig, NSWProf) -> String
 showNSWProf (ts, p) = show ts ++ "\n" ++ show p
-
-toNSWProfs :: TPB -> Map TimeSig [(Beat, BeatRat)] -> [Timed (Maybe ScoreEvent, SWeight)] 
-           -> Map TimeSig NSWProf
-toNSWProfs sel d = undefined
 
 -- Normalises an 'SWProf' to an 'NSWProf' (normalised SWProf), by dividing
 -- the spectral weight by the square of the number of bars and taking the log
