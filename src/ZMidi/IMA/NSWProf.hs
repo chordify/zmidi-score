@@ -41,8 +41,7 @@ newtype NSWeight = NSWeight { nsweight :: Double }
 --------------------------------------------------------------------------------
 
 data NSWPStore = NSWPStore { nswpsQBins :: QBins 
-                           , nswps      :: Map TimeSig NSWProf
-                           , nswpsGT    :: TimeSig 
+                           , nswps      :: [(TimeSig, Map TimeSig NSWProf)]
                            , nswpsFile  :: FilePath
                            } deriving Generic
 

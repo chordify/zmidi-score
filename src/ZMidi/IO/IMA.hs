@@ -55,7 +55,7 @@ exportIMAStore dir i =   readQMidiScoreSafe i >>= writeIMA
                          
 exportNSWPStore :: FilePath -> FilePath -> IO ()
 exportNSWPStore dir i =   readIMAScoreGeneric i 
-                      >>= either (warning i) (mapM_ write . toNSWPStore)
+                      >>= either (warning i) (write . toNSWPStore)
                  
   where write :: NSWPStore -> IO ()
         write n = do let out = dir </> takeFileName i <.> "prof"
@@ -70,7 +70,7 @@ readIMAScoreGeneric f =
                  r `seq` return (Right r)
     e      -> error ("Error: " ++ e ++ " is not an accepted file type")  
     
-readNSWPStoreGeneric :: FilePath -> IO (Either String [NSWPStore])
+readNSWPStoreGeneric :: FilePath -> IO (Either String NSWPStore)
 readNSWPStoreGeneric f =  
   case take 5 . map toLower . takeExtension $ f of
     ".prof" -> decodeFile f >>= return . Right . (: [])
@@ -109,7 +109,7 @@ readMatchPutLn prnt s ps r fp =
      ima <- readNSWPStoreGeneric fp
      case ima of
        Left  w -> warning fp w >> return Nothing 
-       Right x -> (f . map (matchNSWPStore r s ps) $ x) >>= return . Just
+       Right x -> (f . matchNSWPStore r s ps x) >>= return . Just
 
 printMatchLine ::  [(TimeSig, PMatch)] -> IO [(TimeSig, PMatch)]
 printMatchLine m = do putStrLn . intercalate "\n" . map printPickMeter $ m 

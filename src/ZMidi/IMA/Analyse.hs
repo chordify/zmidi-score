@@ -84,10 +84,9 @@ toNSWProfs :: TPB -> [Timed (Maybe ScoreEvent, SWeight)] -> Map TimeSig NSWProf
 toNSWProfs tb dat = foldr f empty acceptedTimeSigs
   where f ts m = insert ts (normSWProfByBar $ toSWProfWithTS ts tb dat) m 
      
-toNSWPStore :: IMAStore -> [NSWPStore]
-toNSWPStore i = map f . swMeterSeg $ i 
-  where f (TimedSeg ts d) = NSWPStore (imaQBins i)  (toNSWProfs (imaTPB i) d) 
-                                      (getEvent ts) (imaFile i)
+toNSWPStore :: IMAStore -> NSWPStore
+toNSWPStore i = NSWPStore (imaQBins i)  (map f . swMeterSeg $ i) (imaFile i)                          
+  where f (TimedSeg ts s) = (getEvent ts, toNSWProfs (imaTPB i) s)
 --------------------------------------------------------------------------------
 -- Filtering Meter Segments
 --------------------------------------------------------------------------------

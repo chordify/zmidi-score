@@ -16,21 +16,20 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
                           ) where
                        
 import ZMidi.Score 
--- import ZMidi.IMA.TimeSigSeg     ( TimedSeg (..) )
 import ZMidi.IMA.SelectProfBins ( Rot (..), getNumForQBins, QBinSelection
                                 , Rotations, getRot, RPrior (..))
--- import ZMidi.IMA.Analyse        ( SWMeterSeg, IMAStore (..), toSWProfWithTS
-                                -- , toNSWProfs, toNSWPStore )
 import ZMidi.IMA.NSWProf        ( NSWProf, NSWPStore (..), getProf )
 import ZMidi.IMA.RNSWProf       ( toDoubles, toRNSWProfWithTS )
 import ReadPDF                  ( IMAPDF(..) )
 
 import Data.List                ( intercalate, maximumBy )
 import Data.Function            ( on )
+import Data.Map.Strict          ( Map )
 
 import Text.Printf              ( printf, PrintfArg )
 
 import GHC.Generics             ( Generic )
+import Control.Arrow            ( second )
 import Control.DeepSeq          ( NFData (..) )
 import Control.DeepSeq.Generics ( genericRnf )
 
@@ -137,13 +136,15 @@ printPickMeter (ts, m) =
 -- match rs s pdf = map (matchNSWPStore rs s pdf) . toNSWPStore
 
 -- | Matches meter profiles
-matchNSWPStore :: Rotations -> QBinSelection -> [IMAPDF] -> NSWPStore -> (TimeSig, [PMatch])
-matchNSWPStore rs s pdfs (NSWPStore q ps gt fp) = (gt, concatMap matchPDF pdfs) 
+matchNSWPStore :: Rotations -> QBinSelection -> [IMAPDF] -> NSWPStore -> [(TimeSig, [PMatch])]
+matchNSWPStore rs s pdfs (NSWPStore q d fp) = undefined -- zip (second (concatMap matchPDF pdfs)) d
   
-  where -- matches a single pdf, creating the profile is independent of the 
+  where -- matchSeg :: (TimeSig, Map TimeSig NSWProf) -> (TimeSig
+  
+        -- matches a single pdf, creating the profile is independent of the 
         -- rotation and happens here
-        matchPDF :: IMAPDF -> [PMatch]
-        matchPDF ip = 
+        matchPDF :: Map TimeSig NSWProf -> IMAPDF -> [PMatch]
+        matchPDF ps ip = 
           let ts = pdfTimeSig ip 
               pf = getProf ps ts
           in [ getRotProb pf r ts ip | r <- getRot rs ts ]
