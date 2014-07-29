@@ -3,17 +3,20 @@
 {-# LANGUAGE ScopedTypeVariables        #-}
 {-# LANGUAGE DeriveGeneric              #-}
 
-module ZMidi.IMA.NSWProf ( -- * Newtypes
+module ZMidi.IMA.NSWProf ( -- * types
                            NSWeight (..)
+                         , NSWPStore (..)
                          , NSWProf (..)
                          , SWProf (..)
                          , NrOfBars (..)
                            -- * NSW profile functions
                          , normSWProfByBar
+                         , getProf
                            -- * Printing
                          , showNSWProf
                            -- * Serialization
-                         , writeNSWProf  
+                         , writeNSWPStore  
+                         , readNSWPStore  
                          , readNSWProf 
                          )where
 
@@ -33,12 +36,24 @@ import GHC.Generics
 newtype NSWeight = NSWeight { nsweight :: Double }
                      deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
                               , Fractional, RealFloat, RealFrac, PrintfArg
-                              , Binary, Generic )
+                              , Binary )
 
 --------------------------------------------------------------------------------
 -- IMA profiles
 --------------------------------------------------------------------------------
 
+data NSWPStore = NSWPStore { nswpsQBins :: QBins 
+                           , nswps      :: Map TimeSig NSWProf
+                           , nswpsGT    :: TimeSig 
+                           , nswpsFile  :: FilePath
+                           } deriving Generic
+
+instance Binary NSWPStore
+
+
+getProf :: Map TimeSig NSWProf -> TimeSig -> NSWProf
+getProf r t = lookupErr ("NSWProf.getProf: TimeSig not found "++ show t) r t
+                           
 -- | Normalised Spectral Weight Profiles
 newtype SWProf = SWProf {swprof :: (NrOfBars, Map (Beat, BeatRat) SWeight)}
                     deriving ( Eq, Binary, Show )
@@ -95,9 +110,12 @@ maxVal s = fst . mapAccum (\v m -> (max v m, m)) s
 --------------------------------------------------------------------------------
 
 -- exports a normalised inner metric analysis profiles to a binary file
-writeNSWProf :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
-writeNSWProf fp m = encodeFile fp m >> putStrLn ("written: " ++ fp) >> return m
+writeNSWPStore :: FilePath -> NSWPStore -> IO NSWPStore
+writeNSWPStore fp m = encodeFile fp m >> putStrLn ("written: " ++ fp) >> return m
   
+readNSWPStore :: FilePath -> IO NSWPStore
+readNSWPStore fp = putStrLn ("read: " ++ fp) >> decodeFile fp  
+
 readNSWProf :: FilePath -> IO (Map TimeSig NSWProf)
 readNSWProf fp = putStrLn ("read: " ++ fp) >> decodeFile fp  
   

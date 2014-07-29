@@ -10,8 +10,10 @@ module ZMidi.IMA.Analyse ( SWMeterSeg
                          , doIMApreprocess
                          , toIMAStore
                          -- | * Utilities
+                         , toNSWProfs
                          , toSWProfWithTS
                          , toSWProf
+                         , toNSWPStore
                          ) where
 
 import ZMidi.IMA.NSWProf 
@@ -81,7 +83,11 @@ toSWProfWithTS ts tb td = foldl' toProf (SWProf (1, empty)) td
 toNSWProfs :: TPB -> [Timed (Maybe ScoreEvent, SWeight)] -> Map TimeSig NSWProf
 toNSWProfs tb dat = foldr f empty acceptedTimeSigs
   where f ts m = insert ts (normSWProfByBar $ toSWProfWithTS ts tb dat) m 
-          
+     
+toNSWPStore :: IMAStore -> [NSWPStore]
+toNSWPStore i = map f . swMeterSeg $ i 
+  where f (TimedSeg ts d) = NSWPStore (imaQBins i)  (toNSWProfs (imaTPB i) d) 
+                                      (getEvent ts) (imaFile i)
 --------------------------------------------------------------------------------
 -- Filtering Meter Segments
 --------------------------------------------------------------------------------

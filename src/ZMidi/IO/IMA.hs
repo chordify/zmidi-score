@@ -84,12 +84,11 @@ writeCSVHeader m out = writeFile out . genHeader $ m
 data Print = PRot | PFile | None
 
 readMatchPutLn :: Print -> QBinSelection -> [IMAPDF] -> Rotations -> FilePath 
-               -> IO (Maybe ([TimedSeg TimeSig PMatch]))
+               -> IO (Maybe ([(TimeSig, PMatch)]))
 readMatchPutLn prnt s ps r fp = 
   do let f = case prnt of
                PRot  -> printMatchLine . dontPickMeters 
                PFile -> printMatchLine . pickMeters 
-               -- None  -> \x -> let y = (pickMeters x) in y `seq` return y
                None  -> \x -> return $!! pickMeters $!! x 
               
      ima <- readIMAScoreGeneric fp
@@ -97,11 +96,11 @@ readMatchPutLn prnt s ps r fp =
        Left  s -> warning fp s >> return Nothing 
        Right x -> (f . match r s ps $! x) >>= return . Just
 
-printMatchLine ::  [TimedSeg TimeSig PMatch] -> IO [TimedSeg TimeSig PMatch]
+printMatchLine ::  [(TimeSig, PMatch)] -> IO [(TimeSig, PMatch)]
 printMatchLine m = do putStrLn . intercalate "\n" . map printPickMeter $ m 
                       return m
 
-printMatchAgr ::  [TimedSeg TimeSig PMatch] -> IO ()
+printMatchAgr ::  [(TimeSig, PMatch)] -> IO ()
 printMatchAgr = print . avgResult . evalMeter
 
 
