@@ -43,8 +43,8 @@ printKey (Beat b, BeatRat br) = show b ++ "."
                              ++ show (numerator br) ++ "." 
                              ++ show (denominator br)
 
-toDoubles :: QBinSelection -> RNSWProf -> [Double]
-toDoubles s (RNSWProf t w) = map nsweight . take (length $ getSel s t) $ w
+toDoubles :: RNSWProf -> [Double]
+toDoubles (RNSWProf t w) = map nsweight w
 
 -- type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
 
