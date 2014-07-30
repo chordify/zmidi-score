@@ -129,11 +129,7 @@ printPickMeter (ts, m) =
   in printf s (pmatch m) 
               (getNumForQBins (pmQBins m) . rot . pmRot $ m) 
               (rprior . pmRPrior $ m)
-  
-  
--- | Matches the a segment against it's annotated 'TimeSig'nature
--- match :: Rotations -> QBinSelection -> [IMAPDF] -> IMAStore -> [(TimeSig, [PMatch])]
--- match rs s pdf = map (matchNSWPStore rs s pdf) . toNSWPStore
+
 
 -- | Matches meter profiles
 matchNSWPStore :: Rotations -> QBinSelection -> [IMAPDF] -> NSWPStore -> [(TimeSig, [PMatch])]

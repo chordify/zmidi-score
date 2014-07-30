@@ -31,6 +31,7 @@ import System.Directory   ( getDirectoryContents, canonicalizePath
 import System.IO          ( stderr, hPutStrLn )
 import System.FilePath    ( (</>) )
 import Data.Foldable      ( foldrM )
+import Data.List          ( sort )
 import Control.Concurrent.ParallelIO.Global ( parallel )
 
 --------------------------------------------------------------------------------
@@ -146,5 +147,5 @@ putErrStrLn s = hPutStrLn stderr s
 -- | Like 'getCurDirectoryContents', but filters the results for "." and ".."
 getCurDirectoryContents :: FilePath -> IO [FilePath]
 getCurDirectoryContents fp = 
-  getDirectoryContents fp >>= return . filter (\x -> x /= "." && x /= "..") 
+  getDirectoryContents fp >>= return . sort . filter (\x -> x /= "." && x /= "..") 
 

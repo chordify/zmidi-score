@@ -31,7 +31,7 @@ runGA qb sel pdfs dir =
                  25  -- archive size (best entities to keep track of)
                  500 -- maximum number of generations
                  0.8 -- crossover rate (% of entities by crossover)
-                 0.2 -- mutation rate (% of entities by mutation)
+                 0.3 -- mutation rate (% of entities by mutation)
                  0.2 -- parameter for crossover (% of split points)
                  0.2 -- parameter for mutation (% of replaced rotations)
                  True -- whether or not to use checkpointing
@@ -83,9 +83,11 @@ instance Entity Rotations Double (QBinSelection, [IMAPDF], FilePath) QBins IO wh
 randomPrior :: Int -> QBins -> TimeSig -> [(Rot, RPrior)]
 randomPrior s (QBins q) t = reverse $ zipWith f [0, 3 .. ((tsNum t * q) - 3)] r
   -- Hacky, but let's make sure we have different numbers for every timesig
-  where r = randoms (mkStdGen (s + tsNum t + tsDen t))
+  where r = map toOneZero $ randoms (mkStdGen (s + tsNum t + tsDen t))
         f x p = (Rot (x % q), RPrior p)    
 
+-- | Randomly mixes two lists. The first argument is the seed, the second
+-- argument is the (approximate) percentage of values from the second list
 mixList :: Int -> Float -> [a] -> [a] -> [a]
 mixList seed p a b = zipWith3 select (randBool seed p) a b
   where select :: Bool -> a -> a -> a
@@ -108,9 +110,16 @@ replaceRotations seed p = normPriors . mapWithRand seed replace
 
   where replace :: Int -> [(Rot, RPrior)] -> [(Rot, RPrior)]
         replace s r = let (rs, ps) = unzip r
-                          x        = randomRs (0,1) . mkStdGen . succ $ s
+                          x        = map toOneZero . randoms . mkStdGen . succ $ s
                       in zip rs (mixList s p ps x)
-                       
+
+toOneZero :: Fractional a => Bool -> a
+toOneZero True  = 1.0
+toOneZero False = 0.0
+
+-- | Generates a random list of booleans. The first argument is
+-- the seed, the second argument is the (approximate) proportion
+-- of True values
 randBool :: Int -> Float -> [Bool]
 randBool seed p = map toBool . randoms . mkStdGen $ seed
   where k = round (1 / p)
