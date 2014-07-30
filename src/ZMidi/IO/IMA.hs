@@ -73,7 +73,7 @@ readIMAScoreGeneric f =
 readNSWPStoreGeneric :: FilePath -> IO (Either String NSWPStore)
 readNSWPStoreGeneric f =  
   case take 5 . map toLower . takeExtension $ f of
-    ".prof" -> decodeFile f >>= return . Right . (: [])
+    ".prof" -> decodeFile f >>= return . Right 
     _       -> readIMAScoreGeneric f >>= return . fmap toNSWPStore 
 --------------------------------------------------------------------------------
 -- Exporting CSV profiles
@@ -109,7 +109,7 @@ readMatchPutLn prnt s ps r fp =
      ima <- readNSWPStoreGeneric fp
      case ima of
        Left  w -> warning fp w >> return Nothing 
-       Right x -> (f . matchNSWPStore r s ps x) >>= return . Just
+       Right x -> (f $ matchNSWPStore r s ps x) >>= return . Just
 
 printMatchLine ::  [(TimeSig, PMatch)] -> IO [(TimeSig, PMatch)]
 printMatchLine m = do putStrLn . intercalate "\n" . map printPickMeter $ m 

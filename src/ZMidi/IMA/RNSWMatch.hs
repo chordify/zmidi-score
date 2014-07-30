@@ -137,9 +137,11 @@ printPickMeter (ts, m) =
 
 -- | Matches meter profiles
 matchNSWPStore :: Rotations -> QBinSelection -> [IMAPDF] -> NSWPStore -> [(TimeSig, [PMatch])]
-matchNSWPStore rs s pdfs (NSWPStore q d fp) = undefined -- zip (second (concatMap matchPDF pdfs)) d
+matchNSWPStore rs s pdfs (NSWPStore q d fp) = map matchSeg d
   
-  where -- matchSeg :: (TimeSig, Map TimeSig NSWProf) -> (TimeSig
+  where 
+        matchSeg :: (TimeSig, Map TimeSig NSWProf) -> (TimeSig, [PMatch])
+        matchSeg (gt, x) = (gt, concatMap (matchPDF x) pdfs)
   
         -- matches a single pdf, creating the profile is independent of the 
         -- rotation and happens here
