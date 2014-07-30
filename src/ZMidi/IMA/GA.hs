@@ -29,9 +29,9 @@ runGA qb sel pdfs dir =
   do let cfg = GAConfig 
                  100 -- population size
                  25  -- archive size (best entities to keep track of)
-                 500 -- maximum number of generations
-                 0.8 -- crossover rate (% of entities by crossover)
-                 0.3 -- mutation rate (% of entities by mutation)
+                 300 -- maximum number of generations
+                 0.7 -- crossover rate (% of entities by crossover)
+                 0.2 -- mutation rate (% of entities by mutation)
                  0.2 -- parameter for crossover (% of split points)
                  0.2 -- parameter for mutation (% of replaced rotations)
                  True -- whether or not to use checkpointing
