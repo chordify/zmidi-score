@@ -29,7 +29,7 @@ runGA qb sel pdfs dir =
   do let cfg = GAConfig 
                  100 -- population size
                  25  -- archive size (best entities to keep track of)
-                 300 -- maximum number of generations
+                 60  -- maximum number of generations
                  0.7 -- crossover rate (% of entities by crossover)
                  0.2 -- mutation rate (% of entities by mutation)
                  0.2 -- parameter for crossover (% of split points)
@@ -57,7 +57,7 @@ runGA qb sel pdfs dir =
 --------------------------------------------------------------------------------
 
 instance Entity Rotations Double (QBinSelection, [IMAPDF], FilePath) QBins IO where
-  genRandom pool seed = return $ stdRotations pool (randomPrior seed) 
+  genRandom pool seed = return . normPriors $ stdRotations pool (randomPrior seed) 
 
   crossover _pool par seed a b = return . Just $ mixRotations seed par a b
 

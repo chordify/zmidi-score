@@ -33,7 +33,8 @@ myArgs = [
                  argAbbr  = Just 'm',
                  argName  = Just "mode",
                  argData  = argDataRequired "mode" ArgtypeString,
-                 argDesc  = "The operation mode (train|test|ima|profile|store|ga-rot)"
+                 argDesc  = "The operation mode (train|test|ima|profile|\n" ++
+                  "                              store-ima|store-prof|ga-rot)"
                }
         ,  Arg { argIndex = OutFile,
                  argAbbr  = Just 'o',
