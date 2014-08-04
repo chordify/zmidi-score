@@ -18,6 +18,7 @@ import ZMidi.IO.Common             -- ( readQMidiScoreSafe, warning )
 import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
 import ZMidi.IMA.NSWProf           ( normSWProfByBar, NSWPStore (..) )
+import ZMidi.IMA.MeterGT           ( readGT, mergeWithNSWPStore )
 import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin
                                    , QBinSelection, Rotations )
 import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters, matchNSWPStore
@@ -98,15 +99,20 @@ writeCSVHeader m out = writeFile out . genHeader $ m
 
 data Print = PRot | PFile | None
 
-readMatchPutLn :: Print -> QBinSelection -> [IMAPDF] -> Rotations -> FilePath 
+readMatchPutLn :: Print -> QBinSelection -> [IMAPDF] -> Rotations 
+               -> Maybe FilePath -> FilePath 
                -> IO (Maybe ([(TimeSig, PMatch)]))
-readMatchPutLn prnt s ps r fp = 
+readMatchPutLn prnt s ps r mGT fp = 
   do let f = case prnt of
                PRot  -> printMatchLine . dontPickMeters 
                PFile -> printMatchLine . pickMeters 
                None  -> \x -> return $!! pickMeters $!! x 
               
-     ima <- readNSWPStoreGeneric fp
+     -- read a ground-truth, if any
+     gt  <- maybe (return $ Left "no Groundtruth") readGT mGT 
+            >>= either (\x -> warning "" x >> return Nothing) (return . Just)
+     -- read the MIDI or profile data
+     ima <- readNSWPStoreGeneric fp :: IO (Either String NSWPStore)
      case ima of
        Left  w -> warning fp w >> return Nothing 
        Right x -> (f $ matchNSWPStore r s ps x) >>= return . Just

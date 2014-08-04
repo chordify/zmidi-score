@@ -29,7 +29,7 @@ runGA qb sel pdfs dir =
   do let cfg = GAConfig 
                  100 -- population size
                  25  -- archive size (best entities to keep track of)
-                 60  -- maximum number of generations
+                 120  -- maximum number of generations
                  0.7 -- crossover rate (% of entities by crossover)
                  0.2 -- mutation rate (% of entities by mutation)
                  0.2 -- parameter for crossover (% of split points)
@@ -64,7 +64,7 @@ instance Entity Rotations Double (QBinSelection, [IMAPDF], FilePath) QBins IO wh
   mutation _pool par seed e = return . Just $ replaceRotations seed par e
 
   score (sel, pdfs, dirfp) e = 
-    do d <- mapDir (readMatchPutLn None sel pdfs e) dirfp 
+    do d <- mapDir (readMatchPutLn None sel pdfs e Nothing) dirfp 
        let s = meterFail . avgResult . evalMeter . concat . catMaybes $ d
        s `seq` print s
        return (Just s)

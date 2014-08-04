@@ -2,12 +2,15 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveFunctor     #-}
 -- todo move to ZMidi.IO
-module ZMidi.IMA.MeterGT where
+module ZMidi.IMA.MeterGT ( readGT
+                         , mergeWithNSWPStore
+                          ) where
 
 import Prelude              hiding ( readFile )
 
 import ZMidi.Score                 ( TimeSig (..) )
 import ZMidi.IMA.SelectProfBins    ( Rot (..) )
+import ZMidi.IMA.NSWProf           ( NSWPStore (..) )
 
 import Data.Vector                 ( Vector, toList )
 import Data.Csv                    ( FromField (..), FromNamedRecord (..)
@@ -16,7 +19,7 @@ import Data.List                   ( intercalate )
 import Data.ByteString.Lazy        ( readFile )
 import Control.Applicative         ( (<$>), (<*>), pure )
 import Control.Monad               ( mzero )
-import Control.Arrow               ( second )
+import Control.Arrow               ( second, first )
 
 data MeterGT a = MeterGT { gtFile  :: FilePath
                          , gtMeter :: a
@@ -51,6 +54,19 @@ mergeMetersOfSong = foldr step [] where
   step m (h:t) | gtFile m == gtFile h = fmap (gtMeter m :) h : t
                | otherwise            = fmap return m   :  h : t
                        
-readGT :: FilePath -> IO (Either String (Header, [MeterGT TimeSig]))
-readGT f = readFile f >>= return . fmap (second toList) . decodeByName 
+                       
+                       
+mergeWithNSWPStore :: [MeterGT [TimeSig]] -> [NSWPStore] -> [NSWPStore]
+mergeWithNSWPStore gt = zipWith f gt where
+
+  f :: MeterGT [TimeSig] -> NSWPStore -> NSWPStore
+  f g n | gtFile g == nswpsFile n = update (gtMeter g) n
+        | otherwise = error "mergeWithNSWPStore: filenames do not match"
+  
+  update :: [TimeSig] -> NSWPStore -> NSWPStore
+  update ts n = n{ nswps = zipWith (\t x -> first (const t) x) ts (nswps n) }
+                       
+readGT :: FilePath -> IO (Either String [MeterGT [TimeSig]])
+readGT f = readFile f 
+       >>= return . fmap (mergeMetersOfSong . toList . snd) . decodeByName 
 

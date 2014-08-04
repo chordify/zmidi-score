@@ -25,6 +25,7 @@ import Control.Concurrent.ParallelIO  ( stopGlobalPool )
 --------------------------------------------------------------------------------
 data MyArgs = Mode | InputFilepath | InputDirFilepath | OutFile | OutDir
             | SelProfFilepath | NrProfBins | RotationArg | TimeSigArg
+            | GTFilepath
                   deriving (Eq, Ord, Show)
 
 myArgs :: [Arg MyArgs]
@@ -67,6 +68,12 @@ myArgs = [
                        ArgtypeString "ragtimeMeterProfilesTrain_2014-03-25.bin",
                  argDesc  = "Base directory path to test or train"
                }
+         , Arg { argIndex = GTFilepath,
+                 argAbbr  = Just 'g',
+                 argName  = Just "gt",
+                 argData  = argDataOptional "filepath" ArgtypeString,
+                 argDesc  = "Ground-Truth file"
+               }
          , Arg { argIndex = NrProfBins,
                  argAbbr  = Just 'b',
                  argName  = Just "bins",
@@ -102,8 +109,9 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                          m         -> usageError arg ("unrecognised mode: " ++ m)
               
               -- get parameters
-              out = getRequiredArg arg OutFile :: FilePath
-              od  = getRequiredArg arg OutDir  :: FilePath
+              out = getRequiredArg arg OutFile    :: FilePath
+              od  = getRequiredArg arg OutDir     :: FilePath
+              gt  = getArg arg         GTFilepath :: Maybe FilePath
               b   = getRequiredArg arg NrProfBins 
               r   = getRequiredArg arg RotationArg
               
@@ -128,8 +136,8 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
           case (mode, input) of
             (Train, Left  f) -> exportCSVProfs s out f
             (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
-            (Test , Left  f) -> readMatchPutLn PRot s p rs f >> return ()
-            (Test , Right d) -> mapDir (readMatchPutLn PFile s p rs) d >>= printMatchAgr . concat . catMaybes
+            (Test , Left  f) -> readMatchPutLn PRot s p rs gt f >> return ()
+            (Test , Right d) -> mapDir (readMatchPutLn PFile s p rs gt) d >>= printMatchAgr . concat . catMaybes
             (StoreIMA, Left  f) -> exportIMAStore od f
             (StoreIMA, Right d) -> mapDir_ (exportIMAStore od) d
             (StoreProf, Left  f) -> exportNSWPStore od f
