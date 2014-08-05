@@ -12,7 +12,7 @@ import ZMidi.IO.IMA                   ( printIMA, analyseProfile, exportIMAStore
                                       , printMatchAgr, readMatchPutLn, Print (..)
                                       , exportNSWPStore )
 import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..), QBinSelection
-                                      , stdRotations, threePerNum )
+                                      , stdRotations, threePerNum, readJSON )
 import ZMidi.IMA.NSWProf              ( readNSWProf )
 import ZMidi.IMA.Internal             ( parseTimeSig )
 import ZMidi.IMA.TimeSigSeg           ( TimedSeg )
@@ -25,8 +25,8 @@ import Control.Concurrent.ParallelIO  ( stopGlobalPool )
 -- Commandline argument parsing
 --------------------------------------------------------------------------------
 data MyArgs = Mode | InputFilepath | InputDirFilepath | OutFile | OutDir
-            | SelProfFilepath | NrProfBins | RotationArg | TimeSigArg
-            | GTFilepath
+            | SelProfFilepath | NrProfBins | RotationPath | TimeSigArg
+            | GTFilepath 
                   deriving (Eq, Ord, Show)
 
 myArgs :: [Arg MyArgs]
@@ -81,11 +81,11 @@ myArgs = [
                  argData  = argDataDefaulted "integer" ArgtypeInt 8,
                  argDesc = "The number of profile bins to be matched"
                 }
-         , Arg { argIndex = RotationArg,
+         , Arg { argIndex = RotationPath,
                  argAbbr  = Just 'r',
                  argName  = Just "rot",
-                 argData  = argDataDefaulted "integer" ArgtypeInt 0,
-                 argDesc  = "The rotation of the spectral weight profile"
+                 argData  = argDataOptional "filepath" ArgtypeString,
+                 argDesc  = "A JSON file specifying the meter & rotation priors"
                 }             
          ]
 
@@ -113,12 +113,11 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
               out = getRequiredArg arg OutFile    :: FilePath
               od  = getRequiredArg arg OutDir     :: FilePath
               b   = getRequiredArg arg NrProfBins 
-              r   = getRequiredArg arg RotationArg
+              -- r   = getRequiredArg arg RotationArg
               
               -- standard rotations
-              rs = stdRotations (QBins 12) threePerNum
-              
-              
+              -- rs = stdRotations (QBins 12) threePerNum
+                            
               -- the input is either a file (Left) or a directory (Right)
               input :: Either FilePath FilePath
               input = case ( getArg arg InputFilepath
@@ -132,24 +131,26 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
           s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
           p <- readPDFs ("fit"++show b++".json" ) -- TODO replace...
           g <- maybeReadGT $ getArg arg GTFilepath :: IO (Maybe [MeterGT [TimeSig]])
+          r <- maybe (usageError arg "no rotations found") readJSON 
+             $ getArg arg RotationPath 
           
           -- do the parsing magic
           case (mode, input) of
             (Train, Left  f) -> exportCSVProfs s out f
             (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
-            (Test , Left  f) -> readMatchPutLn PRot s p rs g f >> return ()
-            (Test , Right d) -> mapDir (readMatchPutLn PFile s p rs g) d >>= printMatchAgr . concat . catMaybes
+            (Test , Left  f) -> readMatchPutLn PRot s p r g f >> return ()
+            (Test , Right d) -> mapDir (readMatchPutLn PFile s p r g) d >>= printMatchAgr . concat . catMaybes
             (StoreIMA, Left  f) -> exportIMAStore od f
             (StoreIMA, Right d) -> mapDir_ (exportIMAStore od) d
             (StoreProf, Left  f) -> exportNSWPStore od f
             (StoreProf, Right d) -> mapDir_ (exportNSWPStore od) d
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
             (IMA  , Right _) -> usageError arg "We can only analyse a file"
-            (Prof , Left  f) -> readIMAScoreGeneric f >>= either error (analyseProfile r s)
+            (Prof , Left  f) -> readIMAScoreGeneric f >>= either error (analyseProfile 0 s)
             (Prof , Right _) -> usageError arg "We can only profile a file" 
             (GARot, Left  _) -> usageError arg "We can only evolve on a directory"
             (GARot, Right d) -> runGA (QBins 12) s p d  
           
-          stopGlobalPool
+          stopGlobalPool -- required for using parallel-IO
 
        

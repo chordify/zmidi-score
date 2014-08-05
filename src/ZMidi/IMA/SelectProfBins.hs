@@ -161,18 +161,18 @@ rotate _ _ _ _ = error "SelectQBins.rotate: invalid arguments"
 getNumForQBins :: QBins -> Ratio Int -> Int
 getNumForQBins (QBins q) r = numerator r * (q `div` denominator r)
 
-showRotations :: QBins -> Rotations -> String
-showRotations q = foldrWithKey showRPs "" where
+showRotations :: Rotations -> String
+showRotations = foldrWithKey showRPs "" where
 
   showRPs :: TimeSig -> [(Rot, RPrior)] -> String -> String
   showRPs t r s = let (rs,ps) = unzip . reverse $ r
                   in intercalate "\n" [s, show t ++ ":", showRs rs, showPs ps]
 
   showRs :: [Rot] -> String
-  showRs rs = concatMap (\(Rot r) -> printf "  %2d " $ getNumForQBins q r) rs
+  showRs rs = intercalate "   " . map (show . rot) $ rs
 
   showPs :: [RPrior] -> String
-  showPs ps = concatMap (\p -> printf "%.2f " p) ps
+  showPs ps = concatMap (\p -> printf "%.5f " p) ps
 
 --------------------------------------------------------------------------------
 -- JSON import and export

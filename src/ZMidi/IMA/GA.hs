@@ -49,7 +49,7 @@ runGA qb sel pdfs dir =
      
      writeJSON "evolvedRotations.json" r
      
-     putStrLn $ "best entity (GA): \n" ++ (showRotations qb r)
+     putStrLn $ "best entity (GA): \n" ++ (showRotations r)
      putStrLn $ "score: " ++ show s
 
 --------------------------------------------------------------------------------
@@ -71,7 +71,7 @@ instance Entity Rotations Double (QBinSelection, [IMAPDF], FilePath) QBins IO wh
 
   showGeneration gi (_,archive) = 
     let (Just fitness, e) = head archive
-    in  "best entity (gen. "  ++ show gi ++ "): " ++ (showRotations (QBins 12) e) 
+    in  "best entity (gen. "  ++ show gi ++ "): " ++ (showRotations e) 
                               ++ " [fitness: " ++ show fitness ++ "]"
           
       
