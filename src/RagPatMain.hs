@@ -89,7 +89,7 @@ showFileStats fp = do mf <- readMidi fp
                       case mf of
                         Left  err -> putStrLn (fp ++ '\t' : show err)
                         Right mid -> 
-                          do let m  = quantise FourtyEighth . midiFileToMidiScore $ mid
+                          do let m  = quantise . midiFileToMidiScore $ mid
                              putStrLn fp
                              putStrLn . showMidiScore . qMidiScore $ m
 

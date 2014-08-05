@@ -102,11 +102,11 @@ dirMeterMatch m fp = readQMidiScoreSafe FourtyEighth fp
                        >>= return . (>>= doMeterMatch m)
                        >>= either (warning fp) putStrLn
 
-  where doMeterMatch :: Map TimeSig NSWProf -> QMidiScore-> Either String String
-        doMeterMatch m' qm = timeSigCheck qm 
-                          >>= matchMeters m' >>= pickMeters
-                          >>= return . intercalate "\n" 
-                                     . map (\x -> fp ++ "\t" ++ printPickMeter x)
+  where doMeterMatch :: QMidiScore-> Either String String
+        doMeterMatch qm = timeSigCheck qm 
+                        >>= matchMeters m >>= pickMeters
+                        >>= return . intercalate "\n" 
+                                   . map (\x -> fp ++ "\t" ++ printPickMeter x)
                               
 -- Checks for a valid time signature
 timeSigCheck :: QMidiScore -> Either String QMidiScore

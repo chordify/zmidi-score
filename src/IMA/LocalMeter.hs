@@ -9,10 +9,7 @@ module IMA.LocalMeter ( Time   (..)
                       , factors
                       ) where
 
-import Data.List                  ( intercalate )
-
 import Test.QuickCheck
-import System.Random
   
 newtype Len    = Len    { len    :: Int } 
                         deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
@@ -50,8 +47,8 @@ genOnsets n = vector n >>= return . reverse . foldr step [] where
                       
 
 -- | returns the meter ending 'Time'
-meterEnd' :: Period -> Len -> Time -> Time
-meterEnd' (Period p) (Len l) (Time t) = Time (t + (p * l))
+-- meterEnd' :: Period -> Len -> Time -> Time
+-- meterEnd' (Period p) (Len l) (Time t) = Time (t + (p * l))
 
 factors :: Period -> [Period]
 -- factors p = filter (\x -> p `mod` x == 0) [1 .. p]

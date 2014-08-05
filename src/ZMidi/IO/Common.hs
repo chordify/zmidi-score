@@ -22,7 +22,7 @@ module ZMidi.IO.Common (-- * Mapping
                     )where
                     
 import ZMidi.Core         ( MidiFile (..), readMidi, writeMidi )
-import ZMidi.Score        ( MidiScore (..), midiFileToMidiScore, ShortestNote (..)
+import ZMidi.Score        ( MidiScore (..), midiFileToMidiScore
                           , midiScoreToMidiFile, removeLabels, QMidiScore (..)
                           , quantiseQDevSafe, quantise )
 import Control.Monad      ( filterM, void )
@@ -31,7 +31,8 @@ import System.Directory   ( getDirectoryContents, canonicalizePath
 import System.IO          ( stderr, hPutStrLn )
 import System.FilePath    ( (</>) )
 import Data.Foldable      ( foldrM )
-import Control.Concurrent.ParallelIO.Global ( parallel, stopGlobalPool )
+import Data.List          ( sort )
+import Control.Concurrent.ParallelIO.Global ( parallel )
 
 --------------------------------------------------------------------------------
 -- Mapping
@@ -53,10 +54,8 @@ mapDir_ f = void . mapDir f
 mapDir :: (FilePath -> IO a) ->  FilePath -> IO [a]
 mapDir f fp = do fs  <- getCurDirectoryContents fp
                  cin <- canonicalizePath fp
-                 putErrStrLn cin
-                 -- mapM (f . (cin </>)) $ fs 
+                 -- putErrStrLn cin
                  res <- parallel . map (f . (cin </>)) $ fs 
-                 stopGlobalPool
                  return res
                  
 
@@ -78,21 +77,23 @@ foldrDir f b fp = do fs  <- getCurDirectoryContents fp
 -- Reading & Writing
 --------------------------------------------------------------------------------
 
-readMidiScoreSafe :: FilePath -> IO (Either String MidiScore)
-readMidiScoreSafe f = readMidi f >>= return . either (Left . show) 
-                                                     (Right . midiFileToMidiScore)
-
-
 -- | Reads a 'MidiFile' using 'readMidiScoreSafe', 'quantise'es the result
 -- and checks if the 'MidiScore' has a reasonable average quantisation deviation
 -- (see 'QDevPerc')
-readQMidiScoreSafe :: ShortestNote -> FilePath -> IO (Either String QMidiScore)
-readQMidiScoreSafe sn f = readMidiScoreSafe f >>= return . (>>= quantiseQDevSafe sn)
+readQMidiScoreSafe :: FilePath -> IO (Either String QMidiScore)
+readQMidiScoreSafe f = readMidiScoreSafe f >>= return . (>>= quantiseQDevSafe)
+
+-- | Reads a 'MidiFile' converts it into a 'MidiScore' and checks if the 
+-- 'MidiScore' has a reasonable average quantisation deviation (see 'QDevPerc')
+readMidiScoreSafe :: FilePath -> IO (Either String MidiScore)
+readMidiScoreSafe f = readMidi f >>= return . either (Left . show) 
+                                                     (Right . midiFileToMidiScore)
+-- TODO: maybe solved with an arrow in a nicer way
                                                      
 -- | Reads a 'MidiFile' using 'readMidiScore' but 'quantise'es the result.
-readQMidiScore :: ShortestNote -> FilePath -> IO (QMidiScore)
-readQMidiScore sn f = readMidiScore f >>= return . quantise sn
-                
+readQMidiScore :: FilePath -> IO (QMidiScore)
+readQMidiScore f = readMidiScore f >>= return . quantise
+
 -- | Reads a 'MidiFile' converts it into a 'MidiScore' and returns it
 readMidiScore :: FilePath -> IO (MidiScore)
 readMidiScore f = readMidiFile f >>= return . midiFileToMidiScore
@@ -129,13 +130,15 @@ logDuplicates fp = do midis <-  getCurDirectoryContents fp
 removeTrackLabels :: FilePath -> IO ()
 removeTrackLabels f = readMidiFile f >>= 
                       writeMidi (f ++ ".noLab.mid") . removeLabels
-                      
+       
+-- | Sends a warning about a file that cannot be read to the stderr
+warning :: FilePath -> String -> IO ()
+warning fp w = putErrStrLn ("Warning: skipping " ++ fp ++ ": " ++ w)
+
 -- | Prints a string to the standard error stream
 putErrStrLn :: String -> IO ()
 putErrStrLn s = hPutStrLn stderr s
-       
-warning :: FilePath -> String -> IO ()
-warning fp w = putErrStrLn ("Warning: skipping " ++ fp ++ ": " ++ w)
+
 
 --------------------------------------------------------------------------------
 -- Unexported directory utils
@@ -144,5 +147,5 @@ warning fp w = putErrStrLn ("Warning: skipping " ++ fp ++ ": " ++ w)
 -- | Like 'getCurDirectoryContents', but filters the results for "." and ".."
 getCurDirectoryContents :: FilePath -> IO [FilePath]
 getCurDirectoryContents fp = 
-  getDirectoryContents fp >>= return . filter (\x -> x /= "." && x /= "..") 
+  getDirectoryContents fp >>= return . sort . filter (\x -> x /= "." && x /= "..") 
 

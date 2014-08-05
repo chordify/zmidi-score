@@ -68,8 +68,11 @@ import Data.Foldable       ( foldrM )
 import Data.IntMap.Lazy    ( insertWith, IntMap, keys )
 import qualified Data.IntMap.Lazy  as M    ( empty )
 import Text.Printf         ( printf, PrintfArg )
-import Data.Binary         ( Binary )
+import Data.Binary         ( Binary, Get )
+import qualified Data.Binary       as B    ( get, put )
 import GHC.Generics        ( Generic )
+import Control.DeepSeq
+import Control.DeepSeq.Generics (genericRnf)
 
 --------------------------------------------------------------------------------                                   
 -- A less low-level MIDI data representation
@@ -91,16 +94,16 @@ data MidiScore  = MidiScore     { -- | The 'Key's of the piece with time stamps
                                 , minDur     :: Time
                                   -- | The midi 'Voice's
                                 , getVoices  :: [Voice]
-                                } deriving (Eq, Show)
+                                } deriving (Eq, Show, Generic)
                      
 data Key        = Key           { keyRoot    :: Int8
                                 , keyMode    :: MidiScaleType
                                 } 
-                | NoKey           deriving (Eq, Ord)
+                | NoKey           deriving (Eq, Ord, Generic)
                
 -- | A 'TimeSig'nature has a fraction, e.g. 4/4, 3/4, or 6/8.
-data TimeSig    = TimeSig       { numerator  :: Int 
-                                , denominator:: Int
+data TimeSig    = TimeSig       { tsNum      :: Int 
+                                , tsDen      :: Int
                                 , metronome  :: Word8
                                 , nr32ndNotes:: Word8
                                 }
@@ -110,31 +113,31 @@ data TimeSig    = TimeSig       { numerator  :: Int
 -- | A 'Voice' is a list of 'ScoreEvent's that have time stamps.
 type Voice      = [Timed ScoreEvent]
 
-newtype Channel    = Channel {channel :: Word8 }
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+newtype Channel = Channel {channel :: Word8 }
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, NFData )
 -- TODO: better changed to Pitch (Int, PitchClass)
-newtype Pitch   = Pitch    (Int, Int) deriving (Eq, Ord) -- (Octave, Pitch class)
+newtype Pitch   = Pitch    (Int, Int) deriving (Eq, Ord, Binary, NFData) -- (Octave, Pitch class)
 type    Interval= Int
 
 newtype PitchClass = PitchClass Int deriving (Eq, Ord) 
 
 newtype Velocity = Velocity { velocity :: Word8 }
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, NFData )
 newtype Time    = Time { time :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData )
 newtype Bar     = Bar  { bar  :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData )
 newtype Beat    = Beat { beat :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg, Binary )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData )
 newtype BeatRat = BeatRat { beatRat  :: Ratio Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Binary )                    
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Binary, NFData )                    
 newtype TPB     = TPB { tpb :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, PrintfArg )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData )
                     
 -- perhaps add duration??
 data Timed a    = Timed         { onset       :: Time 
                                 , getEvent    :: a
-                                } deriving (Functor, Eq, Ord)
+                                } deriving (Functor, Eq, Ord, Generic)
                                 
 data ScoreEvent = NoteEvent     { chan        :: Channel
                                 , pitch       :: Pitch
@@ -150,7 +153,7 @@ data ScoreEvent = NoteEvent     { chan        :: Channel
                 | TimeSigChange { tsChange    :: TimeSig
                                 } 
                 | TempoChange   { tempChange  :: Time
-                                } deriving (Eq, Ord, Show)
+                                } deriving (Eq, Ord, Show, Generic)
 
 type TickMap = IntMap Time
 
@@ -174,12 +177,13 @@ instance Ord TimeSig where
       EQ -> compare a1 a2
       c  -> c
 
-instance Binary TimeSig
-  
 instance Show TimeSig where
   show (TimeSig n d _ _) = show n ++ '/' : show d
   show NoTimeSig         = "NoTimeSig"  
 
+instance Read TimeSig where 
+  readsPrec _ = error "Read TimeSig: implement me"
+  
 instance Show Key where
   show NoKey      = "NoKey"
   show (Key rt m) = showRoot rt ++ ' ' : (map toLower . show $ m) where
@@ -217,12 +221,47 @@ showPitch 10 = "Bb"
 showPitch 11 = "B "
 showPitch n  = invalidMidiNumberError n
 
--- instance Ord Pitch where
-  -- compare (Pitch (octA, pcA)) 
-          -- (Pitch (octB, pcB)) = case compare octA octB of
-                                  -- EQ   -> compare pcA pcB
-                                  -- golt -> golt -- greater or smaller
+-- Binary instances
+instance Binary MidiScore
+instance Binary TimeSig
+instance Binary ScoreEvent
+instance Binary Key  
+instance (Binary a) => Binary (Timed a)
+instance Binary MidiScaleType where
+  put MAJOR           =    B.put (0 :: Word8)
+  put MINOR           =    B.put (1 :: Word8)
+  put (SCALE_OTHER i) = do B.put (2 :: Word8)
+                           B.put i
+                           
+  get = do t <- B.get :: Get Word8
+           case t of 
+             0 -> return MAJOR
+             1 -> return MINOR
+             2 -> do i <- B.get
+                     return (SCALE_OTHER i)
+             _ -> error "invalid binary encoding of MidiScaleType"
       
+instance Binary MidiFormat where
+  put MF0 = B.put (0 :: Word8)
+  put MF1 = B.put (1 :: Word8)
+  put MF2 = B.put (2 :: Word8)
+  
+  get = do t <- B.get :: Get Word8
+           case t of 
+             0 -> return MF0           
+             1 -> return MF1           
+             2 -> return MF2
+             _ -> error "invalid binary encoding of MidiFormat"
+             
+-- NFData instances
+instance NFData MidiScore  where rnf = genericRnf
+instance NFData TimeSig    where rnf = genericRnf
+instance NFData ScoreEvent where rnf = genericRnf
+instance NFData Key        where rnf = genericRnf
+instance NFData a => NFData (Timed a) where rnf = genericRnf
+instance NFData MidiScaleType where rnf a = a `seq` ()
+instance NFData MidiFormat    where rnf a = a `seq` ()
+
 --------------------------------------------------------------------------------
 -- Printing MidiScores
 --------------------------------------------------------------------------------
@@ -325,8 +364,8 @@ buildTickMap = foldr oneVoice M.empty where
 getBeatInBar :: TimeSig -> TPB -> Time -> (Bar, Beat, BeatRat)
 getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
 getBeatInBar (TimeSig num _den _ _) t o = 
-  let (bt, rat) = getRatInBeat t o
-      (br, bib) = (succ *** succ) $ fromIntegral bt `divMod` num 
+  let (Beat bt, rat) = getRatInBeat t o
+      (br, bib)      = (succ *** succ) $ bt `divMod` num 
   in (Bar br, Beat bib, rat)
 
 -- | Returns the position within a 'Bar', see 'getBeatInBar'.
