@@ -113,10 +113,6 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
               out = getRequiredArg arg OutFile    :: FilePath
               od  = getRequiredArg arg OutDir     :: FilePath
               b   = getRequiredArg arg NrProfBins 
-              -- r   = getRequiredArg arg RotationArg
-              
-              -- standard rotations
-              -- rs = stdRotations (QBins 12) threePerNum
                             
               -- the input is either a file (Left) or a directory (Right)
               input :: Either FilePath FilePath
@@ -127,27 +123,35 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                         -- or by basepath and id
                        (Nothing, Just d ) -> Right d
                        _                  -> usageError arg "Invalid filepaths" 
+                       
+              r' = maybe (usageError arg "no rotations found") readJSON 
+                 $ getArg arg RotationPath -- :: IO Rotations
               
           s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
           p <- readPDFs ("fit"++show b++".json" ) -- TODO replace...
           g <- maybeReadGT $ getArg arg GTFilepath :: IO (Maybe [MeterGT [TimeSig]])
-          r <- maybe (usageError arg "no rotations found") readJSON 
-             $ getArg arg RotationPath 
           
           -- do the parsing magic
           case (mode, input) of
             (Train, Left  f) -> exportCSVProfs s out f
             (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
-            (Test , Left  f) -> readMatchPutLn PRot s p r g f >> return ()
-            (Test , Right d) -> mapDir (readMatchPutLn PFile s p r g) d >>= printMatchAgr . concat . catMaybes
+       
+            (Test , Left  f) -> r' >>= \r -> readMatchPutLn PRot s p r g f >> return ()
+            (Test , Right d) -> do r <- r'
+                                   x <-mapDir (readMatchPutLn PFile s p r g) d 
+                                   printMatchAgr . concat . catMaybes $ x
+            
             (StoreIMA, Left  f) -> exportIMAStore od f
             (StoreIMA, Right d) -> mapDir_ (exportIMAStore od) d
             (StoreProf, Left  f) -> exportNSWPStore od f
             (StoreProf, Right d) -> mapDir_ (exportNSWPStore od) d
+            
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
             (IMA  , Right _) -> usageError arg "We can only analyse a file"
+            
             (Prof , Left  f) -> readIMAScoreGeneric f >>= either error (analyseProfile 0 s)
             (Prof , Right _) -> usageError arg "We can only profile a file" 
+            
             (GARot, Left  _) -> usageError arg "We can only evolve on a directory"
             (GARot, Right d) -> runGA (QBins 12) s p d  
           
