@@ -190,8 +190,9 @@ instance (Integral a, FromJSON a) => FromJSON (Ratio a) where
      parseJSON _          = mzero
      
 instance FromJSON (TimeSig) where
-     parseJSON (Object v) =  (\d n -> TimeSig d n 0 0) 
-                          <$> v .: (pack "ts_num") <*> v .: (pack "ts_den")  
+     parseJSON (Object v) =  (\n d -> TimeSig n d 0 0) 
+                          <$> v .: (pack "ts_num") <*> v .: (pack "ts_den") 
+                          
      parseJSON _          = mzero
      
 writeJSON :: ToJSON a => FilePath -> Map TimeSig a -> IO ()

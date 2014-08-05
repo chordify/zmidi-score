@@ -2,20 +2,23 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE DeriveFunctor     #-}
 -- todo move to ZMidi.IO
-module ZMidi.IMA.MeterGT ( readGT
-                         , mergeWithNSWPStore
-                          ) where
+module ZMidi.IMA.MeterGT ( MeterGT (..)
+                         , readGT
+                         , maybeReadGT
+                         , setGT
+                         ) where
 
 import Prelude              hiding ( readFile )
 
 import ZMidi.Score                 ( TimeSig (..) )
+import ZMidi.IO.Common             ( warning, putErrStrLn )
 import ZMidi.IMA.SelectProfBins    ( Rot (..) )
 import ZMidi.IMA.NSWProf           ( NSWPStore (..) )
 
 import Data.Vector                 ( Vector, toList )
 import Data.Csv                    ( FromField (..), FromNamedRecord (..)
                                    , decodeByName, (.:), Header)
-import Data.List                   ( intercalate )
+import Data.List                   ( intercalate, find )
 import Data.ByteString.Lazy        ( readFile )
 import Control.Applicative         ( (<$>), (<*>), pure )
 import Control.Monad               ( mzero )
@@ -54,19 +57,31 @@ mergeMetersOfSong = foldr step [] where
   step m (h:t) | gtFile m == gtFile h = fmap (gtMeter m :) h : t
                | otherwise            = fmap return m   :  h : t
                        
-                       
-                       
+setGT :: [MeterGT [TimeSig]] -> NSWPStore -> NSWPStore
+setGT g n = let fp = nswpsFile n
+            in case find (\x -> gtFile x == fp) g of
+                 Just x -> update x n
+                 _ -> error ("setGT: NSWPStore for " ++ fp)
+
+{-
 mergeWithNSWPStore :: [MeterGT [TimeSig]] -> [NSWPStore] -> [NSWPStore]
-mergeWithNSWPStore gt = zipWith f gt where
+mergeWithNSWPStore gt = zipWith setGT gt where
 
-  f :: MeterGT [TimeSig] -> NSWPStore -> NSWPStore
-  f g n | gtFile g == nswpsFile n = update (gtMeter g) n
-        | otherwise = error "mergeWithNSWPStore: filenames do not match"
-  
-  update :: [TimeSig] -> NSWPStore -> NSWPStore
-  update ts n = n{ nswps = zipWith (\t x -> first (const t) x) ts (nswps n) }
+  setGT :: MeterGT [TimeSig] -> NSWPStore -> NSWPStore
+  setGT g n | gtFile g == nswpsFile n = update g n
+            | otherwise = error "mergeWithNSWPStore: filenames do not match" 
+-}
+
+update :: MeterGT [TimeSig] -> NSWPStore -> NSWPStore
+update g n = n { nswps = zipWith (\t x -> first (const t) x) (gtMeter g) (nswps n) }
                        
-readGT :: FilePath -> IO (Either String [MeterGT [TimeSig]])
-readGT f = readFile f 
-       >>= return . fmap (mergeMetersOfSong . toList . snd) . decodeByName 
-
+readGT :: FilePath -> IO [MeterGT [TimeSig]]
+readGT f = do i <- readFile f 
+              case decodeByName i of
+                Left w  -> warning f w >> return []
+                Right x -> return . mergeMetersOfSong . toList . snd $ x
+                                   
+maybeReadGT :: Maybe FilePath -> IO (Maybe [MeterGT [TimeSig]])
+maybeReadGT mfp = case mfp of 
+  Just fp -> readGT fp >>= return . Just
+  _  -> putErrStrLn "warning: No external ground-truth provided" >> return Nothing

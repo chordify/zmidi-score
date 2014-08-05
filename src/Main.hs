@@ -17,6 +17,7 @@ import ZMidi.IMA.NSWProf              ( readNSWProf )
 import ZMidi.IMA.Internal             ( parseTimeSig )
 import ZMidi.IMA.TimeSigSeg           ( TimedSeg )
 import ZMidi.IMA.RNSWMatch            ( PMatch )
+import ZMidi.IMA.MeterGT              ( MeterGT (..), maybeReadGT, setGT )
 import ReadPDF                        ( readPDFs )
 import ZMidi.IMA.GA                   ( runGA )
 import Control.Concurrent.ParallelIO  ( stopGlobalPool )
@@ -111,7 +112,6 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
               -- get parameters
               out = getRequiredArg arg OutFile    :: FilePath
               od  = getRequiredArg arg OutDir     :: FilePath
-              gt  = getArg arg         GTFilepath :: Maybe FilePath
               b   = getRequiredArg arg NrProfBins 
               r   = getRequiredArg arg RotationArg
               
@@ -131,13 +131,14 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
               
           s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
           p <- readPDFs ("fit"++show b++".json" ) -- TODO replace...
+          g <- maybeReadGT $ getArg arg GTFilepath :: IO (Maybe [MeterGT [TimeSig]])
           
           -- do the parsing magic
           case (mode, input) of
             (Train, Left  f) -> exportCSVProfs s out f
             (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
-            (Test , Left  f) -> readMatchPutLn PRot s p rs gt f >> return ()
-            (Test , Right d) -> mapDir (readMatchPutLn PFile s p rs gt) d >>= printMatchAgr . concat . catMaybes
+            (Test , Left  f) -> readMatchPutLn PRot s p rs g f >> return ()
+            (Test , Right d) -> mapDir (readMatchPutLn PFile s p rs g) d >>= printMatchAgr . concat . catMaybes
             (StoreIMA, Left  f) -> exportIMAStore od f
             (StoreIMA, Right d) -> mapDir_ (exportIMAStore od) d
             (StoreProf, Left  f) -> exportNSWPStore od f
