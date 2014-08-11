@@ -20,12 +20,13 @@ import ZMidi.IMA.RNSWMatch            ( PMatch )
 import ZMidi.IMA.MeterGT              ( MeterGT (..), maybeReadGT, setGT )
 import ReadPDF                        ( readPDFs )
 import ZMidi.IMA.GA                   ( runGA )
+import Data.Map                       ( Map )
 import Control.Concurrent.ParallelIO  ( stopGlobalPool )
 --------------------------------------------------------------------------------
 -- Commandline argument parsing
 --------------------------------------------------------------------------------
 data MyArgs = Mode | InputFilepath | InputDirFilepath | OutFile | OutDir
-            | SelProfFilepath | NrProfBins | RotationPath | TimeSigArg
+            | SelProfFilepath | RotationPath | TimeSigArg
             | GTFilepath | FitFilepath
                   deriving (Eq, Ord, Show)
 
@@ -71,9 +72,8 @@ myArgs = [
          , Arg { argIndex = SelProfFilepath,
                  argAbbr  = Just 's',
                  argName  = Just "prof",
-                 argData  = argDataDefaulted "filepath" 
-                       ArgtypeString "ragtimeMeterProfilesTrain_2014-03-25.bin",
-                 argDesc  = "Base directory path to test or train"
+                 argData  = argDataOptional "filepath" ArgtypeString,
+                 argDesc  = "Input json file specifying the IMA profile bins"
                }
          , Arg { argIndex = GTFilepath,
                  argAbbr  = Just 'g',
@@ -81,12 +81,6 @@ myArgs = [
                  argData  = argDataOptional "filepath" ArgtypeString,
                  argDesc  = "Ground-Truth file"
                }
-         , Arg { argIndex = NrProfBins,
-                 argAbbr  = Just 'b',
-                 argName  = Just "bins",
-                 argData  = argDataDefaulted "integer" ArgtypeInt 8,
-                 argDesc = "The number of profile bins to be matched"
-                }
          , Arg { argIndex = RotationPath,
                  argAbbr  = Just 'r',
                  argName  = Just "rot",
@@ -122,7 +116,6 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
               -- get parameters
               out = getRequiredArg arg OutFile    :: FilePath
               od  = getRequiredArg arg OutDir     :: FilePath
-              b   = getRequiredArg arg NrProfBins 
                             
               -- the input is either a file (Left) or a directory (Right)
               input :: Either FilePath FilePath
@@ -134,20 +127,23 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                        (Nothing, Just d ) -> Right d
                        _                  -> usageError arg "Invalid filepaths" 
               
-              r' = getOptReq arg RotationPath "no rotation file found" readJSON
-              p' = getOptReq arg FitFilepath "no rotation file found" readPDFs
-              
-          s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
+              r' = getOptReq arg RotationPath "no rotation file found" 
+                     readJSON -- :: IO (Map TimeSig [(Rot, RPrior)])
+              p' = getOptReq arg FitFilepath "no GMM fit file found" readPDFs
+              s' = getOptReq arg SelProfFilepath "no IMA Profile bin selection file found" 
+                     readJSON -- :: IO (Map TimeSig [(Beat, BeatRat)])
+          -- s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
           g <- maybeReadGT $ getArg arg GTFilepath :: IO (Maybe [MeterGT [TimeSig]])
           
           -- do the parsing magic
           case (mode, input) of
-            (Train, Left  f) -> exportCSVProfs s out f
-            (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
+            (Train, Left  f) -> s' >>= \s -> exportCSVProfs s out f
+            (Train, Right d) -> do s <- s'
+                                   writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
        
-            (Test , Left  f) -> do r <- r' ; p <- p'
+            (Test , Left  f) -> do r <- r' ; p <- p' ; s <- s'
                                    readMatchPutLn PRot s p r g f >> return ()
-            (Test , Right d) -> do r <- r' ; p <- p'
+            (Test , Right d) -> do r <- r' ; p <- p' ; s <- s'
                                    x <-mapDir (readMatchPutLn PFile s p r g) d 
                                    printMatchAgr . concat . catMaybes $ x
             
@@ -159,11 +155,13 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
             (IMA  , Right _) -> usageError arg "We can only analyse a file"
             
-            (Prof , Left  f) -> readIMAScoreGeneric f >>= either error (analyseProfile 0 s)
+            (Prof , Left  f) -> do s <- s'
+                                   readIMAScoreGeneric f >>= either error (analyseProfile 0 s)
             (Prof , Right _) -> usageError arg "We can only profile a file" 
             
             (GARot, Left  _) -> usageError arg "We can only evolve on a directory"
-            (GARot, Right d) -> p' >>= \p -> runGA (QBins 12) s p d  
+            (GARot, Right d) -> do p <- p' ; s <- s' 
+                                   runGA (QBins 12) s p d  
           
           stopGlobalPool -- required for using parallel-IO
 

@@ -177,6 +177,8 @@ showRotations = foldrWithKey showRPs "" where
 --------------------------------------------------------------------------------
 -- JSON import and export
 --------------------------------------------------------------------------------
+instance ToJSON Beat
+instance ToJSON BeatRat
 
 instance (Integral a, ToJSON a) => ToJSON (Ratio a) where
      toJSON r = object [pack "num" .= numerator r, pack "den" .= denominator r]  
@@ -185,6 +187,9 @@ instance ToJSON (TimeSig) where
      toJSON (TimeSig n d _ _) = object [pack "ts_num" .= n, pack "ts_den" .= d]
      toJSON NoTimeSig         = object [pack "ts" .= pack "none"]     
 
+instance FromJSON Beat
+instance FromJSON BeatRat
+     
 instance (Integral a, FromJSON a) => FromJSON (Ratio a) where
      parseJSON (Object v) = (%) <$> v .: (pack "num") <*> v .: (pack "den")
      parseJSON _          = mzero

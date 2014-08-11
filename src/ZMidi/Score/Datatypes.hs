@@ -122,17 +122,17 @@ type    Interval= Int
 newtype PitchClass = PitchClass Int deriving (Eq, Ord) 
 
 newtype Velocity = Velocity { velocity :: Word8 }
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, NFData )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, NFData, Generic )
 newtype Time    = Time { time :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData, Generic )
 newtype Bar     = Bar  { bar  :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData, Generic )
 newtype Beat    = Beat { beat :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData, Generic )
 newtype BeatRat = BeatRat { beatRat  :: Ratio Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Binary, NFData )                    
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Binary, NFData, Generic )                    
 newtype TPB     = TPB { tpb :: Int } 
-                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData )
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData, Generic )
                     
 -- perhaps add duration??
 data Timed a    = Timed         { onset       :: Time 
