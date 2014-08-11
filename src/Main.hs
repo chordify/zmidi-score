@@ -26,7 +26,7 @@ import Control.Concurrent.ParallelIO  ( stopGlobalPool )
 --------------------------------------------------------------------------------
 data MyArgs = Mode | InputFilepath | InputDirFilepath | OutFile | OutDir
             | SelProfFilepath | NrProfBins | RotationPath | TimeSigArg
-            | GTFilepath 
+            | GTFilepath | FitFilepath
                   deriving (Eq, Ord, Show)
 
 myArgs :: [Arg MyArgs]
@@ -55,6 +55,12 @@ myArgs = [
                  argName  = Just "file",
                  argData  = argDataOptional "filepath" ArgtypeString,
                  argDesc  = "Input file midi file to analyse"
+               }
+         , Arg { argIndex = FitFilepath,
+                 argAbbr  = Just 'p',
+                 argName  = Just "fit",
+                 argData  = argDataOptional "filepath" ArgtypeString,
+                 argDesc  = "Input json file with the mixture model parameters"
                }
          , Arg { argIndex = InputDirFilepath,
                  argAbbr  = Just 'd',
@@ -95,6 +101,10 @@ data Mode = Train | Test | Prof | StoreIMA | StoreProf | IMA | GARot deriving (E
 parseTimeSigArg :: Args MyArgs -> String -> TimeSig
 parseTimeSigArg arg s = either (usageError arg) id $ parseTimeSig s 
 
+-- | An optional argument that is required by certain program modes
+getOptReq :: ArgType a => Args MyArgs -> MyArgs -> String -> (a -> IO b) -> IO b
+getOptReq arg a s f = maybe (usageError arg s) f $ getArg arg a
+
 -- Run from CL
 main :: IO ()
 main = do arg <- parseArgsIO ArgsComplete myArgs
@@ -123,12 +133,11 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                         -- or by basepath and id
                        (Nothing, Just d ) -> Right d
                        _                  -> usageError arg "Invalid filepaths" 
-                       
-              r' = maybe (usageError arg "no rotations found") readJSON 
-                 $ getArg arg RotationPath -- :: IO Rotations
+              
+              r' = getOptReq arg RotationPath "no rotation file found" readJSON
+              p' = getOptReq arg FitFilepath "no rotation file found" readPDFs
               
           s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
-          p <- readPDFs ("prof-fit\\ragtime.fit"++show b++".json" ) -- TODO replace...
           g <- maybeReadGT $ getArg arg GTFilepath :: IO (Maybe [MeterGT [TimeSig]])
           
           -- do the parsing magic
@@ -136,8 +145,9 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (Train, Left  f) -> exportCSVProfs s out f
             (Train, Right d) -> writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
        
-            (Test , Left  f) -> r' >>= \r -> readMatchPutLn PRot s p r g f >> return ()
-            (Test , Right d) -> do r <- r'
+            (Test , Left  f) -> do r <- r' ; p <- p'
+                                   readMatchPutLn PRot s p r g f >> return ()
+            (Test , Right d) -> do r <- r' ; p <- p'
                                    x <-mapDir (readMatchPutLn PFile s p r g) d 
                                    printMatchAgr . concat . catMaybes $ x
             
@@ -153,7 +163,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (Prof , Right _) -> usageError arg "We can only profile a file" 
             
             (GARot, Left  _) -> usageError arg "We can only evolve on a directory"
-            (GARot, Right d) -> runGA (QBins 12) s p d  
+            (GARot, Right d) -> p' >>= \p -> runGA (QBins 12) s p d  
           
           stopGlobalPool -- required for using parallel-IO
 
