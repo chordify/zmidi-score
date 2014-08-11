@@ -128,7 +128,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                  $ getArg arg RotationPath -- :: IO Rotations
               
           s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
-          p <- readPDFs ("fit"++show b++".json" ) -- TODO replace...
+          p <- readPDFs ("prof-fit\\ragtime.fit"++show b++".json" ) -- TODO replace...
           g <- maybeReadGT $ getArg arg GTFilepath :: IO (Maybe [MeterGT [TimeSig]])
           
           -- do the parsing magic

@@ -26,7 +26,7 @@ import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters, matchNS
 import ZMidi.IMA.TimeSigSeg        ( TimedSeg (..) )
 
 import ReadPDF                     ( IMAPDF )
-import ZMidi.IMA.RNSWProf          ( toRNSWProf, toCSV, genHeader )
+import ZMidi.IMA.RNSWProf          ( toCSV, genHeader )
 
 import Data.Map.Strict             ( Map )
 
@@ -39,7 +39,7 @@ import Data.Char                   ( toLower )
 import Data.Ratio                  ( numerator, denominator, (%) )
 import Data.Binary                 ( encodeFile, decodeFile )
 import Data.List                   ( intercalate ) 
-import qualified Data.ByteString.Lazy as BS ( appendFile )
+import qualified Data.ByteString.Lazy as BS ( appendFile, ByteString )
 import Control.DeepSeq
 
 --------------------------------------------------------------------------------
@@ -55,8 +55,7 @@ exportIMAStore dir i =   readQMidiScoreSafe i >>= writeIMA
                          putStrLn ("written: " ++ out)
                          
 exportNSWPStore :: FilePath -> FilePath -> IO ()
-exportNSWPStore dir i =   readIMAScoreGeneric i 
-                      >>= either (warning i) (write . toNSWPStore)
+exportNSWPStore dir i = readNSWPStoreGeneric i >>= either (warning i) write
                  
   where write :: NSWPStore -> IO ()
         write n = do let out = dir </> takeFileName i <.> "prof"
@@ -83,8 +82,8 @@ readNSWPStoreGeneric f =
 -- | Processes a MidiFile, calculates the RNSWProf and writes it to a file
 -- as CSV 
 exportCSVProfs :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> FilePath -> IO ()
-exportCSVProfs s o i =   readIMAScoreGeneric i 
-                     >>= either (warning i) (BS.appendFile o . toCSV s)
+exportCSVProfs s o i =   readNSWPStoreGeneric i 
+                     >>= either (warning i) (BS.appendFile o) . (>>= toCSV s)
     
 writeCSVHeader :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
 writeCSVHeader m out = writeFile out . genHeader $ m
@@ -157,6 +156,7 @@ printIMA is = mapM_ (starMeter (imaTPB is)) . swMeterSeg $ is where
     showMSE = maybe "    " (show . pitch) 
     
 -- Analyses a MidiFile verbosely by printing the spectral weight profiles
+-- TODO rewrite printing functions...
 analyseProfile :: Int -> Map TimeSig [(Beat, BeatRat)] -> IMAStore -> IO ()
 analyseProfile r s im = 
   do let pp  = swMeterSeg im
@@ -174,5 +174,5 @@ analyseProfile r s im =
      putStrLn . prnt $ "original profiles" : 
                 map (show . normSWProfByBar . seg . toSWProf tb) pp
      putStrLn ("rotation: " ++ show r)
-     putStrLn . prnt $ "matched profiles" : map showSel pp
-     putStrLn . prnt $ map (show . toRNSWProf qb tb (Rot (r % 12)) s) pp
+     -- putStrLn . prnt $ "matched profiles" : map showSel pp
+     -- putStrLn . prnt $ map (show . toRNSWProfWithTs qb tb (Rot (r % 12)) s) pp
