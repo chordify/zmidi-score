@@ -6,6 +6,7 @@ module ZMidi.IO.IMA ( exportIMAStore
                     , writeCSVHeader
                     , Print (..)
                     , readMatchPutLn
+                    , selectMaxWeightBins
                     -- | * Printing
                     , printMatchLine
                     , printMatchAgr
@@ -17,9 +18,9 @@ import ZMidi.Score
 import ZMidi.IO.Common             -- ( readQMidiScoreSafe, warning )
 import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
-import ZMidi.IMA.NSWProf           ( normSWProfByBar, NSWPStore (..) )
+import ZMidi.IMA.NSWProf           ( normSWProfByBar, NSWPStore (..), NSWProf )
 import ZMidi.IMA.MeterGT           ( MeterGT (..), setGT )
-import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin
+import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin, sumNSWProf
                                    , QBinSelection, Rotations )
 import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters, matchNSWPStore
                                    , avgResult, evalMeter, printPickMeter )
@@ -122,6 +123,15 @@ printMatchLine m = do putStrLn . intercalate "\n" . map printPickMeter $ m
 printMatchAgr ::  [(TimeSig, PMatch)] -> IO ()
 printMatchAgr = print . avgResult . evalMeter
 
+--------------------------------------------------------------------------------
+-- QBin Selection
+--------------------------------------------------------------------------------
+
+selectMaxWeightBins :: FilePath -> Map TimeSig NSWProf -> IO (Map TimeSig NSWProf)
+selectMaxWeightBins fp m = do d <- readNSWPStoreGeneric fp 
+                              case d >>= sumNSWProf m of
+                                Left  w -> warning fp w >> return m
+                                Right p -> return p 
 
         
 --------------------------------------------------------------------------------

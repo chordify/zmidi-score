@@ -5,22 +5,18 @@ import Data.Maybe                     ( catMaybes )
 
 import ZMidi.Score.Datatypes          ( TimeSig (..))
 import ZMidi.Score.Quantise           ( QBins (..) )
-import ZMidi.IO.Common                ( mapDir_, mapDir, warning )
-import ZMidi.IO.IMA                   ( printIMA, analyseProfile, exportIMAStore
-                                      , readIMAScoreGeneric, exportCSVProfs
-                                      , writeCSVHeader, printMatchLine
-                                      , printMatchAgr, readMatchPutLn, Print (..)
-                                      , exportNSWPStore )
+import ZMidi.IO.Common                ( mapDir_, mapDir, warning, foldrDir )
+import ZMidi.IO.IMA                   
 import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..), QBinSelection
-                                      , stdRotations, threePerNum, readJSON )
-import ZMidi.IMA.NSWProf              ( readNSWProf )
+                                      , stdRotations, threePerNum, readJSON
+                                      , sumNSWProf, writeJSON )
 import ZMidi.IMA.Internal             ( parseTimeSig )
 import ZMidi.IMA.TimeSigSeg           ( TimedSeg )
 import ZMidi.IMA.RNSWMatch            ( PMatch )
 import ZMidi.IMA.MeterGT              ( MeterGT (..), maybeReadGT, setGT )
 import ReadPDF                        ( readPDFs )
 import ZMidi.IMA.GA                   ( runGA )
-import Data.Map                       ( Map )
+import Data.Map.Strict                ( Map, empty )
 import Control.Concurrent.ParallelIO  ( stopGlobalPool )
 --------------------------------------------------------------------------------
 -- Commandline argument parsing
@@ -90,7 +86,7 @@ myArgs = [
          ]
 
 -- representing the mode of operation
-data Mode = Train | Test | Prof | StoreIMA | StoreProf | IMA | GARot deriving (Eq)
+data Mode = CSV | Test | Prof | StoreIMA | StoreProf | IMA | GARot | SelBin deriving (Eq)
 
 parseTimeSigArg :: Args MyArgs -> String -> TimeSig
 parseTimeSigArg arg s = either (usageError arg) id $ parseTimeSig s 
@@ -104,13 +100,14 @@ main :: IO ()
 main = do arg <- parseArgsIO ArgsComplete myArgs
           -- check whether we have a usable mode
           let mode   = case (getRequiredArg arg Mode) of
-                         "train"      -> Train
+                         "csv-prof"   -> CSV
                          "test"       -> Test
                          "profile"    -> Prof
-                         "store-ima"  -> StoreIMA
+                         "store-ima"  -> StoreIMA -- TODO remove
                          "store-prof" -> StoreProf
-                         "ima"     -> IMA
-                         "ga-rot"  -> GARot
+                         "ima"        -> IMA
+                         "ga-rot"     -> GARot
+                         "select-bin" -> SelBin
                          m         -> usageError arg ("unrecognised mode: " ++ m)
               
               -- get parameters
@@ -132,13 +129,13 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
               p' = getOptReq arg FitFilepath "no GMM fit file found" readPDFs
               s' = getOptReq arg SelProfFilepath "no IMA Profile bin selection file found" 
                      readJSON -- :: IO (Map TimeSig [(Beat, BeatRat)])
-          -- s <- readNSWProf (getRequiredArg arg SelProfFilepath) >>= return . selectQBins b
+
           g <- maybeReadGT $ getArg arg GTFilepath :: IO (Maybe [MeterGT [TimeSig]])
           
           -- do the parsing magic
           case (mode, input) of
-            (Train, Left  f) -> s' >>= \s -> exportCSVProfs s out f
-            (Train, Right d) -> do s <- s'
+            (CSV  , Left  f) -> s' >>= \s -> exportCSVProfs s out f
+            (CSV  , Right d) -> do s <- s'
                                    writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
        
             (Test , Left  f) -> do r <- r' ; p <- p' ; s <- s'
@@ -162,6 +159,10 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (GARot, Left  _) -> usageError arg "We can only evolve on a directory"
             (GARot, Right d) -> do p <- p' ; s <- s' 
                                    runGA (QBins 12) s p d  
+          
+            (SelBin,Right d) -> foldrDir selectMaxWeightBins empty d 
+                                   >>= writeJSON out . selectQBins 8
+            (SelBin,Left  _) -> usageError arg "We a directory to select the heaviest bins"
           
           stopGlobalPool -- required for using parallel-IO
 

@@ -14,8 +14,6 @@ module ZMidi.IMA.NSWProf ( -- * types
                          , getProf
                            -- * Printing
                          , showNSWProf
-                           -- * Serialization
-                         , readNSWProf 
                          )where
 
 import IMA.InnerMetricalAnalysis      ( SWeight )
@@ -101,11 +99,4 @@ normSWProfByBar (SWProf (nob, wp)) =
 -- that is compared.
 maxVal :: Ord v => v -> Map k v -> v
 maxVal s = fst . mapAccum (\v m -> (max v m, m)) s
-
---------------------------------------------------------------------------------
--- exporting / importing IMA profiles
---------------------------------------------------------------------------------
-
-readNSWProf :: FilePath -> IO (Map TimeSig NSWProf)
-readNSWProf fp = putStrLn ("read: " ++ fp) >> decodeFile fp  
-  
+ 

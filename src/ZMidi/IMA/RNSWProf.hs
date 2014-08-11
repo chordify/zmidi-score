@@ -54,7 +54,7 @@ toCSV s n =
       f :: (TimeSig, Map TimeSig NSWProf) -> Either String RNSWProf
       f (ts, ps) = case M.lookup ts ps of
            Just p  -> Right $ toRNSWProfWithTS (nswpsQBins n) 0 ts s p -- no rotation
-           _ -> Left ("TimeSignature not found in NSWPStore: " ++ show ts)
+           _ -> Left ("toCSV: TimeSignature not found in NSWPStore: " ++ show ts)
   
   in (mapM f . nswps $ n) >>= return . encode
 
