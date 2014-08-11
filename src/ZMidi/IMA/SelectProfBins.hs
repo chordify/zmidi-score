@@ -201,5 +201,6 @@ writeJSON fp = BL.writeFile fp . encode . toList
 readJSON :: FromJSON a => FilePath -> IO (Map TimeSig a)
 readJSON fp = do mr <- BL.readFile fp >>= return . decode
                  case mr of 
-                   Just r  -> return . fromList $ r
+                   Just r  -> do putStrLn ("read TimeSig Map: " ++ fp)
+                                 return . fromList $ r 
                    Nothing -> error "readRotations: cannot parse rotations JSON"                        

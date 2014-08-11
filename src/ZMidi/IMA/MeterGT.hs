@@ -83,5 +83,6 @@ readGT f = do i <- readFile f
                                    
 maybeReadGT :: Maybe FilePath -> IO (Maybe [MeterGT [TimeSig]])
 maybeReadGT mfp = case mfp of 
-  Just fp -> readGT fp >>= return . Just
+  Just fp -> do putStrLn ("read Ground-Truth: " ++ fp)
+                readGT fp >>= return . Just
   _  -> putErrStrLn "warning: No external ground-truth provided" >> return Nothing
