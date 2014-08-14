@@ -121,6 +121,8 @@ selectQBins bs = M.map select where
 --------------------------------------------------------------------------------
 -- Rotations
 --------------------------------------------------------------------------------
+-- TODO: move to separate module... 
+
 -- | Returs a list of four 'Rot'ations per time signature numerator:
 stdRotations :: QBins -> (QBins -> TimeSig -> [(Rot, RPrior)]) -> Rotations
 stdRotations q f = normPriors $ foldr g empty acceptedTimeSigs

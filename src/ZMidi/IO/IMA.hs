@@ -23,7 +23,7 @@ import ZMidi.IMA.MeterGT           ( MeterGT (..), setGT )
 import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin, sumNSWProf
                                    , QBinSelection, Rotations )
 import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters, matchNSWPStore
-                                   , avgResult, evalMeter, printPickMeter )
+                                   , avgResult, evalMeter, printGtPMatch )
 import ZMidi.IMA.TimeSigSeg        ( TimedSeg (..) )
 
 import ReadPDF                     ( IMAPDF )
@@ -117,7 +117,7 @@ readMatchPutLn prnt s ps r mGT fp =
        Right x -> (f . matchNSWPStore r s ps . g $ x) >>= return . Just
 
 printMatchLine ::  [(TimeSig, PMatch)] -> IO [(TimeSig, PMatch)]
-printMatchLine m = do putStrLn . intercalate "\n" . map printPickMeter $ m 
+printMatchLine m = do putStrLn . intercalate "\n" . map printGtPMatch $ m 
                       return m
 
 printMatchAgr ::  [(TimeSig, PMatch)] -> IO ()

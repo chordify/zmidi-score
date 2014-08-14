@@ -12,19 +12,21 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
                           , avgResult
                           , pickMeters
                           , dontPickMeters
-                          , printPickMeter
+                          , printGtPMatch
                           ) where
                        
 import ZMidi.Score 
 import ZMidi.IMA.SelectProfBins ( Rot (..), getNumForQBins, QBinSelection
-                                , Rotations, getRot, RPrior (..))
+                                , Rotations, getRot, RPrior (..), normPriors )
 import ZMidi.IMA.NSWProf        ( NSWProf, NSWPStore (..), getProf )
 import ZMidi.IMA.RNSWProf       ( toDoubles, toRNSWProfWithTS )
+import ZMidi.IMA.Constants      ( acceptedTimeSigs )
 import ReadPDF                  ( IMAPDF(..) )
 
 import Data.List                ( intercalate, maximumBy )
 import Data.Function            ( on )
-import Data.Map.Strict          ( Map )
+import Data.Map.Strict          ( Map, toList, empty, insertWith, insert, adjust )
+import qualified Data.Map.Strict as M ( map )
 
 import Text.Printf              ( printf, PrintfArg )
 
@@ -100,15 +102,35 @@ evalMeter = map eval where
   
 -- | Picks the best matching profile
 pickMeters :: [(TimeSig, [PMatch])] -> [(TimeSig, PMatch)]
-pickMeters = map (fmap (maximumBy (compare `on` pmatch)))
+pickMeters = map (second (maximumBy (compare `on` pmatch)))
 
 -- | Copies the TimeSig for every Match for printing
 dontPickMeters :: [(TimeSig, [PMatch])] -> [(TimeSig, PMatch)]
 dontPickMeters = concatMap f 
   where f (t, ms) = map (\x -> (t, x)) ms
 
-printPickMeter :: (TimeSig, PMatch) -> String
-printPickMeter (ts, m) = 
+pickMaxRotation :: [(TimeSig, [PMatch])] -> Rotations
+pickMaxRotation = normPriors . M.map toList . foldr toRot init . map pick
+
+  where -- picks the maximum rotation (like pickMeters)
+        pick :: (TimeSig, [PMatch]) -> (TimeSig, Rot)
+        pick (t, ms) = (t, pmRot . maximumBy (compare `on` pmatch) 
+                                 -- filter all rotations that do not match the gt
+                                 . filter (\p -> pmTimeSig p == t) $ ms )
+                     
+        toRot :: (TimeSig, Rot) -> Map TimeSig (Map Rot RPrior) 
+              -> Map TimeSig (Map Rot RPrior)
+        toRot (ts,r) m = adjust (insertWith (+) r (RPrior 1)) ts m 
+        
+        init :: Map TimeSig (Map Rot RPrior)
+        init = foldr (\ts m -> insert ts empty m) empty acceptedTimeSigs
+
+
+-- pickMaxRotation = map (maximumBy (compare `on` pmatch) . snd . filter f )
+  -- where f (t, pm) = t == pmTimeSig pm
+  
+printGtPMatch :: (TimeSig, PMatch) -> String
+printGtPMatch (ts, m) = 
   let est = pmTimeSig m
       s = intercalate "\t" [ shwTs ts
                            , shwTs est
@@ -155,5 +177,6 @@ matchNSWPStore rs s pdfs (NSWPStore q d fp) = map matchSeg d
               p  = NSWDist $ log (pdf ip d) + log (rprior rp)
           in PMatch ts p r rp q fp
 
-         
+
+
   
