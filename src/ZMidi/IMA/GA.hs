@@ -24,8 +24,8 @@ import ReadPDF                  ( IMAPDF )
 -- GA configuration
 --------------------------------------------------------------------------------
 
-runGA :: QBins -> QBinSelection -> [IMAPDF] -> FilePath -> IO ()
-runGA qb sel pdfs dir = 
+runGA :: QBins -> QBinSelection -> [IMAPDF] -> FilePath -> FilePath -> IO ()
+runGA qb sel pdfs out dir = 
   do let cfg = GAConfig 
                  100 -- population size
                  25  -- archive size (best entities to keep track of)
@@ -47,7 +47,7 @@ runGA qb sel pdfs dir =
      es <- evolveVerbose g cfg qb (sel,pdfs, dir)
      let (s,r) = head es :: (Maybe Double, Rotations)
      
-     writeJSON "evolvedRotations.json" r
+     writeJSON out r
      
      putStrLn $ "best entity (GA): \n" ++ (showRotations r)
      putStrLn $ "score: " ++ show s
@@ -111,6 +111,7 @@ replaceRotations seed p = normPriors . mapWithRand seed replace
   where replace :: Int -> [(Rot, RPrior)] -> [(Rot, RPrior)]
         replace s r = let (rs, ps) = unzip r
                           x        = map toOneZero . randoms . mkStdGen . succ $ s
+                          -- x        = map RPrior . randomRs (0,1) . mkStdGen . succ $ s
                       in zip rs (mixList s p ps x)
 
 toOneZero :: Fractional a => Bool -> a

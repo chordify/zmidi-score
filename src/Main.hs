@@ -158,7 +158,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             
             (GARot, Left  _) -> usageError arg "We can only evolve on a directory"
             (GARot, Right d) -> do p <- p' ; s <- s' 
-                                   runGA (QBins 12) s p d  
+                                   runGA (QBins 12) s p out d  
           
             (SelBin,Right d) -> foldrDir selectMaxWeightBins empty d 
                                    >>= writeJSON out . selectQBins 8
