@@ -57,21 +57,7 @@ toCSV s n =
            _ -> Left ("toCSV: TimeSignature not found in NSWPStore: " ++ show ts)
   
   in (mapM f . nswps $ n) >>= return . encode
-
--- type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
-{-
--- | Top-level function that converts a 'QMidiFile' into CSV-writeable profiles
-toCSV :: Map TimeSig [(Beat, BeatRat)] -> IMAStore -> ByteString
-toCSV s i = let f = toRNSWProf (imaQBins i) (imaTPB i) 0 s -- no rotation
-            in  encode . map f . swMeterSeg $ i
-
-
--- | Converts one segment into a RNSWProf using it's original 'TimeSig'nature.
-toRNSWProf :: QBins -> TPB -> Rot -> Map TimeSig [(Beat, BeatRat)] 
-           -> SWMeterSeg -> RNSWProf
-toRNSWProf q tb r s (TimedSeg (Timed _ ts) d) = 
-  toRNSWProfWithTS q r ts s . normSWProfByBar . toSWProfWithTS ts tb $ d
--}                
+               
 -- | transforms a 'NSWProf' into a n 'RNSWProf' given a particular 'TimeSig'
 toRNSWProfWithTS :: QBins -> Rot -> TimeSig -> Map TimeSig [(Beat, BeatRat)] 
            -> NSWProf -> RNSWProf

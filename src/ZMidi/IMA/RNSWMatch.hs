@@ -12,6 +12,7 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
                           , avgResult
                           , pickMeters
                           , dontPickMeters
+                          , pickMaxRotation
                           , printGtPMatch
                           ) where
                        
@@ -109,8 +110,10 @@ dontPickMeters :: [(TimeSig, [PMatch])] -> [(TimeSig, PMatch)]
 dontPickMeters = concatMap f 
   where f (t, ms) = map (\x -> (t, x)) ms
 
-pickMaxRotation :: [(TimeSig, [PMatch])] -> Rotations
-pickMaxRotation = normPriors . M.map toList . foldr toRot init . map pick
+pickMaxRotation :: [(TimeSig, [PMatch])] 
+                -> Map TimeSig (Map Rot RPrior) -> Map TimeSig (Map Rot RPrior) 
+-- pickMaxRotation = normPriors . M.map toList . foldr toRot init . map pick
+pickMaxRotation r m = foldr toRot m . map pick $ r
 
   where -- picks the maximum rotation (like pickMeters)
         pick :: (TimeSig, [PMatch]) -> (TimeSig, Rot)
@@ -122,8 +125,7 @@ pickMaxRotation = normPriors . M.map toList . foldr toRot init . map pick
               -> Map TimeSig (Map Rot RPrior)
         toRot (ts,r) m = adjust (insertWith (+) r (RPrior 1)) ts m 
         
-        init :: Map TimeSig (Map Rot RPrior)
-        init = foldr (\ts m -> insert ts empty m) empty acceptedTimeSigs
+
 
 
 -- pickMaxRotation = map (maximumBy (compare `on` pmatch) . snd . filter f )

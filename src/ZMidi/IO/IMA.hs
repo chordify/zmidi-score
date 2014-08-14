@@ -6,6 +6,7 @@ module ZMidi.IO.IMA ( exportIMAStore
                     , writeCSVHeader
                     , Print (..)
                     , readMatchPutLn
+                    , trainRotPrior
                     , selectMaxWeightBins
                     -- | * Printing
                     , printMatchLine
@@ -21,8 +22,10 @@ import ZMidi.IMA.Analyse
 import ZMidi.IMA.NSWProf           ( normSWProfByBar, NSWPStore (..), NSWProf )
 import ZMidi.IMA.MeterGT           ( MeterGT (..), setGT )
 import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin, sumNSWProf
-                                   , QBinSelection, Rotations )
-import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters, matchNSWPStore
+                                   , QBinSelection, Rotations, threePerNum
+                                   , stdRotations, RPrior )
+import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters
+                                   , matchNSWPStore, pickMaxRotation
                                    , avgResult, evalMeter, printGtPMatch )
 import ZMidi.IMA.TimeSigSeg        ( TimedSeg (..) )
 
@@ -122,6 +125,16 @@ printMatchLine m = do putStrLn . intercalate "\n" . map printGtPMatch $ m
 
 printMatchAgr ::  [(TimeSig, PMatch)] -> IO ()
 printMatchAgr = print . avgResult . evalMeter
+
+trainRotPrior :: QBinSelection -> [IMAPDF] -> FilePath -> FilePath 
+              -> Map TimeSig (Map Rot RPrior) 
+              -> IO (Map TimeSig (Map Rot RPrior))  
+trainRotPrior s ps out fp m = 
+  do let r = stdRotations (QBins 12) threePerNum
+     ima <- readNSWPStoreGeneric fp :: IO (Either String NSWPStore)
+     case ima of
+       Left  w -> warning fp w >> return m
+       Right x -> return $ pickMaxRotation (matchNSWPStore r s ps x) m
 
 --------------------------------------------------------------------------------
 -- QBin Selection

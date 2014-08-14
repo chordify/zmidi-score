@@ -1,8 +1,9 @@
 {-# OPTIONS_GHC -Wall                   #-}
 module ZMidi.IMA.Internal where
 
+import ZMidi.IMA.Constants
 import ZMidi.Score             ( TimeSig (..) )
-import qualified Data.Map as M ( Map, lookup )
+import qualified Data.Map as M ( Map, lookup, empty, insert )
 
 -- | assumes a number between 0 and 1 and prints them as a sequence of asterisks 
 stars :: (Show a, RealFrac a) => a -> String
@@ -24,3 +25,6 @@ lookupErr :: Ord k => String -> M.Map k v -> k -> v
 lookupErr s m k = case M.lookup k m of 
                     Just v  -> v
                     Nothing -> error s
+                    
+initMapTSMap :: M.Map TimeSig (M.Map a b)
+initMapTSMap = foldr (\ts m -> M.insert ts M.empty m) M.empty acceptedTimeSigs

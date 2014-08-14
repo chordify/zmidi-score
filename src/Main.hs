@@ -9,14 +9,15 @@ import ZMidi.IO.Common                ( mapDir_, mapDir, warning, foldrDir )
 import ZMidi.IO.IMA                   
 import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..), QBinSelection
                                       , stdRotations, threePerNum, readJSON
-                                      , sumNSWProf, writeJSON )
-import ZMidi.IMA.Internal             ( parseTimeSig )
+                                      , sumNSWProf, writeJSON, normPriors )
+import ZMidi.IMA.Internal             ( parseTimeSig, initMapTSMap )
 import ZMidi.IMA.TimeSigSeg           ( TimedSeg )
 import ZMidi.IMA.RNSWMatch            ( PMatch )
 import ZMidi.IMA.MeterGT              ( MeterGT (..), maybeReadGT, setGT )
 import ReadPDF                        ( readPDFs )
 import ZMidi.IMA.GA                   ( runGA )
-import Data.Map.Strict                ( Map, empty )
+import Data.Map.Strict                ( Map, empty, toList )
+import qualified Data.Map.Strict as M ( map )
 import Control.Concurrent.ParallelIO  ( stopGlobalPool )
 --------------------------------------------------------------------------------
 -- Commandline argument parsing
@@ -86,7 +87,8 @@ myArgs = [
          ]
 
 -- representing the mode of operation
-data Mode = CSV | Test | Prof | StoreIMA | StoreProf | IMA | GARot | SelBin deriving (Eq)
+data Mode = CSV | Test | Prof | StoreIMA | StoreProf | IMA | GARot | SelBin 
+          | TrainRot deriving (Eq)
 
 parseTimeSigArg :: Args MyArgs -> String -> TimeSig
 parseTimeSigArg arg s = either (usageError arg) id $ parseTimeSig s 
@@ -108,6 +110,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                          "ima"        -> IMA
                          "ga-rot"     -> GARot
                          "select-bin" -> SelBin
+                         "train-rot"  -> TrainRot
                          m         -> usageError arg ("unrecognised mode: " ++ m)
               
               -- get parameters
@@ -162,8 +165,13 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
           
             (SelBin,Right d) -> foldrDir selectMaxWeightBins empty d 
                                    >>= writeJSON out . selectQBins 8
-            (SelBin,Left  _) -> usageError arg "We a directory to select the heaviest bins"
-          
+            (SelBin,Left  _) -> usageError arg "We need a directory to select the heaviest bins"
+
+            (TrainRot,Right d) -> do p <- p' ; s <- s' 
+                                     r <- foldrDir (trainRotPrior s p out)initMapTSMap d 
+                                     writeJSON out . normPriors . M.map toList $ r
+            (TrainRot,Left  _) -> usageError arg "We need a directory to train the rotation priors"
+            
           stopGlobalPool -- required for using parallel-IO
 
        
