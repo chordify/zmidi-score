@@ -15,14 +15,14 @@ import ZMidi.IO.Common             ( warning, putErrStrLn )
 import ZMidi.IMA.SelectProfBins    ( Rot (..) )
 import ZMidi.IMA.NSWProf           ( NSWPStore (..) )
 
-import Data.Vector                 ( Vector, toList )
+import Data.Vector                 ( toList )
 import Data.Csv                    ( FromField (..), FromNamedRecord (..)
-                                   , decodeByName, (.:), Header)
+                                   , decodeByName, (.:))
 import Data.List                   ( intercalate, find )
 import Data.ByteString.Lazy        ( readFile )
 import Control.Applicative         ( (<$>), (<*>), pure )
 import Control.Monad               ( mzero )
-import Control.Arrow               ( second, first )
+import Control.Arrow               ( first )
 
 data MeterGT a = MeterGT { gtFile  :: FilePath
                          , gtMeter :: a

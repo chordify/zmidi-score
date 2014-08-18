@@ -18,6 +18,7 @@ module ZMidi.IMA.SelectProfBins ( getSel
                                 , stdRotations
                                 , threePerNum
                                 , normPriors
+                                -- , normPriorsPerTS
                                 , showRotations
                                 -- * JSON import and export
                                 , writeJSON
@@ -99,8 +100,8 @@ sumNSWProf m n = foldrM doProf m $ nswps n where
 
   doProf :: (TimeSig, Map TimeSig NSWProf) -> Map TimeSig NSWProf 
          -> Either String (Map TimeSig NSWProf)
-  doProf (ts, ps) m = case M.lookup ts ps of 
-    Just p -> Right $ insertWith mergeNSWProf ts p m
+  doProf (ts, ps) x = case M.lookup ts ps of 
+    Just p -> Right $ insertWith mergeNSWProf ts p x
     _ -> Left ("sumNSWProf: TimeSignature not found in NSWPStore: " ++ show ts)
                         
   -- | merges two 'NSWProf's by summing its values
@@ -133,7 +134,7 @@ threePerNum :: QBins -> TimeSig -> [(Rot, RPrior)]
 threePerNum (QBins q) ts = reverse $ map f [0, 3 .. ((tsNum ts * q) - 3)]
   where f x = (Rot (x % q), RPrior 1.0 )
  
--- normalises the 'Rotations' priors to sum to 1.0
+-- | normalises the 'Rotations' such that /all/ priors to sum to 1.0
 normPriors :: Rotations -> Rotations
 normPriors r = let s = sumPriors r in M.map (map (second (/ s))) r where
                
@@ -143,6 +144,17 @@ normPriors r = let s = sumPriors r in M.map (map (second (/ s))) r where
     perTS :: [(Rot, RPrior)] -> RPrior -> RPrior
     perTS l s = s + foldr (\x y -> y + snd x) 0 l
 
+-- | normalises the 'Rotations' such that the priors to sum to 1.0 
+-- /per time signature/
+{- 
+normPriorsPerTS :: Rotations -> Rotations
+normPriorsPerTS = M.map norm where
+
+  norm :: [(Rot, RPrior)] -> [(Rot, RPrior)]
+  norm x = let s = sum . snd . unzip $ x 
+           in map (second (/ s) ) x
+-}
+           
 getRot :: Rotations -> TimeSig -> [(Rot,RPrior)]
 getRot r t = lookupErr ("QBinSelection.getRot: TimeSig not found "++ show t) r t
 
