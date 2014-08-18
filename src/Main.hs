@@ -168,7 +168,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (SelBin,Left  _) -> usageError arg "We need a directory to select the heaviest bins"
 
             (TrainRot,Right d) -> do p <- p' ; s <- s' 
-                                     r <- foldrDir (trainRotPrior s p out)initMapTSMap d 
+                                     r <- foldrDir (trainRotPrior s p) initMapTSMap d 
                                      writeJSON out . normPriors . M.map toList $ r
             (TrainRot,Left  _) -> usageError arg "We need a directory to train the rotation priors"
             

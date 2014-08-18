@@ -21,7 +21,7 @@ import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
 import ZMidi.IMA.NSWProf           ( normSWProfByBar, NSWPStore (..), NSWProf )
 import ZMidi.IMA.MeterGT           ( MeterGT (..), setGT )
-import ZMidi.IMA.SelectProfBins    ( Rot (..), filterBin, sumNSWProf
+import ZMidi.IMA.SelectProfBins    ( Rot (..), sumNSWProf
                                    , QBinSelection, Rotations, threePerNum
                                    , stdRotations, RPrior )
 import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters
@@ -33,17 +33,17 @@ import ReadPDF                     ( IMAPDF )
 import ZMidi.IMA.RNSWProf          ( toCSV, genHeader )
 
 import Data.Map.Strict             ( Map )
-
+-- import qualified Data.Map.Strict as M ( map )
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 
 import Text.Printf                 ( printf )
 import System.FilePath             ( takeExtension, takeFileName, (</>), (<.>) )
 import Data.Char                   ( toLower )
-import Data.Ratio                  ( numerator, denominator, (%) )
+import Data.Ratio                  ( numerator, denominator )
 import Data.Binary                 ( encodeFile, decodeFile )
 import Data.List                   ( intercalate ) 
-import qualified Data.ByteString.Lazy as BS ( appendFile, ByteString )
+import qualified Data.ByteString.Lazy as BS ( appendFile )
 import Control.DeepSeq
 
 --------------------------------------------------------------------------------
@@ -126,15 +126,16 @@ printMatchLine m = do putStrLn . intercalate "\n" . map printGtPMatch $ m
 printMatchAgr ::  [(TimeSig, PMatch)] -> IO ()
 printMatchAgr = print . avgResult . evalMeter
 
-trainRotPrior :: QBinSelection -> [IMAPDF] -> FilePath -> FilePath 
+trainRotPrior :: QBinSelection -> [IMAPDF] -> FilePath 
               -> Map TimeSig (Map Rot RPrior) 
               -> IO (Map TimeSig (Map Rot RPrior))  
-trainRotPrior s ps out fp m = 
-  do let r = stdRotations (QBins 12) threePerNum
+trainRotPrior s ps fp m = 
+  do let r   = stdRotations (QBins 12) threePerNum
+         f x = pickMaxRotation (matchNSWPStore r s ps x) m
      ima <- readNSWPStoreGeneric fp :: IO (Either String NSWPStore)
-     case ima of
-       Left  w -> warning fp w >> return m
-       Right x -> return $ pickMaxRotation (matchNSWPStore r s ps x) m
+     either (\x -> warning fp x >> return m) return (ima >>= f)
+            -- (\x -> (putStrLn . showRotations . M.map toList $ x) >> return x) (ima >>= f)
+
 
 --------------------------------------------------------------------------------
 -- QBin Selection
@@ -181,16 +182,16 @@ printIMA is = mapM_ (starMeter (imaTPB is)) . swMeterSeg $ is where
 -- Analyses a MidiFile verbosely by printing the spectral weight profiles
 -- TODO rewrite printing functions...
 analyseProfile :: Int -> Map TimeSig [(Beat, BeatRat)] -> IMAStore -> IO ()
-analyseProfile r s im = 
+analyseProfile r _s im = 
   do let pp  = swMeterSeg im
-         qb  = imaQBins im 
+         -- qb  = imaQBins im 
          tb  = imaTPB im 
          
-         showSel :: SWMeterSeg -> String
-         showSel x = let ts = getEvent . boundary $ x
-                     in show . filterBin qb (Rot (r % 12)) s ts
-                             . normSWProfByBar  
-                             . toSWProfWithTS ts tb . seg $ x
+         -- showSel :: SWMeterSeg -> String
+         -- showSel x = let ts = getEvent . boundary $ x
+                     -- in show . filterBin qb (Rot (r % 12)) s ts
+                             -- . normSWProfByBar  
+                             -- . toSWProfWithTS ts tb . seg $ x
          
          prnt = intercalate "\n"
          
