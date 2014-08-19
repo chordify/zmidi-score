@@ -2,7 +2,7 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                zmidi-score
-version:             0.1.0.1
+version:             0.2.0.0
 synopsis:            Representing MIDI data as a simple score using the zmidi-core library
 -- description:         
 license:             LGPL-3

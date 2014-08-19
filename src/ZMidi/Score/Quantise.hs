@@ -32,7 +32,7 @@ import Text.Printf                ( printf, PrintfArg )
 import Data.Binary                 ( Binary )
 import GHC.Generics                ( Generic )
 import Control.DeepSeq             ( NFData )
-import Data.Ratio                  ( (%), Ratio, numerator, denominator )
+import Data.Ratio                  ( Ratio, numerator, denominator )
 
 --------------------------------------------------------------------------------
 -- Quantisation contants
