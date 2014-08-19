@@ -17,13 +17,12 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                   , Bar (..)
                   , Beat (..)
                   , BeatRat (..)
+                  , BarRat (..)
                   , TPB (..)
                   , ScoreEvent (..)
                   -- * Minimum length calculation
                   , buildTickMap
                   , gcIOId
-                  -- * Bar and beat positions
-                  , getBeatInBar
                   -- * Utilities
                   , isTempoChange
                   , isTimeSig
@@ -56,8 +55,8 @@ import ZMidi.Core          ( MidiFile (..), MidiEvent (..), MidiFormat (..)
 import Control.Monad.State ( State, modify, get
                            , evalState, execState )
 import Control.Monad       ( mapAndUnzipM )
-import Control.Arrow       ( first, (***) )
-import Data.Ratio          ( (%), Ratio )
+import Control.Arrow       ( first )
+import Data.Ratio          ( Ratio )
 import Data.Word           ( Word8 )
 import Data.Int            ( Int8 )
 import Data.Char           ( toLower )
@@ -131,6 +130,8 @@ newtype Beat    = Beat { beat :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData, Generic )
 newtype BeatRat = BeatRat { beatRat  :: Ratio Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Binary, NFData, Generic )                    
+newtype BarRat  = BarRat  { barRat  :: Ratio Int } 
+                    deriving ( Eq, Show, Num, Ord, Enum, Real, Binary, NFData, Generic )  
 newtype TPB     = TPB { tpb :: Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData, Generic )
                     
@@ -352,28 +353,7 @@ buildTickMap = foldr oneVoice M.empty where
   -- showTick :: (Int, Time) -> String
   -- showTick (i, t) = show i ++ ": " ++ show t ++ "\n"
 
---------------------------------------------------------------------------------
--- Bar & Beat position
---------------------------------------------------------------------------------
-
--- Within a 'MidiScore' we can musically describe every (quantised)
--- position in time in 'Bar', Beat, and 'BarRat'. Therefore, we need the 
--- 'TimeSig'nature, the length of a beat ('TPB', in ticks), and the actual
--- 'Time' stamp.
--- TODO move these newtypes to the Quantise module?
-getBeatInBar :: TimeSig -> TPB -> Time -> (Bar, Beat, BeatRat)
-getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
-getBeatInBar (TimeSig num _den _ _) t o = 
-  let (Beat bt, rat) = getRatInBeat t o
-      (br, bib)      = (succ *** succ) $ bt `divMod` num 
-  in (Bar br, Beat bib, rat)
-
--- | Returns the position within a 'Bar', see 'getBeatInBar'.
-getRatInBeat :: TPB -> Time -> (Beat, BeatRat)
-getRatInBeat (TPB t) (Time o) = 
-  ((Beat) *** (BeatRat . (% t))) (o `divMod` t)
-
- 
+  
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------

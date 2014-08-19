@@ -26,8 +26,8 @@ module ZMidi.IMA.SelectProfBins ( getSel
                                 ) 
                                 where
 
-import ZMidi.Score.Datatypes          ( TimeSig (..) , Beat(..) , BeatRat (..) )
-import ZMidi.Score.Quantise           ( QBins (..) )
+import ZMidi.Score.Datatypes         -- ( TimeSig (..) , Beat(..) , BeatRat (..) )
+import ZMidi.Score.Quantise           ( QBins (..), getNumForQBins )
 import ZMidi.IMA.Internal             ( lookupErr )
 import ZMidi.IMA.NSWProf
 import ZMidi.IMA.Constants            ( acceptedTimeSigs )
@@ -177,6 +177,10 @@ instance FromField Rot where
                   (Just (r',_)) -> pure $ Rot ( r' % 12 ) 
                   _             -> error "FromField Rot: Invalid rotation"
 
+-- toRot :: QBins -> TimeSig -> (Beat, BeatRat) -> Rot
+-- toRot q@(QBins x) (TimeSig _n d _ _) (Beat b, BeatRat r) = 
+  -- Rot (((pred b * x) + getNumForQBins q r) % (x * d))
+                  
 -- | Applies a metrical offset ('Rot') to a ('Beat', 'BeatRat'), basically
 -- "rotating" the profile with this offset. We rotate in a forward direction.
 -- Hence, say that an upbeat of one beat has been missed, we can correct this
@@ -191,18 +195,6 @@ rotate q@(QBins k) (TimeSig n _ _ _) (Rot r) (Beat b, BeatRat x) =
       b'      = succ $ (pred b + a) `mod` n
   in  ( Beat b' , BeatRat ( r' % k) )
 rotate _ _ _ _ = error "SelectQBins.rotate: invalid arguments"
-
--- | Returns the numerator of a Ratio given a certain 'QBins' as denominator.
--- The standard Ratio implementation simplifies the Ration, e.g. 3 % 12 
--- is converted into 1 % 4. This function reverses that process: 
--- 
--- >>> getNumForQBins 12 (1 % 4) 
--- >>> 3
--- 
--- >>> getNumForQBins 12 (1 % 1) 
--- >>> 12
-getNumForQBins :: QBins -> Ratio Int -> Int
-getNumForQBins (QBins q) r = numerator r * (q `div` denominator r)
 
 showRotations :: Rotations -> String
 showRotations = foldrWithKey showRPs "" where

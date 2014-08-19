@@ -24,7 +24,7 @@ import Data.List                      ( intercalate )
 import Data.Ratio                     ( numerator, denominator )
 import qualified Data.Map.Strict as M ( map )
 import Data.Map.Strict                ( Map, foldrWithKey, mapAccum )
-import Data.Binary                    ( Binary, encodeFile, decodeFile )
+import Data.Binary                    ( Binary )
 import Text.Printf                    ( PrintfArg, printf )
 import GHC.Generics
 

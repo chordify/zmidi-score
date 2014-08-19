@@ -20,6 +20,7 @@ module ZMidi.Score.Quantise ( -- * Quantisation specific datatypes
                             , getMinGridSize
                             , qToQBins
                             , toQBins
+                            , getNumForQBins
                             ) where
 
 import ZMidi.Score.Datatypes
@@ -30,6 +31,7 @@ import Text.Printf                ( printf, PrintfArg )
 import Data.Binary                 ( Binary )
 import GHC.Generics                ( Generic )
 import Control.DeepSeq             ( NFData )
+import Data.Ratio                  ( (%), Ratio, numerator, denominator )
 
 --------------------------------------------------------------------------------
 -- Quantisation contants
@@ -207,4 +209,19 @@ toQBins Sixteenth    = QBins 4
 toQBins ThirtySecond = QBins 8
 toQBins FourtyEighth = QBins 12
 toQBins SixtyFourth  = QBins 16
+  
+
+-- | Returns the numerator of a Ratio given a certain 'QBins' as denominator.
+-- The standard Ratio implementation simplifies the Ration, e.g. 3 % 12 
+-- is converted into 1 % 4. This function reverses that process: 
+-- 
+-- >>> getNumForQBins 12 (1 % 4) 
+-- >>> 3
+-- 
+-- >>> getNumForQBins 12 (1 % 1) 
+-- >>> 12
+getNumForQBins :: QBins -> Ratio Int -> Int
+getNumForQBins (QBins q) r = numerator r * (q `div` denominator r)
+
+  
   
