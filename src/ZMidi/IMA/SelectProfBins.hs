@@ -171,15 +171,22 @@ newtype RPrior = RPrior { rprior :: Double }
                            , Fractional, RealFloat, RealFrac, FromJSON, ToJSON
                            , Random, PrintfArg, NFData)
                   
+-- | for Parsing
 instance FromField Rot where
   parseField r = case readInt r of 
                   (Just (r',_)) -> pure $ Rot ( r' % 12 ) 
-                  _             -> error "FromInt Rot: Invalid rotation"
+                  _             -> error "FromField Rot: Invalid rotation"
 
+-- | Applies a metrical offset ('Rot') to a ('Beat', 'BeatRat'), basically
+-- "rotating" the profile with this offset. We rotate in a forward direction.
+-- Hence, say that an upbeat of one beat has been missed, we can correct this
+-- with a rotation of 4 * 'QBins' in case of a 4/4 meter.
 rotate :: QBins -> TimeSig -> Rot -> (Beat, BeatRat) -> (Beat, BeatRat)
 rotate q@(QBins k) (TimeSig n _ _ _) (Rot r) (Beat b, BeatRat x) =
-  let nx      = getNumForQBins q x
+  let -- get a common divider
+      nx      = getNumForQBins q x
       nr      = getNumForQBins q r
+      -- we rotate forward: the rotation is added to the current beat position
       (a, r') = (nr + nx) `divMod` k
       b'      = succ $ (pred b + a) `mod` n
   in  ( Beat b' , BeatRat ( r' % k) )

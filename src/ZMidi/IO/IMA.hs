@@ -5,6 +5,7 @@ module ZMidi.IO.IMA ( exportIMAStore
                     , exportCSVProfs
                     , writeCSVHeader
                     , Print (..)
+                    , pHeader
                     , readMatchPutLn
                     , trainRotPrior
                     , selectMaxWeightBins
@@ -134,9 +135,10 @@ trainRotPrior s ps fp m =
          f x = pickMaxRotation (matchNSWPStore r s ps x) m
      ima <- readNSWPStoreGeneric fp :: IO (Either String NSWPStore)
      either (\x -> warning fp x >> return m) return (ima >>= f)
-            -- (\x -> (putStrLn . showRotations . M.map toList $ x) >> return x) (ima >>= f)
 
-
+pHeader :: IO ()
+pHeader = putStrLn "Annotated\tEstimated\tMatch\tLog-Prob\tRotation\tRot-Prior\tFile"
+     
 --------------------------------------------------------------------------------
 -- QBin Selection
 --------------------------------------------------------------------------------
