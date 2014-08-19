@@ -33,5 +33,6 @@ getRatInBeat (TPB t) (Time o) =
 -- onset is defined as the ratio within the bar. For example 1%4 denotes them
 -- the position of the second quarter note within a 4/4 meter
 toBarRat :: QBins -> TimeSig -> (Beat, BeatRat) -> BarRat
+toBarRat _ NoTimeSig _ = error "toBarRat applied to noTimeSig"
 toBarRat q@(QBins x) (TimeSig _n d _ _) (Beat b, BeatRat r) = 
            BarRat (((pred b * x) + getNumForQBins q r) % (x * d))

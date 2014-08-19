@@ -17,6 +17,7 @@ import ZMidi.Core          ( MidiFile (..), MidiEvent (..)
 
 import ZMidi.Score.Datatypes hiding         ( TPB (..) )
 import qualified ZMidi.Score.Datatypes as S ( TPB (..) )
+import ZMidi.Score.Utilities
 
 --------------------------------------------------------------------------------
 -- Converting a MidiFile

@@ -24,6 +24,7 @@ module ZMidi.Score.Quantise ( -- * Quantisation specific datatypes
                             ) where
 
 import ZMidi.Score.Datatypes
+import ZMidi.Score.Utilities
 
 import Control.Arrow              ( second )
 import Text.Printf                ( printf, PrintfArg )

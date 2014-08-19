@@ -15,6 +15,7 @@ import ZMidi.Core          ( MidiFile (..), MidiEvent (..), DeltaTime
                            )
 
 import ZMidi.Score.Datatypes hiding         ( TPB (..) )
+import ZMidi.Score.Utilities                ( toMidiNr )
 
 --------------------------------------------------------------------------------
 -- Converting a MidiScore into a MidiFile
