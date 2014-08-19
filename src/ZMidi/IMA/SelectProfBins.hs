@@ -41,7 +41,8 @@ import qualified Data.Map.Strict as M ( map, lookup, foldr )
 import Data.Map.Strict                ( Map, toAscList, filterWithKey, empty
                                       , findWithDefault, insert, toList, unionWith
                                       , fromList, foldrWithKey, insertWith)
-import Data.ByteString.Char8          ( readInt )
+import Data.ByteString.Char8          ( readInt, ByteString )
+import qualified Data.ByteString.Char8 as BC ( drop )
 import Control.Monad                  ( mzero )
 import Control.Arrow                  ( second )
 import Control.Applicative            ( pure, (<$>), (<*>) )
@@ -173,10 +174,15 @@ newtype RPrior = RPrior { rprior :: Double }
                   
 -- | for Parsing
 instance FromField Rot where
-  parseField r = case readInt r of 
-                  (Just (r',_)) -> pure $ Rot ( r' % 12 ) 
-                  _             -> error "FromField Rot: Invalid rotation"
+  parseField r = let pInt :: ByteString -> (Int, ByteString)
+                     pInt = maybe (error "FromField Rot: Invalid rotation") id . readInt 
+                     (num, x) = pInt r
+                 in case num of 
+                      0 -> pure $ Rot (0 % 1)
+                      _ -> pure $ Rot (num % (fst . pInt $ BC.drop 1 x))
+      
 
+      
 -- toRot :: QBins -> TimeSig -> (Beat, BeatRat) -> Rot
 -- toRot q@(QBins x) (TimeSig _n d _ _) (Beat b, BeatRat r) = 
   -- Rot (((pred b * x) + getNumForQBins q r) % (x * d))

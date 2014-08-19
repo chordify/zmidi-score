@@ -24,6 +24,8 @@ import Control.Applicative         ( (<$>), (<*>), pure )
 import Control.Monad               ( mzero )
 import Control.Arrow               ( first )
 
+--TODO we should pair the TimeSig and the Rot, the rotation can be different per segment!
+
 data MeterGT a = MeterGT { gtFile  :: FilePath
                          , gtMeter :: a
                          , gtRot   :: Rot
