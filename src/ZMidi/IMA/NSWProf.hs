@@ -19,6 +19,7 @@ module ZMidi.IMA.NSWProf ( -- * types
 import IMA.InnerMetricalAnalysis      ( SWeight )
 import ZMidi.Score
 import ZMidi.IMA.Internal  
+import ZMidi.IMA.GTInfo
 
 import Data.List                      ( intercalate )
 import Data.Ratio                     ( numerator, denominator )
@@ -39,16 +40,28 @@ newtype NSWeight = NSWeight { nsweight :: Double }
 --------------------------------------------------------------------------------
 
 data NSWPStore = NSWPStore { nswpsQBins :: QBins 
-                           , nswps      :: [(TimeSig, Map TimeSig NSWProf)]
+                           , nswps      :: [(GTMR, Map TimeSig NSWProf)]
                            , nswpsFile  :: FilePath
                            } deriving Generic
 
 instance Binary NSWPStore
 
-
 getProf :: Map TimeSig NSWProf -> TimeSig -> NSWProf
 getProf r t = lookupErr ("NSWProf.getProf: TimeSig not found "++ show t) r t
-                           
+
+                   
+-- Takes a Meter Ground-Truth and updates the meter annotation in a NSWPStore                   
+setGT :: [GTInfo] -> NSWPStore -> NSWPStore
+setGT g n = let fp = nswpsFile n
+            in case find (\x -> gtFile x == fp) g of
+                 Just x -> update x n
+                 _ -> error ("setGT: NSWPStore for " ++ fp)
+
+
+updateGT :: GTInfo -> NSWPStore -> NSWPStore
+updateGT g n = n { nswps = zipWith (\t x -> first (const t) x) (gtMeters g) (nswps n) }
+                       
+
 -- | Normalised Spectral Weight Profiles
 newtype SWProf = SWProf {swprof :: (NrOfBars, Map (Beat, BeatRat) SWeight)}
                     deriving ( Eq, Binary, Show )
