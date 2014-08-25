@@ -58,7 +58,8 @@ mergeMetersOfSong = foldr step [] where
   step m []    = [fmap return m] 
   step m (h:t) | gtFile m == gtFile h = fmap (gtMeter m :) h : t
                | otherwise            = fmap return m   :  h : t
-                       
+                   
+-- Takes a Meter Ground-Truth and updates the meter annotation in a NSWPStore                   
 setGT :: [MeterGT [TimeSig]] -> NSWPStore -> NSWPStore
 setGT g n = let fp = nswpsFile n
             in case find (\x -> gtFile x == fp) g of

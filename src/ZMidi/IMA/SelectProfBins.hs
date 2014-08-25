@@ -178,7 +178,9 @@ instance FromField Rot where
                      pInt = maybe (error "FromField Rot: Invalid rotation") id . readInt 
                      (num, x) = pInt r
                  in case num of 
+                      -- a zero means no rotation
                       0 -> pure $ Rot (0 % 1)
+                      -- parse (<Int>)<somthing><Int>
                       _ -> pure $ Rot (num % (fst . pInt $ BC.drop 1 x))
       
 
