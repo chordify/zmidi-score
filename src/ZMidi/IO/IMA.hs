@@ -21,7 +21,7 @@ import ZMidi.IO.Common             -- ( readQMidiScoreSafe, warning )
 import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
 import ZMidi.IMA.NSWProf           ( normSWProfByBar, NSWPStore (..), NSWProf )
-import ZMidi.IMA.MeterGT           ( MeterGT (..), setGT )
+import ZMidi.IMA.GTInfo           ( GTInfo (..), setGT )
 import ZMidi.IMA.SelectProfBins    ( Rot (..), sumNSWProf
                                    , QBinSelection, Rotations, threePerNum
                                    , stdRotations, RPrior )
@@ -96,15 +96,11 @@ writeCSVHeader m out = writeFile out . genHeader $ m
 --------------------------------------------------------------------------------
 -- Matching
 --------------------------------------------------------------------------------  
-                     
--- TODO promote this pattern
--- TODO remove v variable -> denotes the number of selected bins, and should
--- be controlled by the QBinSelection m
 
 data Print = PRot | PFile | None
 
 readMatchPutLn :: Print -> QBinSelection -> [IMAPDF] -> Rotations 
-               -> Maybe [MeterGT [TimeSig]] -> FilePath 
+               -> Maybe [GTInfo [TimeSig]] -> FilePath 
                -> IO (Maybe ([(TimeSig, PMatch)]))
 readMatchPutLn prnt s ps r mGT fp = 
   do let f = case prnt of

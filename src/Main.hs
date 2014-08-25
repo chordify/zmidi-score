@@ -13,7 +13,7 @@ import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..), QBinSelection
 import ZMidi.IMA.Internal             ( parseTimeSig, initMapTSMap )
 import ZMidi.IMA.TimeSigSeg           ( TimedSeg )
 import ZMidi.IMA.RNSWMatch            ( PMatch )
-import ZMidi.IMA.MeterGT              ( MeterGT (..), maybeReadGT, setGT )
+import ZMidi.IMA.GTInfo              ( GTInfo (..), maybeReadGT, setGT )
 import ReadPDF                        ( readPDFs )
 import ZMidi.IMA.GA                   ( runGA )
 import Data.Map.Strict                ( Map, empty, toList )
@@ -133,7 +133,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
               s' = getOptReq arg SelProfFilepath "no IMA Profile bin selection file found" 
                      readJSON -- :: IO (Map TimeSig [(Beat, BeatRat)])
 
-          g <- maybeReadGT $ getArg arg GTFilepath :: IO (Maybe [MeterGT [TimeSig]])
+          g <- maybeReadGT $ getArg arg GTFilepath :: IO (Maybe [GTInfo [TimeSig]])
           
           -- do the parsing magic
           case (mode, input) of
