@@ -14,17 +14,20 @@ module ZMidi.IO.IMA ( exportIMAStore
                     , printMatchAgr
                     , printIMA
                     , analyseProfile
+                    -- * JSON import and export
+                    , writeJSON
+                    , readJSON
                     ) where
 
 import ZMidi.Score
 import ZMidi.IO.Common             -- ( readQMidiScoreSafe, warning )
 import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
-import ZMidi.IMA.NSWProf           ( normSWProfByBar, NSWPStore (..), NSWProf )
-import ZMidi.IMA.GTInfo           ( GTInfo (..), setGT )
-import ZMidi.IMA.SelectProfBins    ( Rot (..), sumNSWProf
-                                   , QBinSelection, Rotations, threePerNum
-                                   , stdRotations, RPrior )
+import ZMidi.IMA.NSWProf           ( normSWProfByBar, NSWPStore (..), NSWProf, setGT )
+import ZMidi.IMA.GTInfo            ( GTInfo (..), GTMR (..) )
+import ZMidi.IMA.SelectProfBins    ( QBinSelection, sumNSWProf )
+import ZMidi.IMA.Rotations         ( Rot (..),  Rotations, getRot, RPrior (..)
+                                   , getNumForQBins, stdRotations, threePerNum )
 import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters
                                    , matchNSWPStore, pickMaxRotation
                                    , avgResult, evalMeter, printGtPMatch )
@@ -33,7 +36,7 @@ import ZMidi.IMA.TimeSigSeg        ( TimedSeg (..) )
 import ReadPDF                     ( IMAPDF )
 import ZMidi.IMA.RNSWProf          ( toCSV, genHeader )
 
-import Data.Map.Strict             ( Map )
+import Data.Map.Strict             ( Map, fromList, toList )
 -- import qualified Data.Map.Strict as M ( map )
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
@@ -44,8 +47,10 @@ import Data.Char                   ( toLower )
 import Data.Ratio                  ( numerator, denominator )
 import Data.Binary                 ( encodeFile, decodeFile )
 import Data.List                   ( intercalate ) 
-import qualified Data.ByteString.Lazy as BS ( appendFile )
+import qualified Data.ByteString.Lazy as BL ( appendFile, readFile, writeFile )
 import Control.DeepSeq
+import Data.Aeson                  ( ToJSON (..), FromJSON (..), decode
+                                   , encode, (.=), (.:), Value (..), object)
 
 --------------------------------------------------------------------------------
 -- Reading and writing 
@@ -88,11 +93,26 @@ readNSWPStoreGeneric f =
 -- as CSV 
 exportCSVProfs :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> FilePath -> IO ()
 exportCSVProfs s o i =   readNSWPStoreGeneric i 
-                     >>= either (warning i) (BS.appendFile o) . (>>= toCSV s)
+                     >>= either (warning i) (BL.appendFile o) . (>>= toCSV s)
     
 writeCSVHeader :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
 writeCSVHeader m out = writeFile out . genHeader $ m
-    
+
+--------------------------------------------------------------------------------
+-- Reading / Writing JSON
+--------------------------------------------------------------------------------
+     
+writeJSON :: ToJSON a => FilePath -> Map TimeSig a -> IO ()
+writeJSON fp = BL.writeFile fp . encode . toList 
+
+readJSON :: FromJSON a => FilePath -> IO (Map TimeSig a)
+readJSON fp = do mr <- BL.readFile fp >>= return . decode
+                 case mr of 
+                   Just r  -> do putStrLn ("read TimeSig Map: " ++ fp)
+                                 return . fromList $ r 
+                   Nothing -> error "readRotations: cannot parse rotations JSON"  
+
+
 --------------------------------------------------------------------------------
 -- Matching
 --------------------------------------------------------------------------------  
@@ -100,8 +120,7 @@ writeCSVHeader m out = writeFile out . genHeader $ m
 data Print = PRot | PFile | None
 
 readMatchPutLn :: Print -> QBinSelection -> [IMAPDF] -> Rotations 
-               -> Maybe [GTInfo [TimeSig]] -> FilePath 
-               -> IO (Maybe ([(TimeSig, PMatch)]))
+               -> Maybe [GTInfo] -> FilePath -> IO (Maybe ([(GTMR, PMatch)]))
 readMatchPutLn prnt s ps r mGT fp = 
   do let f = case prnt of
                PRot  -> printMatchLine . dontPickMeters 
@@ -116,11 +135,11 @@ readMatchPutLn prnt s ps r mGT fp =
        Left  w -> warning fp w >> return Nothing 
        Right x -> (f . matchNSWPStore r s ps . g $ x) >>= return . Just
 
-printMatchLine ::  [(TimeSig, PMatch)] -> IO [(TimeSig, PMatch)]
+printMatchLine ::  [(GTMR, PMatch)] -> IO [(GTMR, PMatch)]
 printMatchLine m = do putStrLn . intercalate "\n" . map printGtPMatch $ m 
                       return m
 
-printMatchAgr ::  [(TimeSig, PMatch)] -> IO ()
+printMatchAgr ::  [(GTMR, PMatch)] -> IO ()
 printMatchAgr = print . avgResult . evalMeter
 
 trainRotPrior :: QBinSelection -> [IMAPDF] -> FilePath 

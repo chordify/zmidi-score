@@ -21,6 +21,8 @@ import ZMidi.Score
 import ZMidi.Skyline.MelFind      ( mergeTracks )
 import ZMidi.IMA.TimeSigSeg       ( TimedSeg (..), segment )
 import ZMidi.IMA.Constants        ( acceptedTimeSigs )
+import ZMidi.IMA.GTInfo           ( GTMR (..) )
+import ZMidi.IMA.Rotations        ( Rot (..) )
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
 import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
@@ -28,9 +30,9 @@ import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
 import Data.List                   ( nubBy, foldl' )
 import Data.Function               ( on )
 import Data.Map.Strict             ( Map, empty, insertWith, insert )
-import Control.Arrow               ( first )
-
 import Data.Binary                 ( Binary )
+
+import Control.Arrow               ( first )
 import GHC.Generics                ( Generic )
 
 --------------------------------------------------------------------------------
@@ -57,9 +59,9 @@ type SWProfSeg = TimedSeg TimeSig SWProf
 toIMAStore :: FilePath -> Either String QMidiScore -> Either String IMAStore
 toIMAStore f eqm = do qm  <- eqm
                       ima <- doIMApreprocess qm 
-                      let tpb = ticksPerBeat . qMidiScore $ qm
-                          qbs = toQBins . qShortestNote $ qm
-                      return $ IMAStore f tpb qbs ima
+                      let t = ticksPerBeat . qMidiScore $ qm
+                          q = toQBins . qShortestNote $ qm
+                      return $ IMAStore f t q ima
 
 -- | Sums all NSW profiles per bar for a meter section using the annotated
 -- meter of that section
@@ -86,7 +88,8 @@ toNSWProfs tb dat = foldr f empty acceptedTimeSigs
      
 toNSWPStore :: IMAStore -> NSWPStore
 toNSWPStore i = NSWPStore (imaQBins i)  (map f . swMeterSeg $ i) (imaFile i)                          
-  where f (TimedSeg ts s) = (getEvent ts, toNSWProfs (imaTPB i) s)
+  -- we use a 0 rotation by default (the rotation is not annotate in the MIDI data)
+  where f (TimedSeg ts s) = (GTMR (getEvent ts) (Rot 0), toNSWProfs (imaTPB i) s)
 --------------------------------------------------------------------------------
 -- Filtering Meter Segments
 --------------------------------------------------------------------------------

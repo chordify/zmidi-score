@@ -16,7 +16,9 @@ import ZMidi.IMA.NSWProf             ( NSWeight (..), normSWProfByBar, NSWProf
 import ZMidi.IMA.Analyse             ( toSWProfWithTS, SWMeterSeg
                                      , IMAStore (..), imaQBins, imaTPB )
 import ZMidi.IMA.TimeSigSeg          ( TimedSeg (..))
-import ZMidi.IMA.SelectProfBins      ( filterToList, Rot (..), QBinSelection, getSel )
+import ZMidi.IMA.SelectProfBins      ( filterToList, QBinSelection, getSel )
+import ZMidi.IMA.Rotations           ( Rot (..) )
+import ZMidi.IMA.GTInfo              ( GTMR (..) )
 import Data.List                     ( intercalate )
 import Data.Maybe                    ( fromJust )
 import Data.Ratio                    ( numerator, denominator)
@@ -50,9 +52,9 @@ toDoubles (RNSWProf t w) = map nsweight w
 -- | Top-level function that converts a 'QMidiFile' into CSV-writeable profiles
 toCSV :: Map TimeSig [(Beat, BeatRat)] -> NSWPStore -> Either String ByteString
 toCSV s n = 
-  let 
-      f :: (TimeSig, Map TimeSig NSWProf) -> Either String RNSWProf
-      f (ts, ps) = case M.lookup ts ps of
+  let -- ignore rotation in this export (rotation is not annotated in MIDI data)
+      f :: (GTMR, Map TimeSig NSWProf) -> Either String RNSWProf
+      f (GTMR ts _, ps) = case M.lookup ts ps of
            Just p  -> Right $ toRNSWProfWithTS (nswpsQBins n) 0 ts s p -- no rotation
            _ -> Left ("toCSV: TimeSignature not found in NSWPStore: " ++ show ts)
   

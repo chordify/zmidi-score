@@ -30,6 +30,8 @@ library
                        directory ==1.2.*, 
                        filepath ==1.3.*, 
                        data-ordlist >= 0.4.5,
+                       aeson  >= 0.7.0.6,
+                       text == 1.1.1.*,
                        binary >= 0.7.1,
                        deepseq >= 1.3,
                        deepseq-generics >= 0.1
@@ -48,6 +50,8 @@ executable melfind
                        filepath ==1.3.*, 
                        data-ordlist >= 0.4.5,
                        parallel-io >= 0.3.3,
+                       aeson  >= 0.7.0.6,
+                       text == 1.1.1.*,
                        binary >= 0.7.1,
                        deepseq >= 1.3,
                        deepseq-generics >= 0.1
@@ -96,6 +100,7 @@ executable RagPat
                        filepath ==1.3.*,
                        ListLike ==4.1.*, 
                        text == 1.1.1.*,
+                       aeson  >= 0.7.0.6,
                        uu-parsinglib ==2.7.4.*, 
                        HarmTrace-Base ==1.4.*,
                        parseargs ==0.1.5.*,

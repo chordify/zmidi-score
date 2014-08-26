@@ -9,50 +9,23 @@ module ZMidi.IMA.SelectProfBins ( getSel
                                 -- * Select QBins on avg weight
                                 , selectQBins
                                 , sumNSWProf                                
-                                -- * Rotations
-                                , Rot (..)
-                                , RPrior (..)
-                                , Rotations
-                                , getRot
-                                , getNumForQBins
-                                , stdRotations
-                                , threePerNum
-                                , normPriors
-                                -- , normPriorsPerTS
-                                , showRotations
-                                -- * JSON import and export
-                                , writeJSON
-                                , readJSON
                                 ) 
                                 where
 
 import ZMidi.Score.Datatypes         -- ( TimeSig (..) , Beat(..) , BeatRat (..) )
-import ZMidi.Score.Quantise           ( QBins (..), getNumForQBins )
+import ZMidi.Score.Quantise           ( QBins (..) )
 import ZMidi.IMA.Internal             ( lookupErr )
 import ZMidi.IMA.NSWProf
-import ZMidi.IMA.Constants            ( acceptedTimeSigs )
-import Data.List                      ( sort, sortBy, intercalate )
+import ZMidi.IMA.Rotations            ( Rot (..), rotate )
+import ZMidi.IMA.GTInfo               ( GTMR (..) )
+import Data.List                      ( sort, sortBy )
 import Data.Foldable                  ( foldrM )
 import Data.Ord                       ( comparing, Down (..) )
 import Data.Maybe                     ( fromJust )
-import Data.Csv                       ( FromField (..) )
-import Data.Ratio                     ( numerator, denominator, (%), Ratio) 
-import qualified Data.Map.Strict as M ( map, lookup, foldr )
-import Data.Map.Strict                ( Map, toAscList, filterWithKey, empty
-                                      , findWithDefault, insert, toList, unionWith
-                                      , fromList, foldrWithKey, insertWith)
-import Data.ByteString.Char8          ( readInt, ByteString )
-import qualified Data.ByteString.Char8 as BC ( drop )
-import Control.Monad                  ( mzero )
+import qualified Data.Map.Strict as M ( map, lookup )
+import Data.Map.Strict                ( Map, toAscList, filterWithKey
+                                      , findWithDefault, unionWith, insertWith )
 import Control.Arrow                  ( second )
-import Control.Applicative            ( pure, (<$>), (<*>) )
-import Data.Aeson                     ( ToJSON (..), FromJSON (..), decode
-                                      , encode, (.=), (.:), Value (..), object)
-import Data.Text                      ( pack )
-import Text.Printf                    ( printf, PrintfArg)
-import qualified Data.ByteString.Lazy as BL ( readFile, writeFile )
-import System.Random                  ( Random (..) )
-import Control.DeepSeq                ( NFData )
 
 --------------------------------------------------------------------------------
 -- QBinSelection stuff
@@ -99,9 +72,9 @@ printMeterStats = mapM_ (putStrLn . showNSWProf) . toAscList
 sumNSWProf :: Map TimeSig NSWProf -> NSWPStore -> Either String (Map TimeSig NSWProf)
 sumNSWProf m n = foldrM doProf m $ nswps n where
 
-  doProf :: (TimeSig, Map TimeSig NSWProf) -> Map TimeSig NSWProf 
+  doProf :: (GTMR, Map TimeSig NSWProf) -> Map TimeSig NSWProf 
          -> Either String (Map TimeSig NSWProf)
-  doProf (ts, ps) x = case M.lookup ts ps of 
+  doProf (GTMR ts _, ps) x = case M.lookup ts ps of 
     Just p -> Right $ insertWith mergeNSWProf ts p x
     _ -> Left ("sumNSWProf: TimeSignature not found in NSWPStore: " ++ show ts)
                         
@@ -120,39 +93,4 @@ selectQBins bs = M.map select where
          . sortBy (comparing (Down . snd))  -- sort by weight
          . toAscList . snd . nswprof        -- ignore the nr of bars
 
-
---------------------------------------------------------------------------------
--- JSON import and export
---------------------------------------------------------------------------------
-instance ToJSON Beat
-instance ToJSON BeatRat
-
-instance (Integral a, ToJSON a) => ToJSON (Ratio a) where
-     toJSON r = object [pack "num" .= numerator r, pack "den" .= denominator r]  
-
-instance ToJSON (TimeSig) where
-     toJSON (TimeSig n d _ _) = object [pack "ts_num" .= n, pack "ts_den" .= d]
-     toJSON NoTimeSig         = object [pack "ts" .= pack "none"]     
-
-instance FromJSON Beat
-instance FromJSON BeatRat
-     
-instance (Integral a, FromJSON a) => FromJSON (Ratio a) where
-     parseJSON (Object v) = (%) <$> v .: (pack "num") <*> v .: (pack "den")
-     parseJSON _          = mzero
-     
-instance FromJSON (TimeSig) where
-     parseJSON (Object v) =  (\n d -> TimeSig n d 0 0) 
-                          <$> v .: (pack "ts_num") <*> v .: (pack "ts_den") 
-                          
-     parseJSON _          = mzero
-     
-writeJSON :: ToJSON a => FilePath -> Map TimeSig a -> IO ()
-writeJSON fp = BL.writeFile fp . encode . toList 
-
-readJSON :: FromJSON a => FilePath -> IO (Map TimeSig a)
-readJSON fp = do mr <- BL.readFile fp >>= return . decode
-                 case mr of 
-                   Just r  -> do putStrLn ("read TimeSig Map: " ++ fp)
-                                 return . fromList $ r 
-                   Nothing -> error "readRotations: cannot parse rotations JSON"                        
+                      

@@ -24,17 +24,23 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                              ) where
 
 import ZMidi.Score.Internal
-import ZMidi.Core          ( MidiFormat (..), MidiScaleType (..) )
-import Data.Ratio          ( Ratio )
-import Data.Word           ( Word8 )
-import Data.Int            ( Int8 )
-import Data.Char           ( toLower )
-import Text.Printf         ( PrintfArg )
-import Data.Binary         ( Binary, Get )
-import qualified Data.Binary       as B    ( get, put )
-import GHC.Generics        ( Generic )
-import Control.DeepSeq
-import Control.DeepSeq.Generics (genericRnf)
+import ZMidi.Core                 ( MidiFormat (..), MidiScaleType (..) )
+import Data.Ratio                 ( Ratio, numerator, denominator, (%) )
+import Data.Word                  ( Word8 )
+import Data.Int                   ( Int8 )
+import Data.Char                  ( toLower )
+import Text.Printf                ( PrintfArg )
+import Data.Aeson                 ( ToJSON (..), FromJSON (..)
+                                  , (.=), (.:), Value (..), object)
+import Data.Text                  ( pack )
+import Data.Binary                ( Binary, Get )
+import qualified Data.Binary as B ( get, put )
+import GHC.Generics               ( Generic )
+import Control.DeepSeq            ( NFData (..) )
+import Control.DeepSeq.Generics   ( genericRnf)
+import Control.Applicative        ( (<$>), (<*>) )
+import Control.Monad              ( mzero )
+
 
 --------------------------------------------------------------------------------                                   
 -- A less low-level MIDI data representation
@@ -140,7 +146,7 @@ data ScoreEvent = NoteEvent     { chan        :: Channel
 
 
 --------------------------------------------------------------------------------
--- Some ad-hoc show instances
+-- Some ad-hoc instances
 --------------------------------------------------------------------------------
 
 instance Show a => Show (Timed a) where
@@ -242,4 +248,28 @@ instance NFData a => NFData (Timed a) where rnf = genericRnf
 instance NFData MidiScaleType where rnf a = a `seq` ()
 instance NFData MidiFormat    where rnf a = a `seq` ()
 
+--------------------------------------------------------------------------------
+-- JSON import and export
+--------------------------------------------------------------------------------
+instance ToJSON Beat
+instance ToJSON BeatRat
 
+instance (Integral a, ToJSON a) => ToJSON (Ratio a) where
+     toJSON r = object [pack "num" .= numerator r, pack "den" .= denominator r]  
+
+instance ToJSON (TimeSig) where
+     toJSON (TimeSig n d _ _) = object [pack "ts_num" .= n, pack "ts_den" .= d]
+     toJSON NoTimeSig         = object [pack "ts" .= pack "none"]     
+
+instance FromJSON Beat
+instance FromJSON BeatRat
+     
+instance (Integral a, FromJSON a) => FromJSON (Ratio a) where
+     parseJSON (Object v) = (%) <$> v .: (pack "num") <*> v .: (pack "den")
+     parseJSON _          = mzero
+     
+instance FromJSON (TimeSig) where
+     parseJSON (Object v) =  (\n d -> TimeSig n d 0 0) 
+                          <$> v .: (pack "ts_num") <*> v .: (pack "ts_den") 
+                          
+     parseJSON _          = mzero

@@ -17,8 +17,9 @@ module ZMidi.IMA.RNSWMatch( PMatch (..)
                           ) where
                        
 import ZMidi.Score 
-import ZMidi.IMA.SelectProfBins ( Rot (..), getNumForQBins, QBinSelection
-                                , Rotations, getRot, RPrior (..) )
+import ZMidi.IMA.SelectProfBins ( QBinSelection )
+import ZMidi.IMA.Rotations      ( Rot (..),  Rotations, getRot, RPrior (..) )
+import ZMidi.IMA.GTInfo         -- ( GTMR (..) )
 import ZMidi.IMA.NSWProf        ( NSWProf, NSWPStore (..), getProf )
 import ZMidi.IMA.RNSWProf       ( toDoubles, toRNSWProfWithTS )
 import ReadPDF                  ( IMAPDF(..) )
@@ -92,26 +93,25 @@ avgResult l = ap (/) (foldr step (Result 0 0) l) (Result len len)
 ap :: (a -> b -> c) -> Result a -> Result b -> Result c
 ap f (Result a b) (Result c d) = Result (f a c) (f b d)
   
-evalMeter :: [(TimeSig, PMatch)] ->  [Result Bool]
+evalMeter :: [(GTMR, PMatch)] ->  [Result Bool]
 evalMeter = map eval where
 
-  eval :: (TimeSig, PMatch)-> Result Bool
-  eval (ts, m) = Result (pmTimeSig m == ts) 
-                        (getNumForQBins (pmQBins m) (rot $ pmRot m)== 0)
+  eval :: (GTMR, PMatch)-> Result Bool
+  eval (GTMR ts r, m) = Result (pmTimeSig m == ts) (pmRot m == r)
 
   
 -- | Picks the best matching profile
-pickMeters :: [(TimeSig, [PMatch])] -> [(TimeSig, PMatch)]
+pickMeters :: [(GTMR, [PMatch])] -> [(GTMR, PMatch)]
 pickMeters = map (second (maximumBy (compare `on` pmatch)))
 
 -- | Copies the TimeSig for every Match for printing
-dontPickMeters :: [(TimeSig, [PMatch])] -> [(TimeSig, PMatch)]
+dontPickMeters :: [(GTMR, [PMatch])] -> [(GTMR, PMatch)]
 dontPickMeters = concatMap f 
   where f (t, ms) = map (\x -> (t, x)) ms
 
 -- | Given a list of matched results, we look rotation that yielded the best
 -- result using the ground truth time signature.
-pickMaxRotation :: [(TimeSig, [PMatch])] -> Map TimeSig (Map Rot RPrior) 
+pickMaxRotation :: [(GTMR, [PMatch])] -> Map TimeSig (Map Rot RPrior) 
                 -> Either String (Map TimeSig (Map Rot RPrior))
 pickMaxRotation d m = mapM (fmap pick . filtr) d >>= foldrM toRot m 
 
@@ -120,10 +120,10 @@ pickMaxRotation d m = mapM (fmap pick . filtr) d >>= foldrM toRot m
         pick (t, ms) = (t, pmRot $ maximumBy (compare `on` pmatch) ms)
 
         -- filter all rotations that do not match the gt        
-        filtr :: (TimeSig, [PMatch]) -> Either String (TimeSig,[PMatch])
-        filtr (t, ms) = case filter (\p -> pmTimeSig p == t) $ ms of
-                          [] -> Left  ("TimeSignature not supported " ++ show t)
-                          x  -> Right (t,x)
+        filtr :: (GTMR, [PMatch]) -> Either String (TimeSig,[PMatch])
+        filtr (GTMR t _, ms) = case filter (\p -> pmTimeSig p == t) $ ms of
+          [] -> Left  ("TimeSignature not supported " ++ show t)
+          x  -> Right (t,x)
 
         -- Store the rotation in a Map
         toRot :: (TimeSig, Rot) -> Map TimeSig (Map Rot RPrior) 
@@ -131,36 +131,32 @@ pickMaxRotation d m = mapM (fmap pick . filtr) d >>= foldrM toRot m
         toRot (ts,r) x = return $ adjust (insertWith (+) r (RPrior 1)) ts x 
 
   
-printGtPMatch :: (TimeSig, PMatch) -> String
-printGtPMatch (ts, m) = 
+printGtPMatch :: (GTMR, PMatch) -> String
+printGtPMatch (GTMR ts r, m) = 
   let est = pmTimeSig m
       s = intercalate "\t" [ shwTs ts
                            , shwTs est
                            , show (ts == est)
                            , "%.2f" 
-                           , "r:%2d"
+                           , (show . rot $ r )
+                           , (show . rot . pmRot $ m) 
+                           , show (r == pmRot m)
                            , "rp:%.2f"
                            , pmFile m
                            ]
       
       shwTs :: TimeSig -> String
       shwTs x = '\'' : show x ++ "\'"
-      
-      -- tsEq :: TimeSig -> TimeSig -> Bool
-      -- tsEq (TimeSig 4 4 _ _) (TimeSig 2 2 _ _) = True
-      -- tsEq a                 b                 = a == b
   
-  in printf s (pmatch m) 
-              (getNumForQBins (pmQBins m) . rot . pmRot $ m) 
-              (rprior . pmRPrior $ m)
+  in printf s (pmatch m) (rprior . pmRPrior $ m)
 
 
 -- | Matches meter profiles
-matchNSWPStore :: Rotations -> QBinSelection -> [IMAPDF] -> NSWPStore -> [(TimeSig, [PMatch])]
+matchNSWPStore :: Rotations -> QBinSelection -> [IMAPDF] -> NSWPStore -> [(GTMR, [PMatch])]
 matchNSWPStore rs s pdfs (NSWPStore q i fp) = map matchSeg i
   
   where 
-        matchSeg :: (TimeSig, Map TimeSig NSWProf) -> (TimeSig, [PMatch])
+        matchSeg :: (GTMR, Map TimeSig NSWProf) -> (GTMR, [PMatch])
         matchSeg (gt, x) = (gt, concatMap (matchPDF x) pdfs)
   
         -- matches a single pdf, creating the profile is independent of the 

@@ -1,30 +1,30 @@
 {-# OPTIONS_GHC -Wall          #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE DeriveFunctor     #-}
+{-# LANGUAGE DeriveGeneric     #-}
 -- todo move to ZMidi.IO
 module ZMidi.IMA.GTInfo ( GTInfo (..)
-                         , readGT
-                         , maybeReadGT
-                         , setGT
-                         ) where
+                        , GTMR (..)
+                        , readGT
+                        , maybeReadGT
+                        ) where
 
 import Prelude              hiding ( readFile )
 
 import ZMidi.Score                 ( TimeSig (..) )
 import ZMidi.IO.Common             ( warning, putErrStrLn )
 import ZMidi.IMA.Rotations         ( Rot (..) )
--- import ZMidi.IMA.NSWProf           ( NSWPStore (..) )
 
 import Data.Vector                 ( toList )
 import Data.Csv                    ( FromField (..), FromNamedRecord (..)
                                    , decodeByName, (.:))
-import Data.List                   ( intercalate, find )
+import Data.List                   ( intercalate )
 import Data.ByteString.Lazy        ( readFile )
+import Data.Binary                 ( Binary )
 import Control.Applicative         ( (<$>), (<*>), pure )
 import Control.Monad               ( mzero )
-import Control.Arrow               ( first )
+import Control.DeepSeq             ( NFData (..) )
+import GHC.Generics                ( Generic )
 
---TODO we should pair the TimeSig and the Rot, the rotation can be different per segment!
 
 data GTInfo = GTInfo { gtFile   :: FilePath
                      , gtMeters :: [GTMR]
@@ -33,7 +33,10 @@ data GTInfo = GTInfo { gtFile   :: FilePath
 
 data GTMR = GTMR { gtTimeSig :: TimeSig
                  , gtRot     :: Rot
-                 }
+                 } deriving Generic
+             
+instance Binary GTMR
+instance NFData GTMR
              
 instance Show GTMR where
   show (GTMR m r) = '(' : show m ++ ',' : show r ++ [')']

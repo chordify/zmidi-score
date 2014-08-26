@@ -1,19 +1,17 @@
+{-# OPTIONS_GHC -Wall                    #-}
 module Main (main) where
 
 import System.Console.ParseArgs
 import Data.Maybe                     ( catMaybes )
 
-import ZMidi.Score.Datatypes          ( TimeSig (..))
+import ZMidi.Score.Datatypes
 import ZMidi.Score.Quantise           ( QBins (..) )
-import ZMidi.IO.Common                ( mapDir_, mapDir, warning, foldrDir )
+import ZMidi.IO.Common                ( mapDir_, mapDir, foldrDir )
 import ZMidi.IO.IMA                   
-import ZMidi.IMA.SelectProfBins       ( selectQBins, Rot (..), QBinSelection
-                                      , stdRotations, threePerNum, readJSON
-                                      , sumNSWProf, writeJSON, normPriors )
-import ZMidi.IMA.Internal             ( parseTimeSig, initMapTSMap )
-import ZMidi.IMA.TimeSigSeg           ( TimedSeg )
-import ZMidi.IMA.RNSWMatch            ( PMatch )
-import ZMidi.IMA.GTInfo              ( GTInfo (..), maybeReadGT, setGT )
+import ZMidi.IMA.SelectProfBins       ( selectQBins )
+import ZMidi.IMA.Rotations            ( normPriors, Rot, RPrior )
+import ZMidi.IMA.Internal             ( initMapTSMap )
+import ZMidi.IMA.GTInfo               ( GTInfo, maybeReadGT )
 import ReadPDF                        ( readPDFs )
 import ZMidi.IMA.GA                   ( runGA )
 import Data.Map.Strict                ( Map, empty, toList )
@@ -90,9 +88,6 @@ myArgs = [
 data Mode = CSV | Test | Prof | StoreIMA | StoreProf | IMA | GARot | SelBin 
           | TrainRot deriving (Eq)
 
-parseTimeSigArg :: Args MyArgs -> String -> TimeSig
-parseTimeSigArg arg s = either (usageError arg) id $ parseTimeSig s 
-
 -- | An optional argument that is required by certain program modes
 getOptReq :: ArgType a => Args MyArgs -> MyArgs -> String -> (a -> IO b) -> IO b
 getOptReq arg a s f = maybe (usageError arg s) f $ getArg arg a
@@ -128,12 +123,12 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                        _                  -> usageError arg "Invalid filepaths" 
               
               r' = getOptReq arg RotationPath "no rotation file found" 
-                     readJSON -- :: IO (Map TimeSig [(Rot, RPrior)])
+                     readJSON :: IO (Map TimeSig [(Rot, RPrior)])
               p' = getOptReq arg FitFilepath "no GMM fit file found" readPDFs
               s' = getOptReq arg SelProfFilepath "no IMA Profile bin selection file found" 
-                     readJSON -- :: IO (Map TimeSig [(Beat, BeatRat)])
+                     readJSON :: IO (Map TimeSig [(Beat, BeatRat)])
 
-          g <- maybeReadGT $ getArg arg GTFilepath :: IO (Maybe [GTInfo [TimeSig]])
+          g <- maybeReadGT $ getArg arg GTFilepath :: IO (Maybe [GTInfo])
           
           -- do the parsing magic
           case (mode, input) of

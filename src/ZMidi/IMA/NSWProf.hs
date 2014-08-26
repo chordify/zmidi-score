@@ -12,6 +12,7 @@ module ZMidi.IMA.NSWProf ( -- * types
                            -- * NSW profile functions
                          , normSWProfByBar
                          , getProf
+                         , setGT
                            -- * Printing
                          , showNSWProf
                          )where
@@ -21,13 +22,14 @@ import ZMidi.Score
 import ZMidi.IMA.Internal  
 import ZMidi.IMA.GTInfo
 
-import Data.List                      ( intercalate )
+import Data.List                      ( intercalate, find )
 import Data.Ratio                     ( numerator, denominator )
 import qualified Data.Map.Strict as M ( map )
 import Data.Map.Strict                ( Map, foldrWithKey, mapAccum )
 import Data.Binary                    ( Binary )
+import Control.Arrow                  ( first )
 import Text.Printf                    ( PrintfArg, printf )
-import GHC.Generics
+import GHC.Generics                   ( Generic )
 
 -- | Normalised spectral weights (value between 0 and 1)
 newtype NSWeight = NSWeight { nsweight :: Double }
@@ -54,7 +56,7 @@ getProf r t = lookupErr ("NSWProf.getProf: TimeSig not found "++ show t) r t
 setGT :: [GTInfo] -> NSWPStore -> NSWPStore
 setGT g n = let fp = nswpsFile n
             in case find (\x -> gtFile x == fp) g of
-                 Just x -> update x n
+                 Just x -> updateGT x n
                  _ -> error ("setGT: NSWPStore for " ++ fp)
 
 

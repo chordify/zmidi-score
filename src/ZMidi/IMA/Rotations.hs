@@ -1,33 +1,38 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-module ZMidi.IMA.Rotations where
+module ZMidi.IMA.Rotations ( -- * Rotations
+                             Rot (..)
+                           , RPrior (..)
+                           , Rotations
+                           , getRot
+                           , getNumForQBins
+                           , stdRotations
+                           , threePerNum
+                           , normPriors
+                           , rotate
+                           -- , normPriorsPerTS
+                           , showRotations
+                           ) where
 
 import ZMidi.Score.Datatypes         -- ( TimeSig (..) , Beat(..) , BeatRat (..) )
 import ZMidi.Score.Quantise           ( QBins (..), getNumForQBins )
 import ZMidi.IMA.Internal             ( lookupErr )
 import ZMidi.IMA.Constants            ( acceptedTimeSigs )
-import Data.List                      ( sort, sortBy, intercalate )
-import Data.Foldable                  ( foldrM )
-import Data.Ord                       ( comparing, Down (..) )
-import Data.Maybe                     ( fromJust )
+import Data.List                      ( intercalate )
 import Data.Csv                       ( FromField (..) )
-import Data.Ratio                     ( numerator, denominator, (%), Ratio) 
-import qualified Data.Map.Strict as M ( map, lookup, foldr )
-import Data.Map.Strict                ( Map, toAscList, filterWithKey, empty
-                                      , findWithDefault, insert, toList, unionWith
-                                      , fromList, foldrWithKey, insertWith)
+import Data.Ratio                     ( (%), Ratio) 
+import qualified Data.Map.Strict as M ( map, foldr )
+import Data.Map.Strict                ( Map, empty,  insert, foldrWithKey )
 import Data.ByteString.Char8          ( readInt, ByteString )
+import Data.Aeson                     ( ToJSON (..), FromJSON (..))
+import Data.Binary                    ( Binary )
 import qualified Data.ByteString.Char8 as BC ( drop )
-import Control.Monad                  ( mzero )
 import Control.Arrow                  ( second )
-import Control.Applicative            ( pure, (<$>), (<*>) )
-import Data.Aeson                     ( ToJSON (..), FromJSON (..), decode
-                                      , encode, (.=), (.:), Value (..), object)
-import Data.Text                      ( pack )
-import Text.Printf                    ( printf, PrintfArg)
-import qualified Data.ByteString.Lazy as BL ( readFile, writeFile )
-import System.Random                  ( Random (..) )
+import Control.Applicative            ( pure )
 import Control.DeepSeq                ( NFData )
+import Text.Printf                    ( printf, PrintfArg)
+import System.Random                  ( Random (..) )
+
 --------------------------------------------------------------------------------
 -- Rotations
 --------------------------------------------------------------------------------
@@ -72,7 +77,7 @@ type Rotations = Map TimeSig [(Rot, RPrior)]
   
 -- | The Rotation
 newtype Rot = Rot { rot :: Ratio Int } 
-                  deriving ( Eq, Show, Num, Ord, Enum, Real, Read, FromJSON, ToJSON, NFData )
+                  deriving ( Eq, Show, Num, Ord, Enum, Real, Read, FromJSON, ToJSON, NFData, Binary )
 
 -- | A prior for the Rotation
 newtype RPrior = RPrior { rprior :: Double }
