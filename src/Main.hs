@@ -135,9 +135,9 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (CSV  , Right d) -> do s <- s'
                                    writeCSVHeader s out >> mapDir_ (exportCSVProfs s out) d
        
-            (Test , Left  f) -> do pHeader ; r <- r' ; p <- p' ; s <- s'
+            (Test , Left  f) -> do r <- r' ; p <- p' ; s <- s' ; pHeader
                                    readMatchPutLn PRot s p r g f >> return ()
-            (Test , Right d) -> do pHeader ; r <- r' ; p <- p' ; s <- s'
+            (Test , Right d) -> do r <- r' ; p <- p' ; s <- s' ; pHeader
                                    x <-mapDir (readMatchPutLn PFile s p r g) d 
                                    printMatchAgr . concat . catMaybes $ x
             
