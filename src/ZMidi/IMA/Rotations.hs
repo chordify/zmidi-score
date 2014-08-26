@@ -105,7 +105,7 @@ instance FromField Rot where
 -- | Applies a metrical offset ('Rot') to a ('Beat', 'BeatRat'), basically
 -- "rotating" the profile with this offset. We rotate in a forward direction.
 -- Hence, say that an upbeat of one beat has been missed, we can correct this
--- with a rotation of 4 * 'QBins' in case of a 4/4 meter.
+-- with a rotation of 3 * 'QBins' in case of a 4/4 meter.
 rotate :: QBins -> TimeSig -> Rot -> (Beat, BeatRat) -> (Beat, BeatRat)
 rotate q@(QBins k) (TimeSig n _ _ _) (Rot r) (Beat b, BeatRat x) =
   let -- get a common divider

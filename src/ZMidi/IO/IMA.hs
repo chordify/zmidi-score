@@ -48,8 +48,7 @@ import Data.Binary                 ( encodeFile, decodeFile )
 import Data.List                   ( intercalate ) 
 import qualified Data.ByteString.Lazy as BL ( appendFile, readFile, writeFile )
 import Control.DeepSeq
-import Data.Aeson                  ( ToJSON (..), FromJSON (..), decode
-                                   , encode, (.=) )
+import Data.Aeson                  ( ToJSON (..), FromJSON (..), decode, encode )
 
 --------------------------------------------------------------------------------
 -- Reading and writing 
@@ -136,7 +135,7 @@ trainRotPrior s ps fp m =
      either (\x -> warning fp x >> return m) return (ima >>= f)
 
 pHeader :: IO ()
-pHeader = putStrLn "Annotated\tEstimated\tMatch\tLog-Prob\tRotation\tRot-Prior\tFile"
+pHeader = putStrLn "Annotated\tEstimated\tMatch\tLog-Prob\tAnnotated\tEstimated\tMatch\tRot-Prior\tFile"
      
 --------------------------------------------------------------------------------
 -- QBin Selection

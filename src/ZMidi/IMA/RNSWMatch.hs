@@ -134,21 +134,20 @@ pickMaxRotation d m = mapM (fmap pick . filtr) d >>= foldrM toRot m
 printGtPMatch :: (GTMR, PMatch) -> String
 printGtPMatch (GTMR ts r, m) = 
   let est = pmTimeSig m
-      s = intercalate "\t" [ shwTs ts
-                           , shwTs est
-                           , show (ts == est)
-                           , "%.2f" 
-                           , (show . rot $ r )
-                           , (show . rot . pmRot $ m) 
-                           , show (r == pmRot m)
-                           , "rp:%.2f"
-                           , pmFile m
-                           ]
       
       shwTs :: TimeSig -> String
       shwTs x = '\'' : show x ++ "\'"
   
-  in printf s (pmatch m) (rprior . pmRPrior $ m)
+  in intercalate "\t" [ shwTs ts
+                       , shwTs est
+                       , show (ts == est)
+                       , printf "%.2f" (pmatch m)
+                       , (show . rot $ r )
+                       , (show . rot . pmRot $ m) 
+                       , show (r == pmRot m)
+                       , printf "rp:%.2f" (rprior . pmRPrior $ m)
+                       , pmFile m
+                       ]
 
 
 -- | Matches meter profiles
