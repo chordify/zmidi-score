@@ -148,7 +148,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
             (IMA  , Right _) -> usageError arg "We can only analyse a file"
             
             (Prof , Left  f) -> do s <- s'
-                                   readNSWPStoreGeneric f >>= either error (analyseProfile s)
+                                   readNSWPStoreGeneric f >>= either error (analyseProfile g s)
             (Prof , Right _) -> usageError arg "We can only profile a file" 
             
             (GARot, Left  _) -> usageError arg "We can only evolve on a directory"

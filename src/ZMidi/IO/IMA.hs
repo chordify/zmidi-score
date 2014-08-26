@@ -181,15 +181,18 @@ printIMA m = mapM_ (starMeter (ticksPerBeat . qMidiScore $ m))
     showMSE = maybe "    " (show . pitch) 
     
 -- Analyses a MidiFile verbosely by printing the spectral weight profiles
-analyseProfile :: QBinSelection -> NSWPStore -> IO ()
-analyseProfile s (NSWPStore q ps f) =
-  putStrLn . intercalate "\n" $ (f : concatMap prnt ps)
+analyseProfile :: Maybe [GTInfo] -> QBinSelection -> NSWPStore -> IO ()
+analyseProfile mGT s n =
+  putStrLn . intercalate "\n" $ (nswpsFile n : (concatMap prnt . nswps . g $ n))
   
-  where prnt :: (GTMR, Map TimeSig NSWProf) -> [String]
-        prnt x@(GTMR ts r, m) =  showGTMRProf x : foldrWithKey select [] m
+  where g = maybe (const (error "no groundtruth")) setGT mGT :: NSWPStore -> NSWPStore
+        
+        prnt :: (GTMR, Map TimeSig NSWProf) -> [String]
+        prnt x@(GTMR _ts r, m) = showGTMRProf x : "qbin selections:" 
+                               : foldrWithKey select [] m
         
           where select :: TimeSig -> NSWProf -> [String] -> [String]
-                select t p x = ("TimeSig:" ++ show t) 
-                             : (show $ filterBin q r s t p) : x
+                select t p y = ("TimeSig:" ++ show t) 
+                             : (show $ filterBin (nswpsQBins n) r s t p) : y
                                 
        
