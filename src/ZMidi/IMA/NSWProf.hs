@@ -14,7 +14,7 @@ module ZMidi.IMA.NSWProf ( -- * types
                          , getProf
                          , setGT
                            -- * Printing
-                         , showNSWProf
+                         , showGTMRProf
                          )where
 
 import IMA.InnerMetricalAnalysis      ( SWeight )
@@ -89,10 +89,11 @@ newtype NrOfBars = NrOfBars  { nrOfBars :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral
                              , PrintfArg, Binary )
 
--- | Plots an 'SWProf'ile by calculating the average profile
-showNSWProf :: (TimeSig, NSWProf) -> String
-showNSWProf (ts, p) = show ts ++ "\n" ++ show p
-
+showGTMRProf :: (GTMR,  Map TimeSig NSWProf) -> String
+showGTMRProf (GTMR ts r, m) = "timesig: "  ++ show ts ++ "\n" ++ 
+                              "rotation: " ++ show r  ++ "\n" ++ 
+                              (show . getProf m $ ts)
+                             
 -- Normalises an 'SWProf' to an 'NSWProf' (normalised SWProf), by dividing
 -- the spectral weight by the square of the number of bars and taking the log
 normSWProfByBar :: SWProf -> NSWProf

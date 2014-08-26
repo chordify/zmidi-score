@@ -22,9 +22,9 @@ import ZMidi.Score
 import ZMidi.IO.Common             -- ( readQMidiScoreSafe, warning )
 import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
-import ZMidi.IMA.NSWProf           ( NSWPStore (..), NSWProf, setGT )
+import ZMidi.IMA.NSWProf           ( NSWPStore (..), NSWProf, setGT, showGTMRProf )
 import ZMidi.IMA.GTInfo            ( GTInfo (..), GTMR (..) )
-import ZMidi.IMA.SelectProfBins    ( QBinSelection, sumNSWProf )
+import ZMidi.IMA.SelectProfBins    ( QBinSelection, sumNSWProf, filterBin )
 import ZMidi.IMA.Rotations         ( Rot (..),  Rotations, RPrior (..)
                                    , stdRotations, threePerNum )
 import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters
@@ -35,7 +35,7 @@ import ZMidi.IMA.TimeSigSeg        ( TimedSeg (..) )
 import ReadPDF                     ( IMAPDF )
 import ZMidi.IMA.RNSWProf          ( toCSV, genHeader )
 
-import Data.Map.Strict             ( Map, fromList, toList )
+import Data.Map.Strict             ( Map, fromList, toList, foldrWithKey )
 -- import qualified Data.Map.Strict as M ( map )
 
 import IMA.InnerMetricalAnalysis hiding           ( Time(..) )
@@ -181,6 +181,15 @@ printIMA m = mapM_ (starMeter (ticksPerBeat . qMidiScore $ m))
     showMSE = maybe "    " (show . pitch) 
     
 -- Analyses a MidiFile verbosely by printing the spectral weight profiles
--- TODO rewrite printing functions...
-analyseProfile :: Map TimeSig [(Beat, BeatRat)] -> NSWPStore -> IO ()
-analyseProfile _s _im = putStrLn "implement me"
+analyseProfile :: QBinSelection -> NSWPStore -> IO ()
+analyseProfile s (NSWPStore q ps f) =
+  putStrLn . intercalate "\n" $ (f : concatMap prnt ps)
+  
+  where prnt :: (GTMR, Map TimeSig NSWProf) -> [String]
+        prnt x@(GTMR ts r, m) =  showGTMRProf x : foldrWithKey select [] m
+        
+          where select :: TimeSig -> NSWProf -> [String] -> [String]
+                select t p x = ("TimeSig:" ++ show t) 
+                             : (show $ filterBin q r s t p) : x
+                                
+       

@@ -4,7 +4,6 @@
 module ZMidi.IMA.SelectProfBins ( getSel
                                 , filterBin
                                 , filterToList
-                                , printMeterStats
                                 , QBinSelection
                                 -- * Select QBins on avg weight
                                 , selectQBins
@@ -58,11 +57,6 @@ filterToList q r s ts (NSWProf (_,p)) = map fnd . fromJust . M.lookup ts $ s
         -- smoothing with alpha is 1, log 1 = 0. See NSWProf.normSWProfByBar
         -- TODO unify the alpha parameter!
         fnd k = findWithDefault (NSWeight 0) (rotate q ts r k) p
-  
--- N.B. copied from RagPatIMA
--- Prints the average normalised inner metric analysis profiles to the user
-printMeterStats :: Map TimeSig NSWProf -> IO ()
-printMeterStats = mapM_ (putStrLn . showNSWProf) . toAscList 
 
 --------------------------------------------------------------------------------
 -- Create a QBinSelection based on the most heaviest bins

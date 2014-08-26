@@ -175,9 +175,7 @@ matchScore v s = match (map (first Time) s) v where
             -> Timed (Maybe ScoreEvent, SWeight)
   addWeight w e = either ((flip Timed) (Nothing, w)) f e
     
-    -- where w'  = fromIntegral w / fromIntegral mx
-    where -- f t = t {getEvent = (Just $ getEvent t, w')}
-          f = fmap (\x -> (Just x, w))
+    where f = fmap (\x -> (Just x, w))
           
 
           
