@@ -1,7 +1,6 @@
 {-# OPTIONS_GHC -Wall                   #-}
-module ZMidi.IO.IMA ( exportIMAStore
+module ZMidi.IO.IMA ( readNSWPStoreGeneric
                     , exportNSWPStore
-                    , readIMAScoreGeneric
                     , exportCSVProfs
                     , writeCSVHeader
                     , Print (..)
@@ -23,11 +22,11 @@ import ZMidi.Score
 import ZMidi.IO.Common             -- ( readQMidiScoreSafe, warning )
 import ZMidi.IMA.Internal
 import ZMidi.IMA.Analyse
-import ZMidi.IMA.NSWProf           ( normSWProfByBar, NSWPStore (..), NSWProf, setGT )
+import ZMidi.IMA.NSWProf           ( NSWPStore (..), NSWProf, setGT )
 import ZMidi.IMA.GTInfo            ( GTInfo (..), GTMR (..) )
 import ZMidi.IMA.SelectProfBins    ( QBinSelection, sumNSWProf )
-import ZMidi.IMA.Rotations         ( Rot (..),  Rotations, getRot, RPrior (..)
-                                   , getNumForQBins, stdRotations, threePerNum )
+import ZMidi.IMA.Rotations         ( Rot (..),  Rotations, RPrior (..)
+                                   , stdRotations, threePerNum )
 import ZMidi.IMA.RNSWMatch         ( PMatch, pickMeters, dontPickMeters
                                    , matchNSWPStore, pickMaxRotation
                                    , avgResult, evalMeter, printGtPMatch )
@@ -50,19 +49,11 @@ import Data.List                   ( intercalate )
 import qualified Data.ByteString.Lazy as BL ( appendFile, readFile, writeFile )
 import Control.DeepSeq
 import Data.Aeson                  ( ToJSON (..), FromJSON (..), decode
-                                   , encode, (.=), (.:), Value (..), object)
+                                   , encode, (.=) )
 
 --------------------------------------------------------------------------------
 -- Reading and writing 
 --------------------------------------------------------------------------------
-         
-exportIMAStore :: FilePath -> FilePath -> IO ()
-exportIMAStore dir i =   readQMidiScoreSafe i >>= writeIMA
-                 
-  where writeIMA :: Either String QMidiScore -> IO ()
-        writeIMA qm = do let out = dir </> takeFileName i <.> "ima"
-                         either (warning i) (encodeFile out) $ toIMAStore i qm
-                         putStrLn ("written: " ++ out)
                          
 exportNSWPStore :: FilePath -> FilePath -> IO ()
 exportNSWPStore dir i = readNSWPStoreGeneric i >>= either (warning i) write
@@ -71,20 +62,13 @@ exportNSWPStore dir i = readNSWPStoreGeneric i >>= either (warning i) write
         write n = do let out = dir </> takeFileName i <.> "prof"
                      encodeFile out n
                      putStrLn ("written: " ++ out)
-        
-readIMAScoreGeneric :: FilePath -> IO (Either String IMAStore)
-readIMAScoreGeneric f = 
-  case take 4 . map toLower . takeExtension $ f of
-    ".mid" -> readQMidiScoreSafe f >>= return . toIMAStore f
-    ".ima" -> do r <- decodeFile f 
-                 r `seq` return (Right r)
-    e      -> error ("Error: " ++ e ++ " is not an accepted file type")  
     
 readNSWPStoreGeneric :: FilePath -> IO (Either String NSWPStore)
 readNSWPStoreGeneric f =  
-  case take 5 . map toLower . takeExtension $ f of
+  case map toLower . takeExtension $ f of
+    ".mid"  -> readQMidiScoreSafe f >>= return . (toNSWPStore f)
     ".prof" -> decodeFile f >>= return . Right 
-    _       -> readIMAScoreGeneric f >>= return . fmap toNSWPStore 
+    e       -> error ("Error: " ++ e ++ " is not an accepted file type")
 --------------------------------------------------------------------------------
 -- Exporting CSV profiles
 --------------------------------------------------------------------------------
@@ -170,8 +154,9 @@ selectMaxWeightBins fp m = do d <- readNSWPStoreGeneric fp
 --------------------------------------------------------------------------------
 
 -- printing the inner metrical analysis and the midi score data
-printIMA :: IMAStore -> IO ()
-printIMA is = mapM_ (starMeter (imaTPB is)) . swMeterSeg $ is where
+printIMA :: QMidiScore -> IO ()
+printIMA m = mapM_ (starMeter (ticksPerBeat . qMidiScore $ m)) 
+           . either error id . doIMApreprocess $ m where
           
   -- Prints an Inner metrical analysis. The printed weights are normalised by
   -- the maximum weight found in the song.
@@ -188,32 +173,15 @@ printIMA is = mapM_ (starMeter (imaTPB is)) . swMeterSeg $ is where
       in putStrLn (printf ("%6d: %3d.%1d - %2d / %2d" ++ showMSE se ++ ": %6d " ++ toStar w) 
                   (g+os) br bib (numerator r) (denominator r) w)
                   
-    m = fromIntegral . maximum . map (snd . getEvent) $ s :: Double
+    d = fromIntegral . maximum . map (snd . getEvent) $ s :: Double
     
     toStar :: SWeight -> String
-    toStar x = stars (fromIntegral x / m)
+    toStar x = stars (fromIntegral x / d)
                   
     showMSE :: Maybe ScoreEvent -> String
     showMSE = maybe "    " (show . pitch) 
     
 -- Analyses a MidiFile verbosely by printing the spectral weight profiles
 -- TODO rewrite printing functions...
-analyseProfile :: Int -> Map TimeSig [(Beat, BeatRat)] -> IMAStore -> IO ()
-analyseProfile r _s im = 
-  do let pp  = swMeterSeg im
-         -- qb  = imaQBins im 
-         tb  = imaTPB im 
-         
-         -- showSel :: SWMeterSeg -> String
-         -- showSel x = let ts = getEvent . boundary $ x
-                     -- in show . filterBin qb (Rot (r % 12)) s ts
-                             -- . normSWProfByBar  
-                             -- . toSWProfWithTS ts tb . seg $ x
-         
-         prnt = intercalate "\n"
-         
-     putStrLn . prnt $ "original profiles" : 
-                map (show . normSWProfByBar . seg . toSWProf tb) pp
-     putStrLn ("rotation: " ++ show r)
-     -- putStrLn . prnt $ "matched profiles" : map showSel pp
-     -- putStrLn . prnt $ map (show . toRNSWProfWithTs qb tb (Rot (r % 12)) s) pp
+analyseProfile :: Map TimeSig [(Beat, BeatRat)] -> NSWPStore -> IO ()
+analyseProfile _s _im = putStrLn "implement me"

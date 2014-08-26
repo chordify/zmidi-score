@@ -4,11 +4,9 @@
 
 -- | applying the Inner Metric Analysis to Midi files ('ZMidi.Score')
 module ZMidi.IMA.Analyse ( SWMeterSeg
-                         , IMAStore (..)
                          -- | * Inner Metrical Analysis
                          , doIMA -- TODO remove this export
                          , doIMApreprocess
-                         , toIMAStore
                          -- | * Utilities
                          , toNSWProfs
                          , toSWProfWithTS
@@ -30,22 +28,11 @@ import qualified IMA.InnerMetricalAnalysis as IMA ( Time(..) )
 import Data.List                   ( nubBy, foldl' )
 import Data.Function               ( on )
 import Data.Map.Strict             ( Map, empty, insertWith, insert )
-import Data.Binary                 ( Binary )
-
 import Control.Arrow               ( first )
-import GHC.Generics                ( Generic )
 
 --------------------------------------------------------------------------------
 -- Calculate Spectral Weight Profiles
 --------------------------------------------------------------------------------
-
-data IMAStore = IMAStore { imaFile      :: FilePath
-                         --, imaMidiScore :: QMidiScore
-                         , imaTPB       :: TPB
-                         , imaQBins     :: QBins
-                         , swMeterSeg   :: [SWMeterSeg]
-                         } deriving (Show, Eq, Generic)
-instance Binary IMAStore 
   
 -- A type synonym that captures all IMA information needed for meter estimation
 type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
@@ -54,14 +41,17 @@ type SWMeterSeg = TimedSeg TimeSig [Timed (Maybe ScoreEvent, SWeight)]
 -- an Spectral Weight profile
 type SWProfSeg = TimedSeg TimeSig SWProf
 
--- Performs an Inner Metric Analysis and stores the analysis and the 
--- ScoreEvents in a 'IMAStore'
-toIMAStore :: FilePath -> Either String QMidiScore -> Either String IMAStore
-toIMAStore f eqm = do qm  <- eqm
-                      ima <- doIMApreprocess qm 
-                      let t = ticksPerBeat . qMidiScore $ qm
-                          q = toQBins . qShortestNote $ qm
-                      return $ IMAStore f t q ima
+-- Performs an Inner Metric Analysis and stores the profiles in an 'NSWPStore'
+toNSWPStore :: FilePath -> Either String QMidiScore -> Either String NSWPStore
+toNSWPStore f eqm = do qm  <- eqm
+                       ima <- doIMApreprocess qm 
+                       let -- we use a 0 rotation by default (the rotation is 
+                           -- not annotate in the MIDI data)
+                           g (TimedSeg ts s) = ( GTMR (getEvent ts) (Rot 0)
+                                               , toNSWProfs t s)
+                           t = ticksPerBeat . qMidiScore $ qm
+                           q = toQBins . qShortestNote $ qm
+                       return $ NSWPStore q (map g ima) f
 
 -- | Sums all NSW profiles per bar for a meter section using the annotated
 -- meter of that section
@@ -85,11 +75,7 @@ toSWProfWithTS ts tb td = foldl' toProf (SWProf (1, empty)) td
 toNSWProfs :: TPB -> [Timed (Maybe ScoreEvent, SWeight)] -> Map TimeSig NSWProf
 toNSWProfs tb dat = foldr f empty acceptedTimeSigs
   where f ts m = insert ts (normSWProfByBar $ toSWProfWithTS ts tb dat) m 
-     
-toNSWPStore :: IMAStore -> NSWPStore
-toNSWPStore i = NSWPStore (imaQBins i)  (map f . swMeterSeg $ i) (imaFile i)                          
-  -- we use a 0 rotation by default (the rotation is not annotate in the MIDI data)
-  where f (TimedSeg ts s) = (GTMR (getEvent ts) (Rot 0), toNSWProfs (imaTPB i) s)
+
 --------------------------------------------------------------------------------
 -- Filtering Meter Segments
 --------------------------------------------------------------------------------

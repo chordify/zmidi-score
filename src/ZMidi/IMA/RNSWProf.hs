@@ -13,8 +13,7 @@ import ZMidi.Score.Datatypes
 import ZMidi.Score.Quantise          ( QBins)
 import ZMidi.IMA.NSWProf             ( NSWeight (..), normSWProfByBar, NSWProf
                                      , NSWPStore (..), getProf )
-import ZMidi.IMA.Analyse             ( toSWProfWithTS, SWMeterSeg
-                                     , IMAStore (..), imaQBins, imaTPB )
+import ZMidi.IMA.Analyse             ( toSWProfWithTS, SWMeterSeg )
 import ZMidi.IMA.TimeSigSeg          ( TimedSeg (..))
 import ZMidi.IMA.SelectProfBins      ( filterToList, QBinSelection, getSel )
 import ZMidi.IMA.Rotations           ( Rot (..) )

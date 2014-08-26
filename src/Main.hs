@@ -6,7 +6,7 @@ import Data.Maybe                     ( catMaybes )
 
 import ZMidi.Score.Datatypes
 import ZMidi.Score.Quantise           ( QBins (..) )
-import ZMidi.IO.Common                ( mapDir_, mapDir, foldrDir )
+import ZMidi.IO.Common                ( mapDir_, mapDir, foldrDir, readQMidiScore )
 import ZMidi.IO.IMA                   
 import ZMidi.IMA.SelectProfBins       ( selectQBins )
 import ZMidi.IMA.Rotations            ( normPriors, Rot, RPrior )
@@ -85,7 +85,7 @@ myArgs = [
          ]
 
 -- representing the mode of operation
-data Mode = CSV | Test | Prof | StoreIMA | StoreProf | IMA | GARot | SelBin 
+data Mode = CSV | Test | Prof | StoreProf | IMA | GARot | SelBin 
           | TrainRot deriving (Eq)
 
 -- | An optional argument that is required by certain program modes
@@ -100,7 +100,6 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                          "csv-prof"   -> CSV
                          "test"       -> Test
                          "profile"    -> Prof
-                         "store-ima"  -> StoreIMA -- TODO remove
                          "store-prof" -> StoreProf
                          "ima"        -> IMA
                          "ga-rot"     -> GARot
@@ -142,16 +141,14 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                                    x <-mapDir (readMatchPutLn PFile s p r g) d 
                                    printMatchAgr . concat . catMaybes $ x
             
-            (StoreIMA, Left  f) -> exportIMAStore od f
-            (StoreIMA, Right d) -> mapDir_ (exportIMAStore od) d
             (StoreProf, Left  f) -> exportNSWPStore od f
             (StoreProf, Right d) -> mapDir_ (exportNSWPStore od) d
             
-            (IMA  , Left  f) -> readIMAScoreGeneric f >>= either error printIMA
+            (IMA  , Left  f) -> readQMidiScore f >>= printIMA
             (IMA  , Right _) -> usageError arg "We can only analyse a file"
             
             (Prof , Left  f) -> do s <- s'
-                                   readIMAScoreGeneric f >>= either error (analyseProfile 0 s)
+                                   readNSWPStoreGeneric f >>= either error (analyseProfile s)
             (Prof , Right _) -> usageError arg "We can only profile a file" 
             
             (GARot, Left  _) -> usageError arg "We can only evolve on a directory"

@@ -9,7 +9,7 @@ module ZMidi.IMA.GA ( Entity (..)
 import ZMidi.Score.Datatypes    ( TimeSig (..) )
 import ZMidi.Score.Quantise     ( QBins (..) )
 import ZMidi.IMA.SelectProfBins ( QBinSelection )
-import ZMidi.IMA.Rotations      ( Rot (..), RPrior (..), Rotations (..)
+import ZMidi.IMA.Rotations      ( Rot (..), RPrior (..), Rotations
                                 , normPriors, showRotations, stdRotations )
 import ZMidi.IMA.RNSWMatch      ( avgResult, evalMeter, meterFail )
 import ZMidi.IO.IMA             ( readMatchPutLn, Print (..), writeJSON )
