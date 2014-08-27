@@ -24,6 +24,15 @@ getBeatInBar (TimeSig num _den _ _) t o =
       (br, bib)      = (succ *** succ) $ bt `divMod` num 
   in (Bar br, Beat bib, rat)
 
+getBarRat :: TimeSig -> TPB -> Time -> (Bar, BarRat)
+getBarRat NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
+getBarRat (TimeSig num den _ _) (TPB t) (Time o) = 
+  let (beat, rest) = o `divMod` t 
+      (bar , bib)  = beat `divMod` num 
+      br           = ((bib * t) + rest) % (den * t) 
+  in (Bar (succ bar), BarRat br)
+  
+  
 -- | Returns the position within a 'Bar', see 'getBeatInBar'.
 getRatInBeat :: TPB -> Time -> (Beat, BeatRat)
 getRatInBeat (TPB t) (Time o) = 
