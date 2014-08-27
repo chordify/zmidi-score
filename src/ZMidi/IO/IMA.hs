@@ -67,6 +67,7 @@ readNSWPStoreGeneric f =
   case map toLower . takeExtension $ f of
     ".mid"  -> readQMidiScoreSafe f >>= return . (toNSWPStore f)
     ".prof" -> decodeFile f >>= return . Right 
+    ".midi" -> readQMidiScoreSafe f >>= return . (toNSWPStore f)
     e       -> error ("Error: " ++ e ++ " is not an accepted file type")
 --------------------------------------------------------------------------------
 -- Exporting CSV profiles
