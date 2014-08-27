@@ -5,7 +5,6 @@ module ZMidi.IMA.Rotations ( -- * Rotations
                            , RPrior (..)
                            , Rotations
                            , getRot
-                           , getNumForQBins
                            , stdRotations
                            , threePerNum
                            , normPriors
@@ -36,9 +35,8 @@ import System.Random                  ( Random (..) )
 --------------------------------------------------------------------------------
 -- Rotations
 --------------------------------------------------------------------------------
--- TODO: move to separate module... 
 
--- | Returs a list of four 'Rot'ations per time signature numerator:
+-- | Returns a list of four 'Rot'ations per time signature numerator:
 stdRotations :: QBins -> (QBins -> TimeSig -> [(Rot, RPrior)]) -> Rotations
 stdRotations q f = normPriors $ foldr g empty acceptedTimeSigs
   where g ts m = insert ts (f q ts) m
@@ -96,11 +94,6 @@ instance FromField Rot where
                       -- parse (<Int>)<somthing><Int>
                       _ -> pure $ Rot (num % (fst . pInt $ BC.drop 1 x))
       
-
-      
--- toRot :: QBins -> TimeSig -> (Beat, BeatRat) -> Rot
--- toRot q@(QBins x) (TimeSig _n d _ _) (Beat b, BeatRat r) = 
-  -- Rot (((pred b * x) + getNumForQBins q r) % (x * d))
                   
 -- | Applies a metrical offset ('Rot') to a ('Beat', 'BeatRat'), basically
 -- "rotating" the profile with this offset. We rotate in a forward direction.

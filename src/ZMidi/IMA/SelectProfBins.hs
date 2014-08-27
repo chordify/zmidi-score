@@ -41,7 +41,7 @@ getSel s t = lookupErr ("QBinSelection.getSel: TimeSig not found "++ show t) s t
 filterBin :: QBins -> Rot -> QBinSelection -> TimeSig -> NSWProf -> NSWProf 
 filterBin q r s ts = NSWProf . second (filterWithKey f) . nswprof
 
-  where l = map (rotate q ts r) . fromJust . M.lookup ts $ s 
+  where l = map (rotate q ts r) . getSel s $ ts 
         
         f :: (Beat, BeatRat) -> a -> Bool
         f k _ = k `elem` l
