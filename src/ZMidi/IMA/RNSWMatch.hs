@@ -66,11 +66,13 @@ instance Show PMatch where
   
 data Result a = Result { meterOk :: a
                        , rotOk   :: a
+                       , bothOk  :: a
                        } deriving (Eq, Functor)
 
 instance Show a => Show (Result a) where
-  show (Result a b) =    "meter OK:    " ++ show a 
-                    ++ "\nrotation OK: " ++ show b
+  show (Result a b c) =    "meter OK:    " ++ show a 
+                      ++ "\nrotation OK: " ++ show b
+                      ++ "\nboth OK:     " ++ show c
 
 -- | Returns 1 - the results. (It is assumed, but not checked that resultOk
 -- returns the percentage of the cases in which the meter is correct)
@@ -79,7 +81,7 @@ meterFail r = 1.0 - meterOk r
 
 -- | aggregates a list of results
 avgResult :: [Result Bool] -> Result Double
-avgResult l = ap (/) (foldr step (Result 0 0) l) (Result len len)
+avgResult l = ap (/) (foldr step (Result 0 0 0) l) (Result len len len)
 
   where len = fromIntegral . length $ l :: Double
 
@@ -91,13 +93,15 @@ avgResult l = ap (/) (foldr step (Result 0 0) l) (Result len len)
         toInt _    = 0.0
 
 ap :: (a -> b -> c) -> Result a -> Result b -> Result c
-ap f (Result a b) (Result c d) = Result (f a c) (f b d)
+ap f (Result a1 b1 c1) (Result a2 b2 c2) = Result (f a1 a2) (f b1 b2) (f c1 c2)
   
 evalMeter :: [(GTMR, PMatch)] ->  [Result Bool]
 evalMeter = map eval where
 
   eval :: (GTMR, PMatch)-> Result Bool
-  eval (GTMR ts r, m) = Result (pmTimeSig m == ts) (pmRot m == r)
+  eval (GTMR ts r, m) = let rt = pmTimeSig m == ts
+                            rr = pmRot m == r
+                        in Result rt rr (rt && rr)
 
   
 -- | Picks the best matching profile

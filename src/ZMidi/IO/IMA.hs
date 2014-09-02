@@ -186,7 +186,8 @@ analyseProfile :: Maybe [GTInfo] -> QBinSelection -> NSWPStore -> IO ()
 analyseProfile mGT s n =
   putStrLn . intercalate "\n" $ (nswpsFile n : (concatMap prnt . nswps . g $ n))
   
-  where g = maybe (const (error "no groundtruth")) setGT mGT :: NSWPStore -> NSWPStore
+  where -- g = maybe (const (error "no groundtruth")) setGT mGT :: NSWPStore -> NSWPStore
+        g = maybe id setGT mGT
         
         prnt :: (GTMR, Map TimeSig NSWProf) -> [String]
         prnt x@(GTMR _ts r, m) = showGTMRProf x : "qbin selections:" 
