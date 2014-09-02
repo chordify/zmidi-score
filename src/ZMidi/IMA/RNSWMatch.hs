@@ -79,6 +79,9 @@ instance (PrintfArg a) => Show (Result a) where
 meterFail :: Result Double -> Double
 meterFail r = 1.0 - meterOk r
 
+-- NOTE: We currently simply calculate the averages, we should also explore
+-- if other evaluation metrics are used in the literature.
+
 -- | aggregates a list of results
 avgResult :: [Result Bool] -> Result Double
 avgResult l = ap (/) (foldr step (Result 0 0 0) l) (Result len len len)
@@ -153,6 +156,9 @@ printGtPMatch (GTMR ts r, m) =
                        , pmFile m
                        ]
 
+-- NOTE we should add a Model parameter that selects a model in matchNSWPStore
+-- We currently use two models: simple and evolved rotation
+-- (see the 2/9/2014 version of the TR)
 
 -- | Matches meter profiles
 matchNSWPStore :: Rotations -> QBinSelection -> [IMAPDF] -> NSWPStore -> [(GTMR, [PMatch])]

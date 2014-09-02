@@ -73,6 +73,8 @@ getRot r t = lookupErr ("QBinSelection.getRot: TimeSig not found "++ show t) r t
                    
 type Rotations = Map TimeSig [(Rot, RPrior)]
   
+-- NOTE: if we use BarRat internally we can probably drop the Rot newtype
+
 -- | The Rotation
 newtype Rot = Rot { rot :: Ratio Int } 
                   deriving ( Eq, Show, Num, Ord, Enum, Real, Read, FromJSON, ToJSON, NFData, Binary )
@@ -94,7 +96,10 @@ instance FromField Rot where
                       -- parse (<Int>)<somthing><Int>
                       _ -> pure $ Rot (num % (fst . pInt $ BC.drop 1 x))
       
-                  
+-- NOTE: if we use BarRat's internally rotating becomes trivial: we can just
+-- add (clockwise) or subtract (counter clockwise) the rotation to get the
+-- new BarRat. We should only check whether the result is > 1 or < 0 
+
 -- | Applies a metrical offset ('Rot') to a ('Beat', 'BeatRat'), basically
 -- "rotating" the profile with this offset. We rotate in a forward direction.
 -- Hence, say that an upbeat of one beat has been missed, we can correct this

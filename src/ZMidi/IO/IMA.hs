@@ -181,6 +181,9 @@ printIMA m = mapM_ (starMeter (ticksPerBeat . qMidiScore $ m))
     showMSE :: Maybe ScoreEvent -> String
     showMSE = maybe "    " (show . pitch) 
     
+-- NOTE: for the plotting of profiles it would be good to revive the 
+-- time-signature and rotation CLI arguments. 
+    
 -- Analyses a MidiFile verbosely by printing the spectral weight profiles
 analyseProfile :: Maybe [GTInfo] -> QBinSelection -> NSWPStore -> IO ()
 analyseProfile mGT s n =

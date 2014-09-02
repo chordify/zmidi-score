@@ -14,6 +14,9 @@ import Data.Ratio            ( (%) )
 -- Bar & Beat position
 --------------------------------------------------------------------------------
 
+-- NOTE: It is probably a good idea use a BarRat internally instead of a 
+-- (Beat, BeatRat) because this makes rotations much more intuitive.
+
 -- Within a 'MidiScore' we can musically describe every (quantised)
 -- position in time in 'Bar', Beat, and 'BarRat'. Therefore, we need the 
 -- 'TimeSig'nature, the length of a beat ('TPB', in ticks), and the actual
