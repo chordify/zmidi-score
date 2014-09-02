@@ -69,10 +69,10 @@ data Result a = Result { meterOk :: a
                        , bothOk  :: a
                        } deriving (Eq, Functor)
 
-instance Show a => Show (Result a) where
-  show (Result a b c) =    "meter OK:    " ++ show a 
-                      ++ "\nrotation OK: " ++ show b
-                      ++ "\nboth OK:     " ++ show c
+instance (PrintfArg a) => Show (Result a) where
+  show (Result a b c) =  printf   "meter OK:    %.2f (%.8f)" a a 
+                      ++ printf "\nrotation OK: %.2f (%.8f)" b b
+                      ++ printf "\nboth OK:     %.2f (%.8f)" c c
 
 -- | Returns 1 - the results. (It is assumed, but not checked that resultOk
 -- returns the percentage of the cases in which the meter is correct)
