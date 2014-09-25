@@ -253,6 +253,7 @@ instance NFData MidiFormat    where rnf a = a `seq` ()
 --------------------------------------------------------------------------------
 instance ToJSON Beat
 instance ToJSON BeatRat
+instance ToJSON BarRat
 
 instance (Integral a, ToJSON a) => ToJSON (Ratio a) where
      toJSON r = object [pack "num" .= numerator r, pack "den" .= denominator r]  
@@ -263,6 +264,7 @@ instance ToJSON (TimeSig) where
 
 instance FromJSON Beat
 instance FromJSON BeatRat
+instance FromJSON BarRat
      
 instance (Integral a, FromJSON a) => FromJSON (Ratio a) where
      parseJSON (Object v) = (%) <$> v .: (pack "num") <*> v .: (pack "den")

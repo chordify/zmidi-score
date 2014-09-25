@@ -125,7 +125,7 @@ main = do arg <- parseArgsIO ArgsComplete myArgs
                      readJSON :: IO (Map TimeSig [(Rot, RPrior)])
               p' = getOptReq arg FitFilepath "no GMM fit file found" readPDFs
               s' = getOptReq arg SelProfFilepath "no IMA Profile bin selection file found" 
-                     readJSON :: IO (Map TimeSig [(Beat, BeatRat)])
+                     readJSON :: IO (Map TimeSig [BarRat])
 
           g <- maybeReadGT $ getArg arg GTFilepath :: IO (Maybe [GTInfo])
           

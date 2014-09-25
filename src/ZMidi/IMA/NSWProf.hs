@@ -65,12 +65,13 @@ updateGT g n = n { nswps = zipWith (\t x -> first (const t) x) (gtMeters g) (nsw
                        
 
 -- | Normalised Spectral Weight Profiles
-newtype SWProf = SWProf {swprof :: (NrOfBars, Map (Beat, BeatRat) SWeight)}
+newtype SWProf = SWProf {swprof :: (NrOfBars, Map BarRat SWeight)}
                     deriving ( Eq, Binary, Show )
 
 
 -- | Normalised Spectral Weight Profiles
-newtype NSWProf = NSWProf {nswprof :: (NrOfBars, Map (Beat, BeatRat) NSWeight)}
+-- newtype NSWProf = NSWProf {nswprof :: (NrOfBars, Map (Beat, BeatRat) NSWeight)}
+newtype NSWProf = NSWProf {nswprof :: (NrOfBars, Map BarRat NSWeight)}
                     deriving ( Eq, Binary )
                     
 instance Show NSWProf where
@@ -79,10 +80,10 @@ instance Show NSWProf where
     where hdr = "Bars: " ++ show (nrOfBars bars)
           mx  = maxVal 0 m 
     
-          shw :: (Beat, BeatRat) -> NSWeight -> [String] -> [String]
-          shw (Beat b, BeatRat br) w r = 
-            let x = w in printf ("%1d - %2d / %2d: %.5f " ++ stars (x / mx)) 
-                           b (numerator br) (denominator br) x : r
+          shw :: BarRat -> NSWeight -> [String] -> [String]
+          shw (BarRat br) w r = 
+            let x = w in printf (" %2d / %2d: %.5f " ++ stars (x / mx)) 
+                           (numerator br) (denominator br) x : r
 
 -- | Stores the number of bars
 newtype NrOfBars = NrOfBars  { nrOfBars :: Int }

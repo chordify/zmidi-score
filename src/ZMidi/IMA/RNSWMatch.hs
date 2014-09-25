@@ -179,7 +179,7 @@ matchNSWPStore rs s pdfs (NSWPStore q i fp) = map matchSeg i
         -- Calculates the match for all rotations  
         getRotProb :: NSWProf -> (Rot, RPrior) -> TimeSig -> IMAPDF -> PMatch
         getRotProb pf (r,rp) ts ip = 
-          let d  = toDoubles $ toRNSWProfWithTS q r ts s pf
+          let d  = toDoubles $ toRNSWProfWithTS r ts s pf
               p  = NSWDist $ log (pdfPrior ip) + log (pdf ip d) + log (rprior rp)
               -- p  = NSWDist $ log (pdf ip d) + log (rprior rp)
           in PMatch ts p r rp q fp

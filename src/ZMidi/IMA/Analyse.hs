@@ -65,8 +65,9 @@ toSWProfWithTS ts tb td = foldl' toProf (SWProf (1, empty)) td
 
   where toProf :: SWProf -> Timed (Maybe ScoreEvent, SWeight) -> SWProf
         toProf (SWProf (_b, m)) (Timed g (_se,w)) = 
-          let (Bar br, bib, bt) = getBeatInBar ts tb g 
-              m'                = insertWith (+) (bib,bt) w m 
+          let -- (Bar br, bib, bt) = getBeatInBar ts tb g 
+              (Bar br, rat) = getBarRat ts tb g
+              m'            = insertWith (+) rat w m 
               -- Every iteration we update the number of bars (lazily) 
               -- Hence, the last call to toProf will contain the final 
               -- number of bars correctly

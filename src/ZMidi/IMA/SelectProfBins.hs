@@ -12,10 +12,9 @@ module ZMidi.IMA.SelectProfBins ( getSel
                                 where
 
 import ZMidi.Score.Datatypes         -- ( TimeSig (..) , Beat(..) , BeatRat (..) )
-import ZMidi.Score.Quantise           ( QBins (..) )
 import ZMidi.IMA.Internal             ( lookupErr )
 import ZMidi.IMA.NSWProf
-import ZMidi.IMA.Rotations            ( Rot (..), rotate )
+import ZMidi.IMA.Rotations            ( Rot (..), rotate' )
 import ZMidi.IMA.GTInfo               ( GTMR (..) )
 import Data.List                      ( sort, sortBy )
 import Data.Foldable                  ( foldrM )
@@ -32,33 +31,33 @@ import Control.Arrow                  ( second )
 
                    
 -- | A selection of the SWProf bins with the strongest weights                     
-type QBinSelection = Map TimeSig [(Beat, BeatRat)]
+type QBinSelection = Map TimeSig [BarRat]
         
-getSel :: QBinSelection -> TimeSig -> [(Beat, BeatRat)]
+getSel :: QBinSelection -> TimeSig -> [BarRat]
 getSel s t = lookupErr ("QBinSelection.getSel: TimeSig not found "++ show t) s t
 
 -- removes all bins from an 'NSWProf' that are not specified in a 'QBinSelection'
-filterBin :: QBins -> Rot -> QBinSelection -> TimeSig -> NSWProf -> NSWProf 
-filterBin q r s ts = NSWProf . second (filterWithKey f) . nswprof
+filterBin :: Rot -> QBinSelection -> TimeSig -> NSWProf -> NSWProf 
+filterBin r s ts = NSWProf . second (filterWithKey f) . nswprof
 
-  where l = map (rotate q ts r) . getSel s $ ts 
+  where l = map (rotate' r) . getSel s $ ts 
         
-        f :: (Beat, BeatRat) -> a -> Bool
+        f :: BarRat -> a -> Bool
         f k _ = k `elem` l
 
 -- Given a selection, time signature selects the selected bins from a 'NSWProf'
 -- and returns them in a list. If the selected bin is not present in the 
 -- profile 0 is returned
-filterToList ::QBins -> Rot -> QBinSelection -> TimeSig -> NSWProf -> [NSWeight]
-filterToList q r s ts (NSWProf (_,p)) = map fnd . fromJust . M.lookup ts $ s
+filterToList :: Rot -> QBinSelection -> TimeSig -> NSWProf -> [NSWeight]
+filterToList r s ts (NSWProf (_,p)) = map fnd . fromJust . M.lookup ts $ s
   
-  where fnd :: (Beat, BeatRat) -> NSWeight
+  where fnd :: BarRat -> NSWeight
         -- N.B. NSWeight is a log of the SWeight, we apply laplacian 
         -- smoothing with alpha is 1, log 1 = 0. See NSWProf.normSWProfByBar
         
         -- TODO: unify the alpha parameter!
         
-        fnd k = findWithDefault (NSWeight 0) (rotate q ts r k) p
+        fnd k = findWithDefault (NSWeight 0) (rotate' r k) p
 
 --------------------------------------------------------------------------------
 -- Create a QBinSelection based on the most heaviest bins
@@ -87,7 +86,7 @@ sumNSWProf m n = foldrM doProf m $ nswps n where
 selectQBins :: Int -> Map TimeSig NSWProf -> QBinSelection
 selectQBins bs = M.map select where
 
-  select :: NSWProf -> [(Beat, BeatRat)]
+  select :: NSWProf -> [BarRat]
   select = sort . map fst                   -- and sort in regular order
          . take bs                          -- select 
          . sortBy (comparing (Down . snd))  -- sort by weight

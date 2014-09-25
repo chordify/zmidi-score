@@ -8,6 +8,7 @@ module ZMidi.IMA.Rotations ( -- * Rotations
                            , stdRotations
                            , threePerNum
                            , normPriors
+                           , rotate'
                            , rotate
                            -- , normPriorsPerTS
                            , showRotations
@@ -19,7 +20,7 @@ import ZMidi.IMA.Internal             ( lookupErr )
 import ZMidi.IMA.Constants            ( acceptedTimeSigs )
 import Data.List                      ( intercalate )
 import Data.Csv                       ( FromField (..) )
-import Data.Ratio                     ( (%), Ratio) 
+import Data.Ratio                     ( (%), Ratio, denominator, numerator) 
 import qualified Data.Map.Strict as M ( map, foldr )
 import Data.Map.Strict                ( Map, empty,  insert, foldrWithKey )
 import Data.ByteString.Char8          ( readInt, ByteString )
@@ -99,6 +100,17 @@ instance FromField Rot where
 -- NOTE: if we use BarRat's internally rotating becomes trivial: we can just
 -- add (clockwise) or subtract (counter clockwise) the rotation to get the
 -- new BarRat. We should only check whether the result is > 1 or < 0 
+
+-- | Rotates a BarRat clockwise
+-- TODO: remove the positivity check, as we don't use any negative rotations
+rotate' :: Rot -> BarRat -> BarRat 
+rotate' (Rot r) (BarRat b) 
+  | d >= 0 && d <= 1 && r < 1 = BarRat m 
+  | otherwise                 = error ("rotate: invalid rotation " ++ show r)
+      where (d,m) = ratDivMod (b + r) 
+                               
+ratDivMod :: Integral a => Ratio a -> (a, Ratio a)
+ratDivMod r = let d = denominator r in second (% d) (numerator r `divMod` d)
 
 -- | Applies a metrical offset ('Rot') to a ('Beat', 'BeatRat'), basically
 -- "rotating" the profile with this offset. We rotate in a forward direction.

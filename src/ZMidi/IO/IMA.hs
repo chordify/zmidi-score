@@ -75,11 +75,11 @@ readNSWPStoreGeneric f =
 
 -- | Processes a MidiFile, calculates the RNSWProf and writes it to a file
 -- as CSV 
-exportCSVProfs :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> FilePath -> IO ()
+exportCSVProfs :: QBinSelection -> FilePath -> FilePath -> IO ()
 exportCSVProfs s o i =   readNSWPStoreGeneric i 
                      >>= either (warning i) (BL.appendFile o) . (>>= toCSV s)
     
-writeCSVHeader :: Map TimeSig [(Beat, BeatRat)] -> FilePath -> IO ()
+writeCSVHeader :: QBinSelection -> FilePath -> IO ()
 writeCSVHeader m out = writeFile out . genHeader $ m
 
 --------------------------------------------------------------------------------
@@ -198,6 +198,6 @@ analyseProfile mGT s n =
         
           where select :: TimeSig -> NSWProf -> [String] -> [String]
                 select t p y = ("TimeSig:" ++ show t) 
-                             : (show $ filterBin (nswpsQBins n) r s t p) : y
+                             : (show $ filterBin r s t p) : y
                                 
        
