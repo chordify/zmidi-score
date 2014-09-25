@@ -17,12 +17,18 @@ cabal-version:       >=1.8
 
 library
   exposed-modules:     ZMidi.Score
+                       ZMidi.Score.BarBeatPos
                        ZMidi.Score.Datatypes
-                       ZMidi.Score.ToMidiScore
-                       ZMidi.Score.ToMidiFile
                        ZMidi.Score.Quantise
+                       ZMidi.Score.Show
+                       ZMidi.Score.ToMidiFile
+                       ZMidi.Score.ToMidiScore
+                       ZMidi.Score.Utilities
+                       
   hs-source-dirs:      src
-  -- other-modules:       
+  
+  other-modules:       ZMidi.Score.Internal
+  
   build-depends:       base >= 4.4 && < 4.8, 
                        zmidi-core ==0.7.*, 
                        mtl ==2.1.*, 
