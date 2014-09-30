@@ -2,6 +2,17 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
+-- |
+-- Module      :  ZMidi.Score.Datatypes
+-- Copyright   :  (c) 2012--2014, Utrecht University 
+-- License     :  LGPL-3
+--
+-- Maintainer  :  W. Bas de Haas <w.b.dehaas@uu.nl>
+-- Stability   :  experimental
+-- Portability :  non-portable
+--
+-- Summary: a simple score representation derived from a MidiFile (as parsed
+-- by the ZMidi.Core library: https://hackage.haskell.org/package/zmidi-core
 module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                                MidiScore (..)
                              , Key (..)

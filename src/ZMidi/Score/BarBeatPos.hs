@@ -1,3 +1,13 @@
+-- |
+-- Module      :  ZMidi.Score.BarBeatPos
+-- Copyright   :  (c) 2012--2014, Utrecht University 
+-- License     :  LGPL-3
+--
+-- Maintainer  :  W. Bas de Haas <w.b.dehaas@uu.nl>
+-- Stability   :  experimental
+-- Portability :  non-portable
+--
+-- Summary: Functions for representing MIDI time musically.
 module ZMidi.Score.BarBeatPos ( getBeatInBar
                               , getBarRat
                               , toRatInBeat

@@ -2,7 +2,7 @@
 --------------------------------------------------------------------------------
 -- |
 -- Module      :  ZMidi.Score.ToMidiScore
--- Copyright   :  (c) 2012--2014 Utrecht University 
+-- Copyright   :  (c) 2012--2014, Utrecht University 
 -- License     :  LGPL-3
 --
 -- Maintainer  :  W. Bas de Haas <w.b.dehaas@uu.nl>
