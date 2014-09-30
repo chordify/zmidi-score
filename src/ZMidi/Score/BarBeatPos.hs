@@ -17,11 +17,10 @@ import Data.Ratio            ( (%) )
 -- NOTE: It is probably a good idea use a BarRat internally instead of a 
 -- (Beat, BeatRat) because this makes rotations much more intuitive.
 
--- Within a 'MidiScore' we can musically describe every (quantised)
+-- | Within a 'MidiScore' we can musically describe every (quantised)
 -- position in time in 'Bar', Beat, and 'BarRat'. Therefore, we need the 
 -- 'TimeSig'nature, the length of a beat ('TPB', in ticks), and the actual
 -- 'Time' stamp.
--- TODO move these newtypes to the Quantise module?
 getBeatInBar :: TimeSig -> TPB -> Time -> (Bar, Beat, BeatRat)
 getBeatInBar NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
 getBeatInBar (TimeSig num _den _ _) t o = 
@@ -45,7 +44,7 @@ getBarRat (TimeSig num den _ _) (TPB t) (Time o) =
       br         = ((bib * t) + rest) % (den * t) 
   in (Bar (succ b), BarRat br)
 
--- toRatInBeat allows us to convert a 'BarRat' into a ('Beat','BeatRat')
+-- | toRatInBeat allows us to convert a 'BarRat' into a ('Beat','BeatRat')
 toRatInBeat :: TimeSig -> BarRat -> (Beat, BeatRat)
 toRatInBeat ts br = countBeat (Beat 0, BeatRat . barRat $ br)
   

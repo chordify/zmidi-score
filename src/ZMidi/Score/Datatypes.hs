@@ -81,18 +81,22 @@ data TimeSig    = TimeSig       { tsNum      :: Int
 -- | A 'Voice' is a list of 'ScoreEvent's that have time stamps.
 type Voice      = [Timed ScoreEvent]
 
+-- | The MIDI Channel as stored in the MIDI file
 newtype Channel = Channel {channel :: Word8 }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, NFData )
 
+-- | Pitch is represented by a 'PitchClass' and an 'Octave' 
 newtype Pitch   = Pitch   ( Octave, PitchClass ) 
                     deriving ( Eq, Ord, Binary, NFData, Generic )
                     
+-- | Represents a musical octave
 newtype Octave   = Octave { octave :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData, Generic )
 -- | A Pitch class representation (there is no check for values > 11)
 newtype PitchClass = PitchClass { pitchclass :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData, Generic )
 
+-- | Represents a musical interval
 newtype Interval   = Interval { interval :: Int }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData, Generic )
                     
@@ -104,7 +108,7 @@ newtype Velocity = Velocity { velocity :: Word8 }
 newtype Time    = Time { time :: Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData, Generic )
 
--- | A Bar counter
+-- | A Bar counter used to interpret a MIDI 'Time' stamp
 newtype Bar     = Bar  { bar  :: Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData, Generic )
                     
@@ -124,10 +128,13 @@ newtype BarRat  = BarRat  { barRat  :: Ratio Int }
 newtype TPB     = TPB { tpb :: Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData, Generic )
                     
+-- | Adds MIDI 'Time' information to a datatype
 data Timed a    = Timed         { onset       :: Time 
                                 , getEvent    :: a
                                 } deriving (Functor, Eq, Ord, Generic)
-                                
+
+-- | Within ZMidi.Score we represent four score events: a note, a key change, 
+-- a time signature or a tempo change
 data ScoreEvent = NoteEvent     { chan        :: Channel
                                 , pitch       :: Pitch
                                 , velo        :: Velocity

@@ -1,6 +1,18 @@
 {-# OPTIONS_GHC -Wall                   #-}
+--------------------------------------------------------------------------------
+-- |
+-- Module      :  ZMidi.Score.ToMidiScore
+-- Copyright   :  (c) 2012--2014 Utrecht University 
+-- License     :  LGPL-3
+--
+-- Maintainer  :  W. Bas de Haas <w.b.dehaas@uu.nl>
+-- Stability   :  experimental
+-- Portability :  non-portable
+--
+-- Summary: Transforms a raw ZMidi MidiFile into a more high-level MidiScore
+-- representation
+--------------------------------------------------------------------------------
 module ZMidi.Score.ToMidiScore ( midiFileToMidiScore ) where
-
 
 import Data.Word           ( Word8 )
 import Data.Maybe          ( catMaybes )
@@ -60,7 +72,7 @@ midiFileToMidiScore mf = MidiScore (select isKeyChange keyChange NoKey meta)
                     (TPB b ) -> fromIntegral b
     
     
--- Transforms a 'MidiTrack' into a 'Voice'
+-- | Transforms a 'MidiTrack' into a 'Voice'
 midiTrackToVoice :: MidiTrack -> Voice
 midiTrackToVoice m = 
   sortBy (comparing onset) . catMaybes 
