@@ -81,7 +81,7 @@ data Key        = Key           { keyRoot    :: Int8
                                 } 
                 | NoKey           deriving (Eq, Ord, Generic)
                
--- | A 'TimeSig'nature has a fraction, e.g. 4/4, 3/4, or 6/8.
+-- | A 'TimeSig'nature has a fraction, e.g. 4\/4, 3\/4, or 6\/8.
 data TimeSig    = TimeSig       { tsNum      :: Int 
                                 , tsDen      :: Int
                                 , metronome  :: Word8

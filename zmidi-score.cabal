@@ -1,20 +1,21 @@
 name:                zmidi-score
 version:             0.3.0.0
 synopsis:            Representing MIDI a simple score.
-description:         Representing MIDI data as a simple score using the zmidi-core library.
-homepage:            https://bitbucket.org/bash/zmidi-score
+description:         Representing MIDI data as a simple score using the zmidi-core library.  
 license:             LGPL-3
 license-file:        LICENSE
 author:              W. Bas de Haas
 maintainer:          W.B.deHaas@uu.nl
 copyright:           2012--2014, Utrecht University
-license-file:        LICENSE
 category:            Music
 build-type:          Simple
 tested-with:         GHC == 7.6.1, GHC == 7.8.2
 cabal-version:       >=1.8
 extra-Source-Files:  README.md CHANGELOG.md
-
+source-repository head
+  type:              git
+  location:          https://bitbucket.org/bash/zmidi-score
+  
 library
   exposed-modules:     ZMidi.Score
                        ZMidi.Score.BarBeatPos
