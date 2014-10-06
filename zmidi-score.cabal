@@ -2,6 +2,7 @@ name:                zmidi-score
 version:             0.3.0.0
 synopsis:            Representing MIDI a simple score.
 description:         Representing MIDI data as a simple score using the zmidi-core library.
+homepage:            https://bitbucket.org/bash/zmidi-score
 license:             LGPL-3
 license-file:        LICENSE
 author:              W. Bas de Haas
