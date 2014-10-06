@@ -10,7 +10,7 @@
 -- Portability :  non-portable
 --
 -- Summary: converting a 'MidiScore' into a ZMidi.Core.MidiFile 
--- (see: https://hackage.haskell.org/package/zmidi-core ).
+-- (see: <https://hackage.haskell.org/package/zmidi-core> ).
 module ZMidi.Score.ToMidiFile ( midiScoreToMidiFile ) where
 
 import Data.Maybe          ( mapMaybe )

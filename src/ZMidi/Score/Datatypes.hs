@@ -12,7 +12,7 @@
 -- Portability :  non-portable
 --
 -- Summary: a simple score representation derived from a MidiFile (as parsed
--- by the ZMidi.Core library: https://hackage.haskell.org/package/zmidi-core
+-- by the ZMidi.Core library: <https://hackage.haskell.org/package/zmidi-core>
 module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                                MidiScore (..)
                              , Key (..)

@@ -8,10 +8,12 @@ license-file:        LICENSE
 author:              W. Bas de Haas
 maintainer:          W.B.deHaas@uu.nl
 copyright:           2012--2014, Utrecht University
+license-file:        LICENSE
 category:            Music
 build-type:          Simple
 tested-with:         GHC == 7.6.1, GHC == 7.8.2
 cabal-version:       >=1.8
+extra-Source-Files:  README.md CHANGELOG.md
 
 library
   exposed-modules:     ZMidi.Score

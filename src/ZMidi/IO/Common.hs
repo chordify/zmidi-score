@@ -68,7 +68,7 @@ mapDir f fp = do fs  <- getCurDirectoryContents fp
                  res <- parallel . map (f . (cin </>)) $ fs 
                  return res
                  
-
+-- | Folds a function to every directory inside a specific directory
 foldrDirInDir :: (FilePath -> b -> IO b) -> b -> FilePath -> IO b
 foldrDirInDir f b fp = 
   do fs  <- getDirectoryContents fp 
@@ -76,7 +76,7 @@ foldrDirInDir f b fp =
      cfp <- canonicalizePath fp
      filterM doesDirectoryExist (fmap (cfp </>) fs)  >>= foldrM f b  
                  
--- | Applies a function to every file/dir in a directory
+-- | Folds a function to every file/dir in a directory
 foldrDir :: (FilePath -> b -> IO b) -> b -> FilePath -> IO b
 foldrDir f b fp = do fs  <- getCurDirectoryContents fp
                      cin <- canonicalizePath fp

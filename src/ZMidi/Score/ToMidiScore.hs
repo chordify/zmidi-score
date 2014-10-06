@@ -9,7 +9,7 @@
 -- Portability :  non-portable
 --
 -- Summary: Transforms a raw ZMidi MidiFile into a more high-level MidiScore
--- representation (see: https://hackage.haskell.org/package/zmidi-core ).
+-- representation (see: <https://hackage.haskell.org/package/zmidi-core> ).
 module ZMidi.Score.ToMidiScore ( midiFileToMidiScore ) where
 
 import Data.Word           ( Word8 )
