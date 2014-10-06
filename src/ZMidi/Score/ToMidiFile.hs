@@ -1,5 +1,16 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+-- |
+-- Module      :  ZMidi.Score.Datatypes
+-- Copyright   :  (c) 2012--2014, Utrecht University 
+-- License     :  LGPL-3
+--
+-- Maintainer  :  W. Bas de Haas <w.b.dehaas@uu.nl>
+-- Stability   :  experimental
+-- Portability :  non-portable
+--
+-- Summary: converting a 'MidiScore' into a ZMidi.Core.MidiFile 
+-- (see: https://hackage.haskell.org/package/zmidi-core ).
 module ZMidi.Score.ToMidiFile ( midiScoreToMidiFile ) where
 
 import Data.Maybe          ( mapMaybe )

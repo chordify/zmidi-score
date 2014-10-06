@@ -2,6 +2,17 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
+-- |
+-- Module      :  ZMidi.Score.ToMidiScore
+-- Copyright   :  (c) 2012--2014, Utrecht University 
+-- License     :  LGPL-3
+--
+-- Maintainer  :  W. Bas de Haas <w.b.dehaas@uu.nl>
+-- Stability   :  experimental
+-- Portability :  non-portable
+--
+-- Summary: some utilities for manipulating and extracting information from
+-- 'MidiFile's.
 module ZMidi.Score.Utilities ( 
                              -- * Minimum length calculation
                                TickMap
@@ -48,6 +59,8 @@ import qualified Data.IntMap.Lazy  as M    ( empty )
 -- Analysing durations
 --------------------------------------------------------------------------------
 
+-- | A 'TickMap' is basically a histogram of IOI counts of a piece (of all 
+-- voices)
 type TickMap = IntMap Time
 
 -- | The Inter Onset Interval that is the greatest common divider. It can be
@@ -57,6 +70,7 @@ gcIOId tm = case keys $ tm of
   [] -> 0
   l  -> Time . foldr1 gcd $ l
 
+-- | builds a 'TickMap'.
 buildTickMap :: [Voice] -> TickMap
 buildTickMap = foldr oneVoice M.empty where
 
@@ -162,6 +176,7 @@ toPitch = Pitch . (Octave *** PitchClass) . midiNrToPitch where
 hasTimeSigs :: MidiScore -> Bool
 hasTimeSigs = not . null . filter (not . (== NoTimeSig) . getEvent) . getTimeSig
 
+-- | Updates a time signature, or returns a warning if the update fails
 updateTimeSig :: MidiScore -> Timed TimeSig -> Timed TimeSig 
               -> Either String MidiScore
 updateTimeSig ms old new
@@ -173,14 +188,16 @@ updateTimeSig ms old new
 --------------------------------------------------------------------------------
 -- Some MidiFile utilities
 --------------------------------------------------------------------------------
-
+-- | Returns True if the MidiTrack is non-empty
 hasNotes :: MidiTrack -> Bool
 hasNotes = isJust . find isNoteOnEvent . getTrackMessages 
 
+-- | Returns True if the 'MidiMessage' is a NoteOn event.
 isNoteOnEvent :: MidiMessage -> Bool
 isNoteOnEvent (_, (VoiceEvent _ (NoteOn _ _ _))) = True
 isNoteOnEvent _                                  = False
 
+-- | Removes the track labels from a 'MidiFile'
 removeLabels :: MidiFile -> MidiFile
 removeLabels f = f { mf_tracks = map filterLab . mf_tracks $ f } where
   

@@ -1,6 +1,16 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveGeneric              #-}
+-- |
+-- Module      :  ZMidi.Score.Quantise
+-- Copyright   :  (c) 2012--2014, Utrecht University 
+-- License     :  LGPL-3
+--
+-- Maintainer  :  W. Bas de Haas <w.b.dehaas@uu.nl>
+-- Stability   :  experimental
+-- Portability :  non-portable
+--
+-- Summary: Functions for quantising a 'MidiScore'
 module ZMidi.Score.Quantise ( -- * Quantisation specific datatypes
                               QMidiScore (..)
                             , ShortestNote (..)
@@ -93,16 +103,21 @@ newtype QDevPerc = QDevPerc { qDevPerc :: Double }
 quantise :: MidiScore -> QMidiScore
 quantise = either error id . quantiseSafe shortestNote
 
+-- | Quantises a 'MidiScore' or returns a warning if the quantisation deviation
+-- exceeds the 'acceptableQuantisationDeviation'.
 quantiseQDevSafe :: MidiScore -> Either String QMidiScore
 quantiseQDevSafe ms = quantiseSafe shortestNote ms >>= qDevCheck
 
+-- | Checks if a 'QMidiScore' exceeds the 'acceptableQuantisationDeviation'
+-- and return the 'QMidiScore' or a warning.
 qDevCheck :: QMidiScore -> Either String QMidiScore
 qDevCheck qm | d < acceptableQuantisationDeviation = Right qm
              | otherwise = Left ("the average quantisation deviation is above "
                                  ++ printf "allowed deviation: %.3f < %.3f" 
                                       d acceptableQuantisationDeviation )
                  where d = avgQDevQMS qm
-                 
+
+-- | calculating the average quantisation deviation                 
 avgQDevQMS :: QMidiScore -> QDevPerc
 avgQDevQMS qm = avgQDev (qGridUnit qm) (totDeviation qm) 
                         (nrOfNotes . qMidiScore $ qm)

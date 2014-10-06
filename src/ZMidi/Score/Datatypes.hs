@@ -74,7 +74,8 @@ data MidiScore  = MidiScore     { -- | The 'Key's of the piece with time stamps
                                   -- | The midi 'Voice's
                                 , getVoices  :: [Voice]
                                 } deriving (Eq, Show, Generic)
-                     
+
+-- | Represents a musical key
 data Key        = Key           { keyRoot    :: Int8
                                 , keyMode    :: MidiScaleType
                                 } 

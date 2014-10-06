@@ -1,5 +1,4 @@
 {-# OPTIONS_GHC -Wall                   #-}
---------------------------------------------------------------------------------
 -- |
 -- Module      :  ZMidi.Score.ToMidiScore
 -- Copyright   :  (c) 2012--2014, Utrecht University 
@@ -10,8 +9,7 @@
 -- Portability :  non-portable
 --
 -- Summary: Transforms a raw ZMidi MidiFile into a more high-level MidiScore
--- representation
---------------------------------------------------------------------------------
+-- representation (see: https://hackage.haskell.org/package/zmidi-core ).
 module ZMidi.Score.ToMidiScore ( midiFileToMidiScore ) where
 
 import Data.Word           ( Word8 )

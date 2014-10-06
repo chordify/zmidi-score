@@ -1,25 +1,35 @@
 {-# OPTIONS_GHC -Wall                #-}
 {-# LANGUAGE TupleSections           #-}
+-- |
+-- Module      :  ZMidi.IO.Common
+-- Copyright   :  (c) 2012--2014, Utrecht University 
+-- License     :  LGPL-3
+--
+-- Maintainer  :  W. Bas de Haas <w.b.dehaas@uu.nl>
+-- Stability   :  experimental
+-- Portability :  non-portable
+--
+-- Summary: Some common IO utilities
 module ZMidi.IO.Common (-- * Mapping
-                      mapDirInDir
-                    , mapDir
-                    , mapDir_
-                    -- * Folding
-                    , foldrDirInDir
-                    , foldrDir
-                    -- * Reading and Writing
-                    , readMidiFile
-                    , readMidiScoreSafe
-                    , readQMidiScoreSafe
-                    , readMidiScore
-                    , readQMidiScore
-                    , writeMidiScore
-                    -- * Utilities
-                    , logDuplicates
-                    , removeTrackLabels
-                    , putErrStrLn
-                    , warning
-                    )where
+                         mapDirInDir
+                       , mapDir
+                       , mapDir_
+                       -- * Folding
+                       , foldrDirInDir
+                       , foldrDir
+                       -- * Reading and Writing
+                       , readMidiFile
+                       , readMidiScoreSafe
+                       , readQMidiScoreSafe
+                       , readMidiScore
+                       , readQMidiScore
+                       , writeMidiScore
+                       -- * Utilities
+                       , logDuplicates
+                       , removeTrackLabels
+                       , putErrStrLn
+                       , warning
+                       )where
                     
 import ZMidi.Core         ( MidiFile (..), readMidi, writeMidi )
 import ZMidi.Score        ( MidiScore (..), midiFileToMidiScore

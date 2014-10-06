@@ -1,6 +1,16 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveGeneric              #-}
+-- |
+-- Module      :  ZMidi.Score.Show
+-- Copyright   :  (c) 2012--2014, Utrecht University 
+-- License     :  LGPL-3
+--
+-- Maintainer  :  W. Bas de Haas <w.b.dehaas@uu.nl>
+-- Stability   :  experimental
+-- Portability :  non-portable
+--
+-- Summary: functions for representing a 'MidiScore' as text.
 module ZMidi.Score.Show ( showMidiScore
                         , showVoices
                         ) where
@@ -17,7 +27,7 @@ import Text.Printf         ( printf )
 -- Printing MidiScores
 --------------------------------------------------------------------------------
 
--- Show a MidiScore in a readable way
+-- | Show a MidiScore in a readable way
 showMidiScore :: MidiScore -> String
 showMidiScore ms@(MidiScore k ts tb mf tp st _vs) = "Key: "      ++ show k 
                                      ++ "\nMeter: "  ++ show ts
@@ -27,7 +37,7 @@ showMidiScore ms@(MidiScore k ts tb mf tp st _vs) = "Key: "      ++ show k
                                      ++ "\nShortest tick: "   ++ show st
                                      ++ "\nNotes:\n" ++ showVoices ms
 
--- Shows the voices in a MidiScore in a readable way, but this function
+-- | Shows the voices in a MidiScore in a readable way, but this function
 -- only works for monophonic channels. TODO: fix
 showVoices :: MidiScore -> String
 showVoices ms = intercalate "\n" $ evalState (showTimeSlice . getVoices $ ms) 0 

@@ -1,3 +1,13 @@
+-- |
+-- Module      :  ZMidi.Score
+-- Copyright   :  (c) 2012--2014, Utrecht University 
+-- License     :  LGPL-3
+--
+-- Maintainer  :  W. Bas de Haas <w.b.dehaas@uu.nl>
+-- Stability   :  experimental
+-- Portability :  non-portable
+--
+-- Summary: this module exports all modules inside ZMidi.Score
 module ZMidi.Score 
   ( module ZMidi.Score.Datatypes
   , module ZMidi.Score.ToMidiScore
