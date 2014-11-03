@@ -43,15 +43,16 @@ getRatInBeat :: TPB -> Time -> (Beat, BeatRat)
 getRatInBeat (TPB t) (Time o) = 
   ((Beat) *** (BeatRat . (% t))) (o `divMod` t)
 
+
 -- | Similar to 'getBeatInBar' we can also describe the musical position as the
 -- combination of a 'Bar' and a 'BarRat'. The latter denotes the ratio within 
 -- a bar, e.g. BarRat (3 % 4) denotes the 4th 'Beat' in the bar.
 getBarRat :: TimeSig -> TPB -> Time -> (Bar, BarRat)
 getBarRat NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
-getBarRat (TimeSig num den _ _) (TPB t) (Time o) = 
+getBarRat (TimeSig num _den _ _) (TPB t) (Time o) = 
   let (bt, rest) = o `divMod` t 
       (b , bib)  = bt `divMod` num 
-      br         = ((bib * t) + rest) % (den * t) 
+      br         = ((bib * t) + rest) % (num * t) 
   in (Bar (succ b), BarRat br)
 
 -- | toRatInBeat allows us to convert a 'BarRat' into a ('Beat','BeatRat')
@@ -70,5 +71,5 @@ toRatInBeat ts br = countBeat (Beat 0, BeatRat . barRat $ br)
 -- the position of the second quarter note within a 4/4 meter
 toBarRat :: QBins -> TimeSig -> (Beat, BeatRat) -> BarRat
 toBarRat _ NoTimeSig _ = error "toBarRat applied to noTimeSig"
-toBarRat q@(QBins x) (TimeSig _n d _ _) (Beat b, BeatRat r) = 
-           BarRat (((pred b * x) + getNumForQBins q r) % (x * d))
+toBarRat q@(QBins x) (TimeSig num _den _ _) (Beat b, BeatRat r) = 
+           BarRat (((pred b * x) + getNumForQBins q r) % (x * num))
