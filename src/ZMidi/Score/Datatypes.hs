@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wall                   #-}
+{-# OPTIONS_GHC -fno-warn-orphans       #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}

@@ -34,7 +34,7 @@ module ZMidi.IO.Common (-- * Mapping
 import ZMidi.Core         ( MidiFile (..), readMidi, writeMidi )
 import ZMidi.Score        ( MidiScore (..), midiFileToMidiScore
                           , midiScoreToMidiFile, removeLabels, QMidiScore (..)
-                          , quantiseQDevSafe, quantise )
+                          , quantiseQDevSafe, QOpts )
 import Control.Monad      ( filterM, void )
 import System.Directory   ( getDirectoryContents, canonicalizePath
                           , doesDirectoryExist )
@@ -90,8 +90,9 @@ foldrDir f b fp = do fs  <- getCurDirectoryContents fp
 -- | Reads a 'MidiFile' using 'readMidiScoreSafe', 'quantise'es the result
 -- and checks if the 'MidiScore' has a reasonable average quantisation deviation
 -- (see 'QDevPerc')
-readQMidiScoreSafe :: FilePath -> IO (Either String QMidiScore)
-readQMidiScoreSafe f = readMidiScoreSafe f >>= return . (>>= quantiseQDevSafe)
+readQMidiScoreSafe :: QOpts -> FilePath -> IO (Either String QMidiScore)
+readQMidiScoreSafe qo f =   readMidiScoreSafe f 
+                        >>= return . (>>= quantiseQDevSafe qo)
 
 -- | Reads a 'MidiFile' converts it into a 'MidiScore' and checks if the 
 -- 'MidiScore' has a reasonable average quantisation deviation (see 'QDevPerc')
@@ -101,8 +102,9 @@ readMidiScoreSafe f = readMidi f >>= return . either (Left . show)
 -- TODO: maybe solved with an arrow in a nicer way
                                                      
 -- | Reads a 'MidiFile' using 'readMidiScore' but 'quantise'es the result.
-readQMidiScore :: FilePath -> IO (QMidiScore)
-readQMidiScore f = readMidiScore f >>= return . quantise
+readQMidiScore :: QOpts -> FilePath -> IO (QMidiScore)
+readQMidiScore qo f =   readQMidiScoreSafe qo f 
+                    >>= return . either (error . show) id
 
 -- | Reads a 'MidiFile' converts it into a 'MidiScore' and returns it
 readMidiScore :: FilePath -> IO (MidiScore)

@@ -18,6 +18,7 @@ module ZMidi.Score.Quantise ( -- * Quantisation specific datatypes
                             , QBins (..)
                             , QDev (..)
                             , QDevPerc (..)
+                            , QOpts (..)
                               -- * Quantisation functions
                             , quantise
                             , quantiseSafe
@@ -45,24 +46,20 @@ import Control.DeepSeq             ( NFData )
 import Data.Ratio                  ( Ratio, numerator, denominator )
 
 --------------------------------------------------------------------------------
--- Quantisation contants
---------------------------------------------------------------------------------
-
-acceptableQuantisationDeviation :: QDevPerc
-acceptableQuantisationDeviation = 0.02
-
-shortestNote :: ShortestNote
-shortestNote = FourtyEighth
-
---------------------------------------------------------------------------------
 -- Quantisation datatypes
 --------------------------------------------------------------------------------
                       
 -- | QMidiScore wraps around a 'MidiScore' and stores some additional 
 -- information about the quantisation process.
-data QMidiScore = QMidiScore { qMidiScore    :: MidiScore 
+data QMidiScore = QMidiScore { -- | The quantised 'MidiScore'
+                               qMidiScore    :: MidiScore 
+                               -- | The 'ShortestNote' that reflects the number
+                               -- of quantisation bins (see 'toQBins')
                              , qShortestNote :: ShortestNote
+                               -- | The 'GridUnit' describes the minimal length 
+                               -- of a quantised event
                              , qGridUnit     :: GridUnit
+                               -- | The cumulative quantisation deviation
                              , totDeviation  :: QDev
                              } deriving (Show, Eq, Generic)
 instance Binary QMidiScore
@@ -85,8 +82,8 @@ newtype GridUnit  = GridUnit { gridUnit :: Int }
 newtype QBins     = QBins    { qbins    :: Int } 
                       deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, NFData )
 
--- | Represents a quantisation deviation, i.e. the number of ticks that an
--- event was moved to match the time grid.
+-- | Represents a cumulative quantisation deviation, i.e. the number of ticks 
+-- that an event was moved to match the time grid.
 newtype QDev      = QDev     { qDev     :: Int }
                       deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary )
                       
@@ -95,33 +92,43 @@ newtype QDevPerc = QDevPerc { qDevPerc :: Double }
                      deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
                               , Fractional, RealFloat, RealFrac, PrintfArg, Binary )
 
+-- | A datatype to store and collect Quantisation options
+data QOpts = QOpts { shortNoteOpt :: ShortestNote
+                   , accQDevOpt   :: QDevPerc
+                   } deriving (Eq, Show)
+
 --------------------------------------------------------------------------------
--- Quantisation function
+-- Quantisation functions
 --------------------------------------------------------------------------------
                       
 -- | Quantises a 'MidiScore' snapping all events to a 'ShortestNote' grid.
-quantise :: MidiScore -> QMidiScore
-quantise = either error id . quantiseSafe shortestNote
+quantise :: ShortestNote -> MidiScore -> QMidiScore
+quantise sn = either error id . quantiseSafe sn
 
 -- | Quantises a 'MidiScore' or returns a warning if the quantisation deviation
 -- exceeds the 'acceptableQuantisationDeviation'.
-quantiseQDevSafe :: MidiScore -> Either String QMidiScore
-quantiseQDevSafe ms = quantiseSafe shortestNote ms >>= qDevCheck
+quantiseQDevSafe :: QOpts -> MidiScore -> Either String QMidiScore
+quantiseQDevSafe qo ms =   quantiseSafe (shortNoteOpt qo) ms
+                       >>= qDevCheck (accQDevOpt qo)
 
 -- | Checks if a 'QMidiScore' exceeds the 'acceptableQuantisationDeviation'
 -- and return the 'QMidiScore' or a warning.
-qDevCheck :: QMidiScore -> Either String QMidiScore
-qDevCheck qm | d < acceptableQuantisationDeviation = Right qm
-             | otherwise = Left ("the average quantisation deviation is above "
-                                 ++ printf "allowed deviation: %.3f < %.3f" 
-                                      d acceptableQuantisationDeviation )
-                 where d = avgQDevQMS qm
-
+qDevCheck :: QDevPerc -> QMidiScore -> Either String QMidiScore
+qDevCheck aqd qm 
+  | d < aqd = Right qm
+  | otherwise = Left (" ZMidi.Score.Quantise: " ++
+                      "the average quantisation deviation is above " ++
+                      printf "allowed deviation: %.3f < %.3f" d aqd )
+                      
+    where d = avgQDevQMS qm
+    
 -- | calculating the average quantisation deviation                 
 avgQDevQMS :: QMidiScore -> QDevPerc
 avgQDevQMS qm = avgQDev (qGridUnit qm) (totDeviation qm) 
-                        (nrOfNotes . qMidiScore $ qm)
-
+                        (nrOfNotes . qMidiScore $ qm) where
+    
+-- | Calculates the average quantisation deviation per onset. The third
+-- argument is assumed to be the number of notes.
 avgQDev :: GridUnit -> QDev -> Int -> QDevPerc
 avgQDev gu qd nrn = 
   QDevPerc ((fromIntegral qd / fromIntegral nrn) / fromIntegral gu)
@@ -145,8 +152,8 @@ quantiseSafe sn (MidiScore k ts (TPB dv) mf tp _md vs) =
                    -- update the MidiScore
                    ms' = MidiScore k ts' (TPB dv) mf tp md' vs'
                in Right (QMidiScore ms' sn (GridUnit gu) (sum d))
-    _       ->    Left ("MidiFile cannot be quantised: " ++ show dv ++ 
-                        " cannot be divided by " ++ show (toQBins sn))
+    _       ->    Left ("ZMidi.Score.Quantise: MidiFile cannot be quantised: " 
+                    ++ show dv ++ " cannot be divided by " ++ show (toQBins sn))
   
 -- | quantises a 'Timed' event
 snapTimed :: GridUnit -> Timed a -> Timed a
@@ -172,7 +179,7 @@ snap gu t | m == 0  = (t, 0)          -- score event is on the grid
                       -- or closer to the next grid point
                       else let t' = (1+d) * g 
                            in (t', fromIntegral (t' - t )) -- snap forwards
-          | otherwise = error "Negative time stamp found"
+          | otherwise = error "ZMidi.Score.Quantise: Negative time stamp found"
               where (d,m) = t `divMod` g
                     g     = fromIntegral gu
 
@@ -210,7 +217,8 @@ getMinGridSize :: ShortestNote -> MidiScore -> TPB
 getMinGridSize q ms = case (tpb . ticksPerBeat  $ ms) `divMod` 
                            (qbins . toQBins $ q) of
                         (d,0) -> TPB d
-                        _     -> error "getMinGridSize: invalid quantisation"
+                        _     -> error ("ZMidi.Score.Quantise: " ++
+                                        "getMinGridSize: invalid quantisation")
       
 -- | Applies 'toQBins' to the 'ShortestNote' in a 'QMidiScore'
 qToQBins :: QMidiScore -> QBins
