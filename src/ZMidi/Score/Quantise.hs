@@ -213,9 +213,9 @@ removeOverlap = foldr step [] where
 -- | Returns the minimal grid size of a 'MidiScore' if it has been quantised. 
 -- This is the 'ticksPerBeat' divided by the number of quantisation bins.
 -- N.B. this function does not check whether a file is quantised.
-getMinGridSize :: ShortestNote -> MidiScore -> TPB
-getMinGridSize q ms = case (tpb . ticksPerBeat  $ ms) `divMod` 
-                           (qbins . toQBins $ q) of
+getMinGridSize :: QMidiScore -> TPB
+getMinGridSize ms = case (tpb . ticksPerBeat . qMidiScore $ ms) `divMod` 
+                         (qbins . qToQBins $ ms) of
                         (d,0) -> TPB d
                         _     -> error ("ZMidi.Score.Quantise: " ++
                                         "getMinGridSize: invalid quantisation")
