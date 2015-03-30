@@ -69,7 +69,11 @@ data MidiScore  = MidiScore     { -- | The 'Key's of the piece with time stamps
                                   -- | The kind of midi file that created this score
                                 , midiFormat :: MidiFormat
                                   -- | The microseconds per quarter note
-                                , tempo      :: [Timed Time]                                
+                                , tempo      :: [Timed Time]         
+                                  -- TODO the usage of the newtype Time is 
+                                  -- confusing as it does not represent ticks, 
+                                  -- we should use a separate
+                                  -- newtype 'Tempo' or the the like
                                   -- | The minimum note length found.
                                 , minDur     :: Time
                                   -- | The midi 'Voice's
@@ -117,6 +121,7 @@ newtype Interval   = Interval { interval :: Int }
 newtype Velocity = Velocity { velocity :: Word8 }
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, NFData, Generic )
 
+-- TODO: should be renamed into Tick, which is more clear
 -- | Represents MIDI time in ticks
 newtype Time    = Time { time :: Int } 
                     deriving ( Eq, Show, Num, Ord, Enum, Real, Integral, Binary, PrintfArg, NFData, Generic )
