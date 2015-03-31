@@ -18,6 +18,7 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                                MidiScore (..)
                              , Key (..)
                              , TimeSig (..)
+                             , MeterKind (..)
                              , Voice 
                              , Channel (..)
                              , Pitch (..)
@@ -93,6 +94,19 @@ data TimeSig    = TimeSig       { tsNum      :: Int
                                 , nr32ndNotes:: Word8
                                 }
                 | NoTimeSig       deriving (Generic)
+
+-- | Describes the kind of meter in a piece. 
+data MeterKind  = -- | A meter with a numerator that is dividable by two
+                  Duple 
+                  -- | A meter with a numerator dividable by three
+                | Triple 
+                  -- | an ambiguous meter with a numerator dividable both by
+                  -- two and three, e.g. a 12\/8 meter
+                | Both
+                  -- | An odd meter, with a numerator that is dividable 
+                  -- by two or three
+                | Odd deriving (Show, Eq)
+                
 
 -- Note: we could consider adding a Voice label, like there is a track label
 -- | A 'Voice' is a list of 'ScoreEvent's that have time stamps.
