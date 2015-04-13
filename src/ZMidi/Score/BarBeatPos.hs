@@ -24,9 +24,6 @@ import Data.Ratio            ( (%) )
 -- Bar & Beat position
 --------------------------------------------------------------------------------
 
--- NOTE: It is probably a good idea use a BarRat internally instead of a 
--- (Beat, BeatRat) because this makes rotations much more intuitive.
-
 -- | Within a 'MidiScore' we can musically describe every (quantised)
 -- position in time in 'Bar', Beat, and 'BarRat'. Therefore, we need the 
 -- 'TimeSig'nature, the length of a beat ('TPB', in ticks), and the actual
@@ -43,6 +40,14 @@ getRatInBeat :: TPB -> Time -> (Beat, BeatRat)
 getRatInBeat (TPB t) (Time o) = 
   ((Beat) *** (BeatRat . (% t))) (o `divMod` t)
 
+getBarRat' :: Either TimeSig MeterKind -> TPB -> Time -> (Bar, BarRat)
+getBarRat' = undefined
+
+toMultp :: Either TimeSig MeterKind -> Maybe Int
+toMultp m = case m of Left (TimeSig num _den _ _ ) -> Just num
+                      Right d -> case d of Duple  -> Just 2 
+                                           Triple -> Just 3
+                                           _      -> Nothing
 
 -- | Similar to 'getBeatInBar' we can also describe the musical position as the
 -- combination of a 'Bar' and a 'BarRat'. The latter denotes the ratio within 

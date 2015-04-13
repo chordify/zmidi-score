@@ -45,13 +45,13 @@ import Data.Char                  ( toLower )
 import Text.Printf                ( PrintfArg )
 import Data.Aeson                 ( ToJSON (..), FromJSON (..)
                                   , (.=), (.:), Value (..), object)
-import Data.Text                  ( pack )
+import Data.Text                  ( pack, unpack )
 import Data.Binary                ( Binary, Get )
 import qualified Data.Binary as B ( get, put )
 import GHC.Generics               ( Generic )
 import Control.DeepSeq            ( NFData (..) )
 import Control.DeepSeq.Generics   ( genericRnf)
-import Control.Applicative        ( (<$>), (<*>) )
+import Control.Applicative        ( (<$>), (<*>), (<|>) )
 import Control.Monad              ( mzero )
 
 
@@ -105,9 +105,9 @@ data MeterKind  = -- | A meter with a numerator that is dividable by two
                 | Both
                   -- | An odd meter, with a numerator that is dividable 
                   -- by two or three
-                | Odd deriving (Show, Eq)
+                | Odd deriving (Show, Eq, Generic)
                 
-
+                
 -- Note: we could consider adding a Voice label, like there is a track label
 -- | A 'Voice' is a list of 'ScoreEvent's that have time stamps.
 type Voice      = [Timed ScoreEvent]
@@ -210,6 +210,9 @@ instance Show TimeSig where
 
 instance Read TimeSig where 
   readsPrec _ = error "Read TimeSig: implement me"
+
+instance Read MeterKind where 
+  readsPrec _ = error "Read MeterKind: implement me"
   
 instance Show Key where
   show NoKey      = "NoKey"
@@ -249,6 +252,7 @@ showPitch p = case pitchclass p of
 -- Binary instances
 instance Binary MidiScore
 instance Binary TimeSig
+instance Binary MeterKind
 instance Binary ScoreEvent
 instance Binary Key  
 instance (Binary a) => Binary (Timed a)
@@ -281,6 +285,7 @@ instance Binary MidiFormat where
 -- NFData instances
 instance NFData MidiScore  where rnf = genericRnf
 instance NFData TimeSig    where rnf = genericRnf
+instance NFData MeterKind  where rnf = genericRnf
 instance NFData ScoreEvent where rnf = genericRnf
 instance NFData Key        where rnf = genericRnf
 instance NFData a => NFData (Timed a) where rnf = genericRnf
@@ -301,6 +306,12 @@ instance ToJSON (TimeSig) where
      toJSON (TimeSig n d _ _) = object [pack "ts_num" .= n, pack "ts_den" .= d]
      toJSON NoTimeSig         = object [pack "ts" .= pack "none"]     
 
+instance ToJSON MeterKind where
+     toJSON mk = case mk of Duple  -> object [pack "mk" .= pack "dupl"]
+                            Triple -> object [pack "mk" .= pack "trpl"]
+                            Both   -> object [pack "mk" .= pack "both"]
+                            Odd    -> object [pack "mk" .= pack "odd"]
+     
 instance FromJSON Beat
 instance FromJSON BeatRat
 instance FromJSON BarRat
@@ -309,8 +320,28 @@ instance (Integral a, FromJSON a) => FromJSON (Ratio a) where
      parseJSON (Object v) = (%) <$> v .: (pack "num") <*> v .: (pack "den")
      parseJSON _          = mzero
      
+     
+     -- TODO add NoTimeSig case...
 instance FromJSON (TimeSig) where
-     parseJSON (Object v) =  (\n d -> TimeSig n d 0 0) 
-                          <$> v .: (pack "ts_num") <*> v .: (pack "ts_den") 
-                          
+     parseJSON (Object v) =  
+       let ts   = (\n d -> TimeSig n d 0 0) <$> v .: (pack "ts_num") 
+                                            <*> v .: (pack "ts_den") 
+           nots = let f x = case unpack x of
+                              "none" -> NoTimeSig
+                              y -> error ("FromJSON TimeSig: unknown json: " ++ y)
+                  in f <$> v .: (pack "ts")  
+           
+       in ts <|> nots 
      parseJSON _          = mzero
+     
+instance FromJSON MeterKind where
+     parseJSON (Object v) = 
+       let toMK x = case unpack x of 
+                      "dupl" -> Duple
+                      "trpl" -> Triple
+                      "both" -> Both
+                      "odd"  -> Odd
+                      y -> error ("FromJSON MeterKind: unknown json: " ++ y)
+       in toMK <$> v .:  pack "mk"
+     parseJSON _          = mzero
+                                        

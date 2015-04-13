@@ -24,6 +24,8 @@ module ZMidi.Score.Utilities (
                              , isKeyChange
                              , isNoteEvent
                              , toMeterKind
+                             , isOdd
+                             , isAmbig
                              , nrOfNotes
                              , toIOIs
                              , toOnsets
@@ -105,6 +107,13 @@ toMeterKind ts = let n = tsNum ts
                     (_,0) -> Triple
                     _     -> Odd
 
+isOdd :: MeterKind -> Bool
+isOdd Odd = True
+isOdd _   = False
+
+isAmbig :: MeterKind -> Bool
+isAmbig Both = True
+isAmbig _    = False
 
 -- | Returns the number of 'ScoreEvent's in a 'MidiScore'
 nrOfNotes :: MidiScore -> Int
