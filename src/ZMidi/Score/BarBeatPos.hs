@@ -40,22 +40,15 @@ getRatInBeat :: TPB -> Time -> (Beat, BeatRat)
 getRatInBeat (TPB t) (Time o) = 
   ((Beat) *** (BeatRat . (% t))) (o `divMod` t)
 
-getBarRat' :: Either TimeSig MeterKind -> TPB -> Time -> (Bar, BarRat)
-getBarRat' = undefined
-
-toMultp :: Either TimeSig MeterKind -> Maybe Int
-toMultp m = case m of Left (TimeSig num _den _ _ ) -> Just num
-                      Right d -> case d of Duple  -> Just 2 
-                                           Triple -> Just 3
-                                           _      -> Nothing
-
 -- | Similar to 'getBeatInBar' we can also describe the musical position as the
 -- combination of a 'Bar' and a 'BarRat'. The latter denotes the ratio within 
 -- a bar, e.g. BarRat (3 % 4) denotes the 4th 'Beat' in the bar.
-getBarRat :: TimeSig -> TPB -> Time -> (Bar, BarRat)
-getBarRat NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
-getBarRat (TimeSig num _den _ _) (TPB t) (Time o) = 
-  let (bt, rest) = o `divMod` t 
+getBarRat :: HasMeter a => a -> TPB -> Time -> (Bar, BarRat)
+-- getBarRat NoTimeSig _ _ = error "getBeatInBar applied to noTimeSig"
+getBarRat ts (TPB t) (Time o) = 
+  let num        = maybe (error ("getBarRat applied to: " ++  show ts)) id
+                 $ toBarDivision ts
+      (bt, rest) = o `divMod` t 
       (b , bib)  = bt `divMod` num 
       br         = ((bib * t) + rest) % (num * t) 
   in (Bar (succ b), BarRat br)

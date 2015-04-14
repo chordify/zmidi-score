@@ -23,7 +23,6 @@ module ZMidi.Score.Utilities (
                              , isTimeSig
                              , isKeyChange
                              , isNoteEvent
-                             , toMeterKind
                              , isOdd
                              , isAmbig
                              , nrOfNotes
@@ -97,15 +96,6 @@ buildTickMap = foldr oneVoice M.empty where
 --------------------------------------------------------------------------------
 -- Utilities
 --------------------------------------------------------------------------------
-
--- | Determines the 'Meter' kind based on a 'TimeSig'nature
-toMeterKind :: TimeSig -> MeterKind
-toMeterKind ts = let n = tsNum ts 
-               in case (n `mod` 2, n `mod` 3) of 
-                    (0,0) -> Both
-                    (0,_) -> Duple
-                    (_,0) -> Triple
-                    _     -> Odd
 
 isOdd :: MeterKind -> Bool
 isOdd Odd = True

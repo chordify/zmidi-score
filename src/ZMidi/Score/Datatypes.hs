@@ -34,6 +34,7 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                              , BarRat (..)
                              , TPB (..)
                              , ScoreEvent (..)
+                             , HasMeter (..)
                              ) where
 
 import ZMidi.Score.Internal
@@ -183,7 +184,13 @@ data ScoreEvent = NoteEvent     { chan        :: Channel
                 | TempoChange   { tempChange  :: Time
                                 } deriving (Eq, Ord, Show, Generic)
 
-
+class (Show a, Eq a) => HasMeter a where
+  -- | Determines the 'MeterKind' based on a 'TimeSig'nature
+  toMeterKind   :: a -> MeterKind
+  -- | Determines how many 'Beat's are in a 'Bar', if it's possible to
+  -- determine this.
+  toBarDivision :: a -> Maybe Int
+                                                              
 --------------------------------------------------------------------------------
 -- Some ad-hoc instances
 --------------------------------------------------------------------------------
@@ -213,6 +220,24 @@ instance Read TimeSig where
 
 instance Read MeterKind where 
   readsPrec _ = error "Read MeterKind: implement me"
+
+instance HasMeter TimeSig where
+  toMeterKind NoTimeSig = error "toMeterKind applied to NoTimeSig"
+  toMeterKind ts = let n = tsNum ts 
+                   in case (n `mod` 2, n `mod` 3) of 
+                        (0,0) -> Both
+                        (0,_) -> Duple
+                        (_,0) -> Triple
+                        _     -> Odd  
+  
+  toBarDivision NoTimeSig = error "toBarDivision applied to NoTimeSig"
+  toBarDivision a = Just . tsNum $ a
+
+instance HasMeter MeterKind where
+  toMeterKind     = id
+  toBarDivision x = case x of Duple  -> Just 2 
+                              Triple -> Just 3
+                              _      -> Nothing
   
 instance Show Key where
   show NoKey      = "NoKey"
