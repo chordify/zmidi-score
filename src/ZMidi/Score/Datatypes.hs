@@ -106,7 +106,7 @@ data MeterKind  = -- | A meter with a numerator that is dividable by two
                 | Both
                   -- | An odd meter, with a numerator that is dividable 
                   -- by two or three
-                | Odd deriving (Show, Eq, Generic)
+                | Odd deriving (Show, Eq, Ord, Generic)
                 
                 
 -- Note: we could consider adding a Voice label, like there is a track label
