@@ -185,6 +185,7 @@ data ScoreEvent = NoteEvent     { chan        :: Channel
                                 } deriving (Eq, Ord, Show, Generic)
 
 class (Show a, Eq a) => HasMeter a where
+  fromTimeSig   :: TimeSig -> a
   -- | Determines the 'MeterKind' based on a 'TimeSig'nature
   toMeterKind   :: a -> MeterKind
   -- | Determines how many 'Beat's are in a 'Bar', if it's possible to
@@ -222,22 +223,27 @@ instance Read MeterKind where
   readsPrec _ = error "Read MeterKind: implement me"
 
 instance HasMeter TimeSig where
-  toMeterKind NoTimeSig = error "toMeterKind applied to NoTimeSig"
-  toMeterKind ts = let n = tsNum ts 
-                   in case (n `mod` 2, n `mod` 3) of 
-                        (0,0) -> Both
-                        (0,_) -> Duple
-                        (_,0) -> Triple
-                        _     -> Odd  
-  
+  fromTimeSig = id
+  toMeterKind = toMeterKind'
+
   toBarDivision NoTimeSig = error "toBarDivision applied to NoTimeSig"
   toBarDivision a = Just . tsNum $ a
 
 instance HasMeter MeterKind where
+  fromTimeSig     = toMeterKind'
   toMeterKind     = id
   toBarDivision x = case x of Duple  -> Just 2 
                               Triple -> Just 3
                               _      -> Nothing
+  
+toMeterKind' :: TimeSig -> MeterKind
+toMeterKind' NoTimeSig = error "toMeterKind applied to NoTimeSig"
+toMeterKind' ts = let n = tsNum ts 
+                 in case (n `mod` 2, n `mod` 3) of 
+                      (0,0) -> Both
+                      (0,_) -> Duple
+                      (_,0) -> Triple
+                      _     -> Odd    
   
 instance Show Key where
   show NoKey      = "NoKey"
