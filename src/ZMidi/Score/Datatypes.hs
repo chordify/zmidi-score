@@ -35,6 +35,7 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
                              , TPB (..)
                              , ScoreEvent (..)
                              , HasMeter (..)
+                             , toMeterKind'
                              ) where
 
 import ZMidi.Score.Internal
@@ -43,6 +44,7 @@ import Data.Ratio                 ( Ratio, numerator, denominator, (%) )
 import Data.Word                  ( Word8 )
 import Data.Int                   ( Int8 )
 import Data.Char                  ( toLower )
+import Data.Maybe                 ( isJust )
 import Text.Printf                ( PrintfArg )
 import Data.Aeson                 ( ToJSON (..), FromJSON (..)
                                   , (.=), (.:), Value (..), object)
@@ -185,12 +187,21 @@ data ScoreEvent = NoteEvent     { chan        :: Channel
                                 } deriving (Eq, Ord, Show, Generic)
 
 class (Show a, Eq a) => HasMeter a where
-  fromTimeSig   :: TimeSig -> a
+  -- fromTimeSig   :: TimeSig -> a
   -- | Determines the 'MeterKind' based on a 'TimeSig'nature
   toMeterKind   :: a -> MeterKind
+  
   -- | Determines how many 'Beat's are in a 'Bar', if it's possible to
   -- determine this.
   toBarDivision :: a -> Maybe Int
+  
+  -- | Does this meter is actually valid? (in some cases an datatype might 
+  -- contain a meter representation that cannot be used, e.g. NoTimeSig)
+  hasMeter :: a -> Bool
+  
+  -- | It this a regular meter, meaning is it 'Duple', 'Triple', or 'Both'
+  hasBarDivision :: a -> Bool
+  hasBarDivision = isJust . toBarDivision
                                                               
 --------------------------------------------------------------------------------
 -- Some ad-hoc instances
@@ -223,18 +234,22 @@ instance Read MeterKind where
   readsPrec _ = error "Read MeterKind: implement me"
 
 instance HasMeter TimeSig where
-  fromTimeSig = id
+  -- fromTimeSig = id
   toMeterKind = toMeterKind'
 
   toBarDivision NoTimeSig = error "toBarDivision applied to NoTimeSig"
   toBarDivision a = Just . tsNum $ a
+  
+  hasMeter NoTimeSig = False
+  hasMeter _         = True
 
 instance HasMeter MeterKind where
-  fromTimeSig     = toMeterKind'
+  -- fromTimeSig     = toMeterKind'
   toMeterKind     = id
   toBarDivision x = case x of Duple  -> Just 2 
                               Triple -> Just 3
                               _      -> Nothing
+  hasMeter _      = True
   
 toMeterKind' :: TimeSig -> MeterKind
 toMeterKind' NoTimeSig = error "toMeterKind applied to NoTimeSig"
