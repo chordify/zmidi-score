@@ -105,7 +105,7 @@ data MeterKind  = -- | A meter with a numerator that is dividable by two
                 | Triple 
                   -- | an ambiguous meter with a numerator dividable both by
                   -- two and three, e.g. a 12\/8 meter
-                | Both
+                -- | Both -- we ignore this for now
                   -- | An odd meter, with a numerator that is dividable 
                   -- by two or three
                 | Odd deriving (Show, Eq, Ord, Generic)
@@ -255,7 +255,7 @@ toMeterKind' :: TimeSig -> MeterKind
 toMeterKind' NoTimeSig = error "toMeterKind applied to NoTimeSig"
 toMeterKind' ts = let n = tsNum ts 
                  in case (n `mod` 2, n `mod` 3) of 
-                      (0,0) -> Both
+                      (0,0) -> Triple -- Both
                       (0,_) -> Duple
                       (_,0) -> Triple
                       _     -> Odd    
@@ -355,7 +355,7 @@ instance ToJSON (TimeSig) where
 instance ToJSON MeterKind where
      toJSON mk = case mk of Duple  -> object [pack "mk" .= pack "dupl"]
                             Triple -> object [pack "mk" .= pack "trpl"]
-                            Both   -> object [pack "mk" .= pack "both"]
+                            -- Both   -> object [pack "mk" .= pack "both"]
                             Odd    -> object [pack "mk" .= pack "odd"]
      
 instance FromJSON Beat
@@ -385,7 +385,7 @@ instance FromJSON MeterKind where
        let toMK x = case unpack x of 
                       "dupl" -> Duple
                       "trpl" -> Triple
-                      "both" -> Both
+                      -- "both" -> Both
                       "odd"  -> Odd
                       y -> error ("FromJSON MeterKind: unknown json: " ++ y)
        in toMK <$> v .:  pack "mk"
