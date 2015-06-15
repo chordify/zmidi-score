@@ -92,9 +92,11 @@ newtype QDevPerc = QDevPerc { qDevPerc :: Double }
                      deriving ( Eq, Show, Num, Ord, Enum, Real, Floating
                               , Fractional, RealFloat, RealFrac, PrintfArg, Binary )
 
--- | A datatype to store and collect Quantisation options
+-- | A datatype to store and collect Quantisation options. If the 'Maybe 
+-- QDevPerc' is set to 'Nothing' there will be no selection based on
+-- quantisation deviation.
 data QOpts = QOpts { shortNoteOpt :: ShortestNote
-                   , accQDevOpt   :: QDevPerc
+                   , accQDevOpt   :: Maybe QDevPerc
                    } deriving (Eq, Show)
 
 --------------------------------------------------------------------------------
@@ -109,7 +111,7 @@ quantise sn = either error id . quantiseSafe sn
 -- exceeds the 'acceptableQuantisationDeviation'.
 quantiseQDevSafe :: QOpts -> MidiScore -> Either String QMidiScore
 quantiseQDevSafe qo ms =   quantiseSafe (shortNoteOpt qo) ms
-                       >>= qDevCheck (accQDevOpt qo)
+                       >>= maybe return qDevCheck (accQDevOpt qo)
 
 -- | Checks if a 'QMidiScore' exceeds the 'acceptableQuantisationDeviation'
 -- and return the 'QMidiScore' or a warning.
