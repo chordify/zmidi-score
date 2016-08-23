@@ -3,6 +3,8 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE CPP                        #-}
+
 -- |
 -- Module      :  ZMidi.Score.Datatypes
 -- Copyright   :  (c) 2012--2014, Utrecht University 
@@ -294,8 +296,10 @@ instance ToJSON Beat
 instance ToJSON BeatRat
 instance ToJSON BarRat
 
+#if !MIN_VERSION_aeson(1,0,0)
 instance (Integral a, ToJSON a) => ToJSON (Ratio a) where
-     toJSON r = object [pack "num" .= numerator r, pack "den" .= denominator r]  
+     toJSON r = object [pack "numerator" .= numerator r, pack "denominator" .= denominator r]
+#endif
 
 instance ToJSON (TimeSig) where
      toJSON (TimeSig n d _ _) = object [pack "ts_num" .= n, pack "ts_den" .= d]
@@ -304,10 +308,12 @@ instance ToJSON (TimeSig) where
 instance FromJSON Beat
 instance FromJSON BeatRat
 instance FromJSON BarRat
-     
+
+#if !MIN_VERSION_aeson(1,0,0)
 instance (Integral a, FromJSON a) => FromJSON (Ratio a) where
-     parseJSON (Object v) = (%) <$> v .: (pack "num") <*> v .: (pack "den")
+     parseJSON (Object v) = (%) <$> v .: (pack "numerator") <*> v .: (pack "denominator")
      parseJSON _          = mzero
+#endif
      
 instance FromJSON (TimeSig) where
      parseJSON (Object v) =  (\n d -> TimeSig n d 0 0) 
