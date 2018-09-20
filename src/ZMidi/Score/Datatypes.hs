@@ -40,7 +40,10 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
 
 import ZMidi.Score.Internal
 import ZMidi.Core                 ( MidiFormat (..), MidiScaleType (..) )
-import Data.Ratio                 ( Ratio, numerator, denominator, (%) )
+import Data.Ratio                 ( Ratio )
+#if !MIN_VERSION_aeson(1,0,0)
+import Data.Ratio                 ( numerator, denominator, (%) )
+#endif
 import Data.Word                  ( Word8 )
 import Data.Int                   ( Int8 )
 import Data.Char                  ( toLower )
