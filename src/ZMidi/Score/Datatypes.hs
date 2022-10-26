@@ -4,6 +4,7 @@
 {-# LANGUAGE DeriveFunctor              #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE CPP                        #-}
+{-# LANGUAGE OverloadedStrings          #-}
 
 -- |
 -- Module      :  ZMidi.Score.Datatypes
@@ -41,22 +42,17 @@ module ZMidi.Score.Datatypes ( -- * Score representation of a MidiFile
 import ZMidi.Score.Internal
 import ZMidi.Core                 ( MidiFormat (..), MidiScaleType (..) )
 import Data.Ratio                 ( Ratio )
-#if !MIN_VERSION_aeson(1,0,0)
-import Data.Ratio                 ( numerator, denominator, (%) )
-#endif
 import Data.Word                  ( Word8 )
 import Data.Int                   ( Int8 )
 import Data.Char                  ( toLower )
 import Text.Printf                ( PrintfArg )
 import Data.Aeson                 ( ToJSON (..), FromJSON (..)
-                                  , (.=), (.:), Value (..), object)
-import Data.Text                  ( pack )
+                                  , (.:), Value (..) )
 import Data.Binary                ( Binary, Get )
 import qualified Data.Binary as B ( get, put )
 import GHC.Generics               ( Generic )
 import Control.DeepSeq            ( NFData (..) )
 import Control.DeepSeq.Generics   ( genericRnf)
-import Control.Applicative        ( (<$>), (<*>) )
 import Control.Monad              ( mzero )
 
 
@@ -299,27 +295,13 @@ instance ToJSON Beat
 instance ToJSON BeatRat
 instance ToJSON BarRat
 
-#if !MIN_VERSION_aeson(1,0,0)
-instance (Integral a, ToJSON a) => ToJSON (Ratio a) where
-     toJSON r = object [pack "numerator" .= numerator r, pack "denominator" .= denominator r]
-#endif
-
-instance ToJSON (TimeSig) where
-     toJSON (TimeSig n d _ _) = object [pack "ts_num" .= n, pack "ts_den" .= d]
-     toJSON NoTimeSig         = object [pack "ts" .= pack "none"]     
 
 instance FromJSON Beat
 instance FromJSON BeatRat
 instance FromJSON BarRat
 
-#if !MIN_VERSION_aeson(1,0,0)
-instance (Integral a, FromJSON a) => FromJSON (Ratio a) where
-     parseJSON (Object v) = (%) <$> v .: (pack "numerator") <*> v .: (pack "denominator")
-     parseJSON _          = mzero
-#endif
-     
 instance FromJSON (TimeSig) where
      parseJSON (Object v) =  (\n d -> TimeSig n d 0 0) 
-                          <$> v .: (pack "ts_num") <*> v .: (pack "ts_den") 
+                          <$> v .: "ts_num" <*> v .: "ts_den"
                           
      parseJSON _          = mzero

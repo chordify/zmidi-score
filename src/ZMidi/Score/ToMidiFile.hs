@@ -1,5 +1,6 @@
 {-# OPTIONS_GHC -Wall                   #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE TypeApplications           #-}
 -- |
 -- Module      :  ZMidi.Score.Datatypes
 -- Copyright   :  (c) 2012--2014, Utrecht University 
@@ -16,8 +17,6 @@ module ZMidi.Score.ToMidiFile ( midiScoreToMidiFile ) where
 import Data.Maybe          ( mapMaybe )
 import Data.List           ( genericLength, sort )
 import Control.Monad.State ( State, get, evalState, put )
-
-import GHC.Float           ( integerLogBase )
 
 import ZMidi.Core          ( MidiFile (..), MidiEvent (..), DeltaTime
                            , MidiVoiceEvent (..), MidiMetaEvent (..)
@@ -56,7 +55,7 @@ tsToMidiEvent :: Timed TimeSig -> Maybe (Timed MidiMetaEvent)
 tsToMidiEvent (Timed _  NoTimeSig       ) = Nothing
 tsToMidiEvent (Timed o (TimeSig n d m n32)) = 
   Just $ Timed o (TimeSignature (fromIntegral n) 
-                 (fromIntegral . integerLogBase 2 . fromIntegral $ d) m n32)
+                 (floor . logBase @Double 2 . fromIntegral $ d) m n32)
                  
 
 -- transforms a tempo into a MetaEvent
